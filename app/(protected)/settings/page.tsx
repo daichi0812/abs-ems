@@ -35,11 +35,11 @@ import { Input } from "@/components/ui/input";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { FormError } from "@/components/form-error";
 import { FormSuccess } from "@/components/form-success";
-import { UserRole } from "@prisma/client";  
+import { UserRole } from "@prisma/client";
 
 const SettingsPage = () => {
     const user = useCurrentUser();
-    
+
     const [error, setError] = useState<string | undefined>();
     const [success, setSuccess] = useState<string | undefined>();
     const { update } = useSession();
@@ -57,18 +57,18 @@ const SettingsPage = () => {
         }
     });
 
-    console.log(user?.isOAuth)
+    // console.log(user?.isOAuth)
 
     useEffect(() => {
         if (user) {
-          form.reset({
-            name: user.name || "",
-            email: user.email || "",
-            role: user.role || "",
-            isTwoFactorEnabled: user.isTwoFactorEnabled || false,
-          });
+            form.reset({
+                name: user.name || "",
+                email: user.email || "",
+                role: user.role || "",
+                isTwoFactorEnabled: user.isTwoFactorEnabled || false,
+            });
         }
-      }, [user, form]);
+    }, [user, form]);
 
     const onSubmit = (values: z.infer<typeof SettingsSchema>) => {
         startTransition(() => {
@@ -231,7 +231,7 @@ const SettingsPage = () => {
                         </div>
                         <FormError message={error} />
                         <FormSuccess message={success} />
-                        <Button 
+                        <Button
                             disabled={isPending}
                             type="submit"
                         >
