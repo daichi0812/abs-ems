@@ -90,10 +90,10 @@ const SettingsPage = () => {
     }
 
     return (
-        <div className="h-screen flex flex-col gap-y-10 items-center justify-center 
+        <div className="h-screen w-full flex flex-col gap-y-10 items-center justify-center 
             bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-200 to-blue-400"
         >
-            <Card className="w-[600px]">
+            <Card className="w-[370px] md:w-[450px] lg:w-[600px]">
                 <CardHeader>
                     <p className="text-2xl font-semibold text-center">
                         ⚙️ 設定
