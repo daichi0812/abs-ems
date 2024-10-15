@@ -20,10 +20,10 @@ export default function Home() { // "async は非同期処理 → APIを使う�
       <div className="space-y-6 text-center">
         <h1 className={cn("text-6xl font-semibold text-white drop-shadow-md",
           font.className,)}>  {/*フォントを変える時の書き方、cnを用いる */}
-          🔐 Auth
+          Logicode
         </h1>
         <p className="text-white text-lg">
-          A simple authentication service
+          ABS Equipment Management System
         </p>
         <div>
           <LoginButton asChild>
