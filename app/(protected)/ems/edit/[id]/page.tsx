@@ -49,31 +49,56 @@ const EditPage = () => {
   const handleUpdateEquipment = async () => {
     try {
       let blobUrl = equipmentImg; // デフォルトは現在の画像URL
-
+  
       // 新しい画像が選択された場合
       if (imageFile) {
-        const responseVaecel = await fetch(
-          `/api/upload?filename=${imageFile.name}`,
-          {
-            method: 'POST',
-            body: imageFile,
-          },
-        );
-        const blob = await responseVaecel.json() as PutBlobResult;
-        blobUrl = blob.url;
+        try {
+          const responseVaecel = await fetch(
+            `/api/upload?filename=${imageFile.name}`,
+            {
+              method: 'POST',
+              body: imageFile,
+            },
+          );
+          const responseText = await responseVaecel.text();
+          console.log('Image upload response:', responseText);
+  
+          const blob = JSON.parse(responseText) as PutBlobResult;
+          blobUrl = blob.url;
+        } catch (error) {
+          console.error('Image upload failed:', error);
+          alert('画像のアップロードに失敗しました');
+          return;
+        }
       }
-
-      await axios.put(`https://logicode.fly.dev/lists/${equipmentId}`, {
-        name: equipmentName,
-        detail: equipmentDetail,
-        image: blobUrl
-      });
-
-      alert('機材情報が更新されました');
-      router.push('/ems/manager'); // 適切なページにリダイレクト
-
+  
+      try {
+        const response = await axios.put(
+          `https://logicode.fly.dev/lists/${equipmentId}`,
+          {
+            name: equipmentName,
+            detail: equipmentDetail,
+            image: blobUrl,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        console.log('Update response:', response.data);
+        alert('機材情報が更新されました');
+        router.push('/ems/manager');
+      } catch (error) {
+        console.error('Failed to update equipment:', error);
+        if (axios.isAxiosError(error)) {
+          console.error('Response data:', error.response?.data);
+        }
+        alert('機材情報の更新に失敗しました');
+      }
     } catch (err) {
-      alert('機材情報の更新に失敗しました');
+      console.error('Unexpected error:', err);
+      alert('予期せぬエラーが発生しました');
     }
   };
 
