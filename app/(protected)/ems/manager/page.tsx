@@ -109,7 +109,7 @@ function App() {
     }, []);
 
     const handleEditEquipment = async (equipmentId: number) => {
-        router.push("/ems/edit")
+        router.push(`/ems/edit/${equipmentId}`);
     };
 
     const handleDeleteEquipment = async (equipmentId: number) => {
