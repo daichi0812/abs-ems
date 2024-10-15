@@ -104,16 +104,16 @@ const Header = () => {
                       <a className="hover:text-gray-500 w-screen" href="/ems/common">共通予約カレンダー</a>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500 w-screen" href="/ems/equipment-list">機材一覧</a>
+                      <a className="hover:text-gray-500 w-screen" href="/ems/equipment-list">機材予約</a>
                     </li>
                     {manager ?
                       (
                         <li>
-                          <a className="hover:text-gray-500 w-screen" href="/ems/manager">機材登録</a>
+                          <a className="hover:text-gray-500 w-screen" href="/ems/manager">機材管理</a>
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger className="text-left">機材登録</DialogTrigger>
+                          <DialogTrigger className="text-left">機材管理</DialogTrigger>
                           <DialogContent className="w-auto">
                             <DialogHeader>
                               <DialogTitle>パスワードを入力してください</DialogTitle>
@@ -147,16 +147,16 @@ const Header = () => {
                       <a className="hover:text-gray-500" href="/ems/common">共通予約カレンダー</a>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500" href="/ems/equipment-list">機材一覧</a>
+                      <a className="hover:text-gray-500" href="/ems/equipment-list">機材予約</a>
                     </li>
                     {manager ?
                       (
                         <li>
-                          <a className="hover:text-gray-500" href="/ems/manager">機材登録</a>
+                          <a className="hover:text-gray-500" href="/ems/manager">機材管理</a>
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger>機材登録</DialogTrigger>
+                          <DialogTrigger>機材管理</DialogTrigger>
                           <DialogContent className="w-auto">
                             <DialogHeader>
                               <DialogTitle>パスワードを入力してください</DialogTitle>
