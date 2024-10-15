@@ -109,11 +109,11 @@ const Header = () => {
                     {manager ?
                       (
                         <li>
-                          <a className="hover:text-gray-500 w-screen" href="/ems/manager">管理者ページ</a>
+                          <a className="hover:text-gray-500 w-screen" href="/ems/manager">機材登録</a>
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger className="text-left">管理者ページ</DialogTrigger>
+                          <DialogTrigger className="text-left">機材登録</DialogTrigger>
                           <DialogContent className="w-auto">
                             <DialogHeader>
                               <DialogTitle>パスワードを入力してください</DialogTitle>
@@ -152,11 +152,11 @@ const Header = () => {
                     {manager ?
                       (
                         <li>
-                          <a className="hover:text-gray-500" href="/ems/manager">管理者ページ</a>
+                          <a className="hover:text-gray-500" href="/ems/manager">機材登録</a>
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger>管理者ページ</DialogTrigger>
+                          <DialogTrigger>機材登録</DialogTrigger>
                           <DialogContent className="w-auto">
                             <DialogHeader>
                               <DialogTitle>パスワードを入力してください</DialogTitle>
