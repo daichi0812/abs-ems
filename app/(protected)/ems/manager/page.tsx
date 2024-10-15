@@ -8,6 +8,8 @@ import Header from "@/app/(protected)/_components/Header";
 import type { PutBlobResult } from '@vercel/blob';
 import { useGetImageUrl } from "./useGetImageUrl";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
 
 const IMAGE_ID = "imageId";
 const FIELD_SIZE = 210;
@@ -24,7 +26,7 @@ function App() {
 
     const [isPending, startTransition] = useTransition();
 
-
+    const router = useRouter();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -105,6 +107,10 @@ function App() {
     useEffect(() => {
         fetchEquipmentData();
     }, []);
+
+    const handleEditEquipment = async (equipmentId: number) => {
+        router.push("/ems/edit")
+    };
 
     const handleDeleteEquipment = async (equipmentId: number) => {
         const confirmed = window.confirm("本当に削除しますか？");
@@ -194,18 +200,26 @@ function App() {
                 </div>
             </div>
             <div className="bg-[#F5F5F8] shadow rounded-md p-3 my-3 mx-2">
-                <p className='text-xl mb-1'>機材削除</p>
+                <p className='text-xl mb-1'>編集・削除</p>
                 {equipments.map((equipment, index) => (
                     <div key={index} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">
                         <div className="flex justify-center items-center">
                             <p>{equipment.name}</p>
                         </div>
-                        <Button
-                            onClick={() => handleDeleteEquipment(equipment.id)}
-                            className='px-4 py-2 ms-2'
-                            style={{ backgroundColor: '#f5b942', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                            削除
-                        </Button>
+                        <div>
+                            <Button
+                                onClick={() => handleEditEquipment(equipment.id)}
+                                className='px-4 mr-2 py-2 ms-2'
+                                style={{ backgroundColor: '#4499EE', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
+                                編集
+                            </Button>
+                            <Button
+                                onClick={() => handleDeleteEquipment(equipment.id)}
+                                className='px-4 py-2 ms-2'
+                                style={{ backgroundColor: '#F33F23', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
+                                削除
+                            </Button>
+                        </div>
                     </div>
                 ))}
             </div>
