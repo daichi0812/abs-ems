@@ -115,6 +115,7 @@ const SettingsPage = () => {
                                             <FormControl>
                                                 <Input
                                                     {...field}
+                                                    className="text-[16px]"
                                                     placeholder="青山 太郎"
                                                     disabled={isPending}
                                                 />
@@ -134,6 +135,7 @@ const SettingsPage = () => {
                                                     <FormControl>
                                                         <Input
                                                             {...field}
+                                                            className="text-[16px]"
                                                             placeholder="daichi@example.com"
                                                             type="email"
                                                             disabled={isPending}
@@ -152,6 +154,7 @@ const SettingsPage = () => {
                                                     <FormControl>
                                                         <Input
                                                             {...field}
+                                                            className="text-[16px]"
                                                             placeholder="*****"
                                                             type="password"
                                                             disabled={isPending}
@@ -170,6 +173,7 @@ const SettingsPage = () => {
                                                     <FormControl>
                                                         <Input
                                                             {...field}
+                                                            className="text-[16px]"
                                                             placeholder="*****"
                                                             type="password"
                                                             disabled={isPending}
