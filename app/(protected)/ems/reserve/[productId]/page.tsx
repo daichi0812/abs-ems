@@ -70,13 +70,14 @@ const ProductDetails = () => {
     // }, [userId]);
 
     return (
-        <>
+        <div className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
+            from-sky-400 to-blue-800 pb-3">
             <Header />
-            <div id="listBox" className='rounded-lg shadow mx-2 p-3 mb-3' style={{ borderLeft: 'solid 5px #4d86d2', backgroundColor: '#f5f5f7' }}>
+            <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7]'>
                 <p className="text-xl">{equipmentName}</p>
             </div>
 
-            <div id="listBox" className='p-3 mx-2 shadow bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
+            <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
                 {equipmentImg && (
                     <Image
                         width={280}
@@ -101,13 +102,11 @@ const ProductDetails = () => {
                     </>
                 )}
             </div>
-
-
-            <div className="mb-3">
+            <div className="rounded-md">
                 <ReservationCalendar userId={user?.id} listId={Number(productId)} />
             </div>
 
-        </>
+        </div>
     )
 }
 export default ProductDetails

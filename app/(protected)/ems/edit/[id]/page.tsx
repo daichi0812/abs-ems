@@ -112,7 +112,8 @@ const EditPage = () => {
   };
 
   return (
-    <div>
+    <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
+        from-sky-400 to-blue-800 h-full'>
       <Header />
       <div className="bg-[#F5F5F8] shadow rounded-md p-3 mt-3 mx-2">
         <p className='text-xl mb-1'>機材情報の編集</p>

@@ -91,7 +91,7 @@ const SettingsPage = () => {
 
     return (
         <div className="h-screen w-full flex flex-col gap-y-10 items-center justify-center 
-            bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-200 to-blue-400"
+            bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800"
         >
             <Card className="w-[370px] md:w-[450px] lg:w-[600px]">
                 <CardHeader>

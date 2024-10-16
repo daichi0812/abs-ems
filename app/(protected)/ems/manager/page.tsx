@@ -123,7 +123,8 @@ function App() {
     };
 
     return (
-        <>
+        <div className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
+            from-sky-400 to-blue-800 pb-2">
             <Header />
             <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 mt-3 mx-2">
                 <p className='text-xl mb-1'>機材登録</p>
@@ -240,7 +241,7 @@ function App() {
                     </div>
                 ))}
             </div>
-        </>
+        </div>
     );
 }
 

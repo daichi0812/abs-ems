@@ -82,7 +82,7 @@ const Mypage = () => {
 
     useEffect(() => {
         mypageFetchReservesData();
-    },[])
+    }, [])
 
 
     /* プロジェクト統一するなら必要ないかも */
@@ -171,71 +171,70 @@ const Mypage = () => {
     }
 
     return (
-        <>
-            <div className=''>
-                <Header />
+        <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
+            from-sky-400 to-blue-800 pb-3'>
+            <Header />
 
-                <div className="mb-3 shadow-md">
-                    <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
-                </div>
+            <div className="mb-3 shadow-md">
+                <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
+            </div>
 
-                <div className='bg-[#F5F5F8] shadow-md rounded-md p-3 mb-3 mx-2'>
-                    {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).length > 0 ? (
-                        <>
-                            <p>予約済</p>
-                            {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).map(reserve => (
-                                <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
-                                    <div className="">
-                                        <p className='text-xl'>{idToNameMap[reserve.list_id]}</p>
-                                        <p>{new Date(reserve.start).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}~{new Date(reserve.end).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}</p>
-                                    </div>
-                                    {reserve.isRenting === 1 && (
-                                        <div className="flex justify-center items-center">
-                                            <Button
-                                                onClick={() => handleBorrow(reserve.id, reserve.list_id)}
-                                                className='px-4 py-2 ms-2'
-                                                style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                                                借りる
-                                            </Button>
-                                        </div>
-                                    )}
+            <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mb-3 mx-2'>
+                {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).length > 0 ? (
+                    <>
+                        <p>予約済</p>
+                        {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).map(reserve => (
+                            <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
+                                <div className="">
+                                    <p className='text-xl'>{idToNameMap[reserve.list_id]}</p>
+                                    <p>{new Date(reserve.start).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}~{new Date(reserve.end).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}</p>
                                 </div>
-                            ))}
-                        </>
-                    ) : (
-                        <p>予約済の機材はありません。</p>
-                    )}
-                </div>
-                <div className='bg-[#F5F5F8] shadow-md rounded-md p-3 mb-3 mx-2'>
-                    {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).length > 0 ? (
-                        <>
-                            <p>貸し出し中</p>
-                            {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).map(reserve => (
-                                <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
-                                    <div className="">
-                                        <p className='text-xl'>{idToNameMap[reserve.list_id]}</p>
-                                        <p>返却期限：{new Date(reserve.end).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}</p>
-                                        {reserve.isRenting === 3 && (
-                                            <p>返却期限を過ぎています！</p>
-                                        )}
-                                    </div>
+                                {reserve.isRenting === 1 && (
                                     <div className="flex justify-center items-center">
                                         <Button
-                                            onClick={() => handleReturn(reserve.id, reserve.list_id)}
+                                            onClick={() => handleBorrow(reserve.id, reserve.list_id)}
                                             className='px-4 py-2 ms-2'
                                             style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                                            返却
+                                            借りる
                                         </Button>
                                     </div>
-                                </div>
-                            ))}
-                        </>
-                    ) : (
-                        <p>貸し出し中の機材はありません。</p>
-                    )}
-                </div>
+                                )}
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <p>予約済の機材はありません。</p>
+                )}
             </div>
-        </>
+            <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mx-2'>
+                {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).length > 0 ? (
+                    <>
+                        <p>貸し出し中</p>
+                        {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).map(reserve => (
+                            <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
+                                <div className="">
+                                    <p className='text-xl'>{idToNameMap[reserve.list_id]}</p>
+                                    <p>返却期限：{new Date(reserve.end).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}</p>
+                                    {reserve.isRenting === 3 && (
+                                        <p>返却期限を過ぎています！</p>
+                                    )}
+                                </div>
+                                <div className="flex justify-center items-center">
+                                    <Button
+                                        onClick={() => handleReturn(reserve.id, reserve.list_id)}
+                                        className='px-4 py-2 ms-2'
+                                        style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
+                                        返却
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <p>貸し出し中の機材はありません。</p>
+                )}
+            </div>
+        </div>
     )
 }
 
