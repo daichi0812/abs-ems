@@ -5,7 +5,7 @@ import Header from '@/app/(protected)/_components/Header';
 import { SlArrowRight } from "react-icons/sl";
 import { useCurrentUser } from '@/hooks/use-current-user';
 import axios from 'axios';
-import { Button } from '@chakra-ui/react';
+import { Box, Button, Center, Spinner } from '@chakra-ui/react';
 
 interface Equipment {
     id: number;
@@ -29,6 +29,8 @@ const EquipmentList = () => {
     };
 
     const [equipments, setEquipments] = useState<Equipment[]>([]);
+
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     /* ユーザの情報をバックエンドに送る */
     const getIP = async () => {
@@ -64,6 +66,7 @@ const EquipmentList = () => {
         const response = await fetch('https://logicode.fly.dev/lists');
         const data: Equipment[] = await response.json();
         setEquipments(data);
+        setIsLoading(false);
     };
 
     useEffect(() => {
@@ -76,11 +79,13 @@ const EquipmentList = () => {
         <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 h-full'>
             <Header />
+
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md">
                 <p className='text-xl'>機材一覧</p>
             </div>
-            {equipments &&
-                <div className="bg-[#F5F5F8] rounded-lg p-3 my-3 mx-2 shadow-md">
+            {!isLoading && equipments ? (
+                <div className="bg-[#F5F5F8] rounded-md p-3 my-3 mx-2 shadow">
+
                     {equipments.map((equipment) => (
                         <div key={equipment.id} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">
                             <div className="flex justify-center items-center">
@@ -111,6 +116,22 @@ const EquipmentList = () => {
                         </div>
                     ))}
                 </div>
+            ) : (
+                <Box
+                    position="absolute"
+                    top="50%"
+                    left="50%"
+                    transform="translate(-50%, -50%)"
+                >
+                    <Spinner
+                        thickness="4px"
+                        speed="0.65s"
+                        emptyColor="gray.200"
+                        color="blue.500"
+                        size="xl"
+                    />
+                </Box>
+            )
             }
         </div>
     );

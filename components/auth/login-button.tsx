@@ -14,20 +14,26 @@ interface LoginButtonProps {
     children: React.ReactNode;
     mode?: "modal" | "redirect",
     asChild?: boolean;
+    startTransition(callback: () => void): void;
 };
 
 export const LoginButton = ({
     children,
     mode = "redirect",
-    asChild
+    asChild,
+    startTransition,
+
 }: LoginButtonProps) => {
     const router = useRouter();
 
     const onClick = () => {
-        router.push("/auth/login");
-    }
+        startTransition(() => {
+            router.push("/auth/login");
+        });
+    };
+    
 
-    if(mode === "modal"){
+    if (mode === "modal") {
         return (
             <Dialog>
                 <DialogTrigger asChild={asChild}>

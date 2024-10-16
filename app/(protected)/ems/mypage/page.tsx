@@ -1,11 +1,11 @@
 "use client"
-import React, { use, useContext, useEffect, useRef, useState } from 'react'
+import React, { use, useContext, useEffect, useRef, useState, useTransition } from 'react'
 import MypageCalendar from '../../_components/calendar/MypageCalendar';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import Header from '@/app/(protected)/_components/Header';
-import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { Button } from '@chakra-ui/react';
 
 type Reserves = {
     id: number,
@@ -37,6 +37,9 @@ const Mypage = () => {
 
     const router = useRouter();
     const user = useCurrentUser();
+
+    const [isPending_1, startTransition_1] = useTransition();
+    const [isPending_2, startTransition_2] = useTransition();
 
     // const [ip, setIP] = useState(null);
 
@@ -171,32 +174,52 @@ const Mypage = () => {
     }
 
     return (
-        <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
-            from-sky-400 to-blue-800 pb-3'>
-            <Header />
 
-            <div className="mb-3 shadow-md">
-                <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
-            </div>
+        <>
+            <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
+                from-sky-400 to-blue-800 pb-3'>
+                <Header />
 
-            <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mb-3 mx-2'>
-                {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).length > 0 ? (
-                    <>
-                        <p>予約済</p>
-                        {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).map(reserve => (
-                            <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
-                                <div className="">
-                                    <p className='text-xl'>{idToNameMap[reserve.list_id]}</p>
-                                    <p>{new Date(reserve.start).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}~{new Date(reserve.end).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}</p>
+                <div className="mb-3 shadow-md">
+                    <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
+                </div>
+
+                <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mb-3 mx-2'>
+                    {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).length > 0 ? (
+                        <>
+                            <p>予約済</p>
+                            {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).map(reserve => (
+                                <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
+                                    <div className="">
+                                        <p className='text-xl'>{idToNameMap[reserve.list_id]}</p>
+                                        <p>{new Date(reserve.start).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}~{new Date(reserve.end).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })}</p>
+                                    </div>
+                                    {reserve.isRenting === 1 && (
+                                        <div className="flex justify-center items-center">
+                                            {isPending_1 ? (
+                                                <Button isLoading colorScheme='blue'>
+                                                    借りる
+                                                </Button>
+                                            ) : (
+                                                <Button disabled={isPending_1} onClick={() => startTransition_1(() => handleBorrow(reserve.id, reserve.list_id))} colorScheme='blue'>
+                                                    借りる
+                                                </Button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 {reserve.isRenting === 1 && (
                                     <div className="flex justify-center items-center">
-                                        <Button
-                                            onClick={() => handleBorrow(reserve.id, reserve.list_id)}
-                                            className='px-4 py-2 ms-2'
-                                            style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                                            借りる
-                                        </Button>
+                                        {isPending_2 ? (
+                                                <Button isLoading colorScheme='blue'>
+                                                    返却
+                                                </Button>
+                                            ) : (
+                                                <Button disabled={isPending_2} onClick={() => startTransition_2(() => handleReturn(reserve.id, reserve.list_id))} colorScheme='blue'>
+                                                    返却
+                                                </Button>
+                                            )}
+
                                     </div>
                                 )}
                             </div>
