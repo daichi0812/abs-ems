@@ -36,6 +36,9 @@ const Mypage = () => {
     const [isPending_1, startTransition_1] = useTransition();
     const [isPending_2, startTransition_2] = useTransition();
 
+    const [loadingId_1, setLoadingId_1] = useState<number | null>(null);
+    const [loadingId_2, setLoadingId_2] = useState<number | null>(null);
+
     const handlePasswordSubmit = () => {
         if (password === process.env.NEXT_PUBLIC_MANAGER_KEY) {
             setManager(true);
@@ -72,38 +75,40 @@ const Mypage = () => {
     }, []);
 
     const handleBorrow = async (id: number, EquipId: number) => {
-        const equipState = await fetchEquipmentState(EquipId);
+        setLoadingId_1(id);
 
-        if (!equipState) {
-            window.alert('機材が他のメンバーから返却されていないため、借りることができません。');
-            return;
-        }
+        startTransition_1(async () => {
+            const equipState = await fetchEquipmentState(EquipId);
+            const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/borrow`);
+            const response2 = await axios.patch(`https://logicode.fly.dev/lists/${EquipId}`, {
+                usable: false
+            });
 
-        const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/borrow`);
-        const response2 = await axios.patch(`https://logicode.fly.dev/lists/${EquipId}`, {
-            usable: false
+            if (response1.status === 200 && response2.status === 200) {
+                window.alert('貸し出し手続きが完了しました。');
+                mypageFetchReservesData();
+            } else {
+                window.alert('貸し出しに失敗しました。');
+            }
         });
-
-        if (response1.status === 200 && response2.status === 200) {
-            window.alert('貸し出し手続きが完了しました。');
-            mypageFetchReservesData();
-        } else {
-            window.alert('貸し出しに失敗しました。');
-        }
     }
 
     const handleReturn = async (id: number, EquipId: number) => {
-        const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/return`);
-        const response2 = await axios.patch(`https://logicode.fly.dev/lists/${EquipId}`, {
-            usable: true
-        });
+        setLoadingId_2(id);
 
-        if (response1.status === 200 && response2.status === 200) {
-            window.alert('返却手続きが完了しました。');
-            mypageFetchReservesData();
-        } else {
-            window.alert('返却手続きに失敗しました。');
-        }
+        startTransition_2(async () => {
+            const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/return`);
+            const response2 = await axios.patch(`https://logicode.fly.dev/lists/${EquipId}`, {
+                usable: true
+            });
+
+            if (response1.status === 200 && response2.status === 200) {
+                window.alert('返却手続きが完了しました。');
+                mypageFetchReservesData();
+            } else {
+                window.alert('返却手続きに失敗しました。');
+            }
+        });
     }
 
     return (
@@ -126,10 +131,10 @@ const Mypage = () => {
                                     </div>
                                     {reserve.isRenting === 1 && (
                                         <div className="flex justify-center items-center">
-                                            {isPending_1 ? (
+                                            {isPending_1 && loadingId_1 === reserve.id ? (
                                                 <Button isLoading colorScheme='blue'>借りる</Button>
                                             ) : (
-                                                <Button disabled={isPending_1} onClick={() => startTransition_1(() => handleBorrow(reserve.id, reserve.list_id))} colorScheme='blue'>
+                                                <Button disabled={isPending_1 && loadingId_1 === reserve.id} onClick={() => handleBorrow(reserve.id, reserve.list_id)} colorScheme='blue'>
                                                     借りる
                                                 </Button>
                                             )}
@@ -139,14 +144,14 @@ const Mypage = () => {
                             ))}
                         </>
                     ) : (
-                        <p>予約済の機材はありません。</p>
+                        <p>予約済の機材はありません</p>
                     )}
                 </div>
 
                 <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mx-2'>
                     {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).length > 0 ? (
                         <>
-                            <p>貸し出し中</p>
+                            <p>貸出中</p>
                             {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).map(reserve => (
                                 <div key={reserve.id} className="bg-slate-200 rounded-md p-3 py-2 mt-3 flex justify-between shadow">
                                     <div className="">
@@ -157,15 +162,22 @@ const Mypage = () => {
                                         )}
                                     </div>
                                     <div className="flex justify-center items-center">
-                                        <Button onClick={() => handleReturn(reserve.id, reserve.list_id)} colorScheme='blue'>
-                                            返却
-                                        </Button>
+                                        {isPending_2 && loadingId_2 == reserve.id ? (
+                                            <Button isLoading colorScheme='blue'>
+                                                返却
+                                            </Button>
+                                        ) : (
+                                            <Button disabled={isPending_2 && loadingId_2 === reserve.id} onClick={() => handleReturn(reserve.id, reserve.list_id)} colorScheme='blue'>
+                                                返却
+                                            </Button>
+                                        )
+                                        }
                                     </div>
                                 </div>
                             ))}
                         </>
                     ) : (
-                        <p>貸し出し中の機材はありません。</p>
+                        <p>貸出中の機材はありません</p>
                     )}
                 </div>
             </div>

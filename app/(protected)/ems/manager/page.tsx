@@ -100,7 +100,6 @@ function App() {
         const confirmed = window.confirm("本当に削除しますか？");
         if (confirmed) {
             await deleteEquipmentData(equipmentId);
-            alert("機材を削除しました");
             fetchEquipmentData();
         }
     };

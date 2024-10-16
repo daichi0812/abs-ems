@@ -81,7 +81,7 @@ const EquipmentList = () => {
             <Header />
 
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md">
-                <p className='text-xl'>機材一覧</p>
+                <p className='text-xl'>予約</p>
                 {!isLoading && equipments ? (
                     <>
                         {
@@ -98,7 +98,7 @@ const EquipmentList = () => {
                                             onClick={() => handlePasswordSubmit(equipment.id)}
                                             colorScheme='blue'
                                         >
-                                            予約
+                                            選択
                                         </Button>
                                     ) : (
                                         <Button
@@ -106,7 +106,7 @@ const EquipmentList = () => {
                                             onClick={() => handlePasswordSubmit(equipment.id)}
                                             colorScheme='blue'
                                         >
-                                            予約
+                                            選択
                                         </Button>
                                     )
                                     }
