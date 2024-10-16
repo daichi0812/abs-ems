@@ -229,10 +229,6 @@ export default function CommonCalendar() {
   const StyleWrapper = styled.div`
     .fc {
       background-color: #f5f5f7;
-      padding: 0.5rem;
-      margin-left: 0.5rem;
-      margin-right: 0.5rem;
-      border-radius: 0.5rem;
     }
 
     /* 曜日のレイアウトを変更する */

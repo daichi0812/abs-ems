@@ -10,7 +10,7 @@ const CommonPage = () => {
             from-sky-400 to-blue-800 min-h-full pb-3'>
             <Header />
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-3 py-2 px-2 shadow-md">
-                <p className='text-xl'>共通予約カレンダー</p>
+                <p className='text-xl'>共通カレンダー</p>
                 <CommonCalendar />
             </div>
         </div>

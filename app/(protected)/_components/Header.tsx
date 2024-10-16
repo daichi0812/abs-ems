@@ -110,12 +110,12 @@ const Header = () => {
                       <a className="hover:text-gray-500 w-screen" href="/ems/common">共通カレンダー</a>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500 w-screen" href="/ems/equipment-list">機材予約</a>
+                      <a className="hover:text-gray-500 w-screen" href="/ems/equipment-list">予約</a>
                     </li>
                     {manager ?
                       (
                         <li>
-                          <a className="hover:text-gray-500 w-screen" href="/ems/manager">機材管理</a>
+                          <a className="hover:text-gray-500 w-screen" href="/ems/manager">管理</a>
                         </li>
                       ) : (
                         <Dialog>
@@ -170,12 +170,12 @@ const Header = () => {
                       <a className="hover:text-gray-500" href="/ems/common">共通カレンダー</a>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500" href="/ems/equipment-list">機材予約</a>
+                      <a className="hover:text-gray-500" href="/ems/equipment-list">予約</a>
                     </li>
                     {manager ?
                       (
                         <li>
-                          <a className="hover:text-gray-500" href="/ems/manager">機材管理</a>
+                          <a className="hover:text-gray-500" href="/ems/manager">管理</a>
                         </li>
                       ) : (
                         <Dialog>
