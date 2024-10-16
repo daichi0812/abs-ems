@@ -20,7 +20,7 @@ type Reserves = {
 const ProductDetails = () => {
     const [equipmentName, setEquipmentName] = useState('');
     const [equipmentDetail, setEquipmentDetail] = useState('');
-    const [equipmentImg, setEquipmentImg] = useState('');
+    const [equipmentImg, setEquipmentImg] = useState('nai');
     const [reservesData, setReservesData] = useState('');
 
     const user = useCurrentUser();
@@ -60,7 +60,7 @@ const ProductDetails = () => {
             </div>
 
             <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
-                {equipmentImg ? (
+                {equipmentImg === "nai"  ? (
                     <Image
                         width={280}
                         height={280}
