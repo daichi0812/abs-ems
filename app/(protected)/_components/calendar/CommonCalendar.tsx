@@ -179,7 +179,7 @@ export default function CommonCalendar() {
       case 0:
         return "予約";
       case 1:
-        return "貸出期間（機材はまだ借りられていません）";
+        return "貸出期間（未貸出）";
       case 2:
         return "貸出期間";
       case 3:
@@ -356,10 +356,10 @@ export default function CommonCalendar() {
                                 期間: {startToShow} ~ {endToShow} 
                               </p>
                               <a
-                                className="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"
+                                className="bg-white hover:bg-gray-100 text-center text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"
                                 href={"/ems/reserve/" + idToShow.toString()}
                               >
-                                {eqipNameToShow}の詳細・予約ページ
+                                {eqipNameToShow}{" "}のページ
                               </a>
                             </div>
                           </div>
