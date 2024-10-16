@@ -117,22 +117,20 @@ const Header = () => {
                       ) : (
                         <Dialog>
                           <DialogTrigger className="text-left">機材管理</DialogTrigger>
-                          <DialogContent className="w-auto">
+                          <DialogContent className="w-[90%] max-w-md p-6 bg-white rounded-lg shadow-lg">
                             <DialogHeader>
-                              <DialogTitle>パスワードを入力してください</DialogTitle>
-                              <div className="flex justify-center items-center">
-                                <input
-                                  className='me-1'
-                                  type="text"
-                                  placeholder="パスワード"
-                                  value={password}
-                                  onChange={e => setPassword(e.target.value)}
-                                  style={{ border: '1px solid black' }}
-                                />
-                                <Button>ここに確定ボタンを配置</Button>
-                                {/* <Button onClick={handlePasswordSubmit}>確定</Button> */}
-                              </div>
+                              <DialogTitle className="text-xl font-bold text-center mb-4">パスワードを入力してください</DialogTitle>
                             </DialogHeader>
+                            <div className="flex flex-col items-center">
+                              <input
+                                className="w-full mb-4 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                type="password"
+                                placeholder="パスワード"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                              />
+                              <Button className="w-full" onClick={handlePasswordSubmit}>確定</Button>
+                            </div>
                           </DialogContent>
                         </Dialog>
                       )}
@@ -159,24 +157,21 @@ const Header = () => {
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger>機材管理</DialogTrigger>
-                          <DialogContent className="w-auto">
+                          <DialogTrigger className="text-left">機材管理</DialogTrigger>
+                          <DialogContent className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
                             <DialogHeader>
-                              <DialogTitle>パスワードを入力してください</DialogTitle>
-                              <div className='bg-slate-200 rounded-md p-3 mt-3'>
-                                <div className="flex justify-center items-center">
-                                  <input
-                                    className='mb-1'
-                                    type="text"
-                                    placeholder="パスワード"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    style={{ border: '1px solid black' }}
-                                  />
-                                  <Button onClick={handlePasswordSubmit}>確定</Button>
-                                </div>
-                              </div>
+                              <DialogTitle className="text-xl font-bold text-center mb-4">パスワードを入力してください</DialogTitle>
                             </DialogHeader>
+                            <div className="flex flex-col items-center">
+                              <input
+                                className="w-full mb-4 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                type="password"
+                                placeholder="パスワード"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                              />
+                              <Button className="w-full" onClick={handlePasswordSubmit}>確定</Button>
+                            </div>
                           </DialogContent>
                         </Dialog>
                       )}
