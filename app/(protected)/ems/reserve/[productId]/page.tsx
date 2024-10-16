@@ -20,7 +20,7 @@ type Reserves = {
 const ProductDetails = () => {
     const [equipmentName, setEquipmentName] = useState('');
     const [equipmentDetail, setEquipmentDetail] = useState('');
-    const [equipmentImg, setEquipmentImg] = useState('nai');
+    const [equipmentImg, setEquipmentImg] = useState('');
     const [reservesData, setReservesData] = useState('');
 
     const [isFetching, setIsFetching] = useState(true);
@@ -40,14 +40,14 @@ const ProductDetails = () => {
         setEquipmentDetail(equipmentData.detail);
         setEquipmentImg(equipmentData.image)
         console.log(equipmentData.image)
-
-        setIsFetching(false);
     };
 
     const fetchReservesData = async () => {
         const reservesData = await fetch(`https://logicode.fly.dev/reserves`).then(res => res.json());
         const filteredData = reservesData.filter((item: Reserves) => item.list_id === Number(productId));
         setReservesData(filteredData);
+
+        setIsFetching(false);
     };
 
     useEffect(() => {
