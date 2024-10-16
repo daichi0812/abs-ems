@@ -108,7 +108,7 @@ const Mypage = () => {
 
     return (
         <>
-            <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800 pb-3'>
+            <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800 min-h-full pb-3'>
                 <Header />
                 <div className="mb-3 shadow-md">
                     <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
