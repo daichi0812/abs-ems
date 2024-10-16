@@ -10,7 +10,7 @@ import {
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Button } from "@chakra-ui/react";
 import axios from "axios";
 import { UserButton } from "@/components/auth/user-button";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -23,15 +23,18 @@ const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [manager, setManager] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const user = useCurrentUser();
 
   /* 管理者になる登録ボタンを押した時の挙動 */
   const handlePasswordSubmit = async () => {
+    setIsLoading(true);
     if (password === process.env.NEXT_PUBLIC_MANAGER_KEY) {
       putIsmanager();
       router.push('/ems/manager');
     } else {
+      setIsLoading(false);
       alert('パスワードが間違っています');
     }
   };
@@ -129,7 +132,26 @@ const Header = () => {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                               />
-                              <Button className="w-full" onClick={handlePasswordSubmit}>確定</Button>
+                              {
+                                isLoading ? (
+                                  <Button
+                                    colorScheme="blue"
+                                    isLoading
+                                    className="w-full"
+                                    onClick={handlePasswordSubmit}
+                                  >
+                                    確定
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    colorScheme="blue"
+                                    className="w-full"
+                                    onClick={handlePasswordSubmit}
+                                  >
+                                    確定
+                                  </Button>
+                                )
+                              }
                             </div>
                           </DialogContent>
                         </Dialog>
@@ -170,7 +192,26 @@ const Header = () => {
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                               />
-                              <Button className="w-full" onClick={handlePasswordSubmit}>確定</Button>
+                              {
+                                isLoading ? (
+                                  <Button
+                                    colorScheme="blue"
+                                    isLoading
+                                    className="w-full"
+                                    onClick={handlePasswordSubmit}
+                                  >
+                                    確定
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    colorScheme="blue"
+                                    className="w-full"
+                                    onClick={handlePasswordSubmit}
+                                  >
+                                    確定
+                                  </Button>
+                                )
+                              }
                             </div>
                           </DialogContent>
                         </Dialog>
