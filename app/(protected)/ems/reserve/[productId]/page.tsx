@@ -23,6 +23,8 @@ const ProductDetails = () => {
     const [equipmentImg, setEquipmentImg] = useState('nai');
     const [reservesData, setReservesData] = useState('');
 
+    const [isFetching, setIsFetching] = useState(true);
+
     const user = useCurrentUser();
 
     const params = useParams();
@@ -38,6 +40,8 @@ const ProductDetails = () => {
         setEquipmentDetail(equipmentData.detail);
         setEquipmentImg(equipmentData.image)
         console.log(equipmentData.image)
+
+        setIsFetching(false);
     };
 
     const fetchReservesData = async () => {
@@ -60,7 +64,7 @@ const ProductDetails = () => {
             </div>
 
             <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
-                {equipmentImg === "nai"  ? (
+                {isFetching ? (
                     <Image
                         width={280}
                         height={280}
