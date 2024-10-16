@@ -65,21 +65,21 @@ const ProductDetails = () => {
 
             <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
                 {isFetching ? (
-                    equipmentImg !== "" && (
-                        <Image
-                            width={280}
-                            height={280}
-                            src={equipmentImg}
-                            alt={equipmentName}
-                            className="w-[100%] h-[100%] rounded-lg my-0.5"
-                        />
-                    )
+                    <Center my={10}>
+                        <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
+                    </Center>
                 )
                     :
                     (
-                        <Center my={10}>
-                            <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
-                        </Center>
+                        equipmentImg !== "" && (
+                            <Image
+                                width={280}
+                                height={280}
+                                src={equipmentImg}
+                                alt={equipmentName}
+                                className="w-[100%] h-[100%] rounded-lg my-0.5"
+                            />
+                        )
                     )}
             </div>
 
