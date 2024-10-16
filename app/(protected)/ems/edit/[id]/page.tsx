@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-import { Button } from "@/components/ui/button";
 import InputImage from "@/components/InputImage";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
 import type { PutBlobResult } from '@vercel/blob';
+import { Button } from '@chakra-ui/react';
 
 const FIELD_SIZE = 210;
 
@@ -19,6 +19,9 @@ const EditPage = () => {
   const [equipmentDetail, setEquipmentDetail] = useState('');
   const [equipmentImg, setEquipmentImg] = useState(''); // 現在の画像URL
   const [imageFile, setImageFile] = useState<File | null>(null); // 新しい画像ファイル
+
+  const [isPending_1, startTransition_1] = useTransition();
+  const [isPending_2, startTransition_2] = useTransition();
 
   const inputFileRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +52,7 @@ const EditPage = () => {
   const handleUpdateEquipment = async () => {
     try {
       let blobUrl = equipmentImg; // デフォルトは現在の画像URL
-  
+
       // 新しい画像が選択された場合
       if (imageFile) {
         try {
@@ -62,7 +65,7 @@ const EditPage = () => {
           );
           const responseText = await responseVaecel.text();
           console.log('Image upload response:', responseText);
-  
+
           const blob = JSON.parse(responseText) as PutBlobResult;
           blobUrl = blob.url;
         } catch (error) {
@@ -71,7 +74,7 @@ const EditPage = () => {
           return;
         }
       }
-  
+
       try {
         const response = await axios.put(
           `https://logicode.fly.dev/lists/${equipmentId}`,
@@ -161,28 +164,41 @@ const EditPage = () => {
         onChange={(e) => setEquipmentDetail(e.target.value)}
       />
       <div className="flex gap-2">
-        <Button
-          onClick={handleUpdateEquipment}
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: '#00bfff',
-            color: 'white',
-            fontSize: '16px',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            width: '80px',
-            height: '40px'
-          }}
-        >
-          更新
-        </Button>
-        <Button
-          onClick={handleClickCancelButton}
-          style={{ backgroundColor: '#f5b942', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer', width: '95px', height: '40px' }}>
-          キャンセル
-        </Button>
+
+        {isPending_1 ? (
+          <Button
+            isLoading
+            colorScheme='blue'
+          >
+            更新
+          </Button>
+        ) : (
+          <Button
+            disabled={isPending_1}
+            onClick={() => startTransition_1(() => handleUpdateEquipment())}
+            colorScheme='blue'
+          >
+            更新
+          </Button>
+        )
+        }
+         {isPending_2 ? (
+          <Button
+            isLoading
+            colorScheme='yellow'
+          >
+              キャンセル
+          </Button>
+        ) : (
+          <Button
+            disabled={isPending_2}
+            onClick={() => startTransition_2(() => handleClickCancelButton())}
+            colorScheme='yellow'
+          >
+            キャンセル
+          </Button>
+        )
+        }
       </div>
     </div>
   )
