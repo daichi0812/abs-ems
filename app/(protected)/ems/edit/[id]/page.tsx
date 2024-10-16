@@ -6,7 +6,9 @@ import axios from 'axios';
 import InputImage from "@/components/InputImage";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
 import type { PutBlobResult } from '@vercel/blob';
+
 import { Button } from '@chakra-ui/react';
+import Header from '@/app/(protected)/_components/Header';
 
 const FIELD_SIZE = 210;
 
@@ -199,6 +201,85 @@ const EditPage = () => {
           </Button>
         )
         }
+    <div>
+      <Header />
+      <div className="bg-[#F5F5F8] shadow rounded-md p-3 mt-3 mx-2">
+        <p className='text-xl mb-1'>機材情報の編集</p>
+        <label
+          htmlFor="imageInput"
+          className="mb-2"
+          style={{
+            border: "white 3px dotted",
+            width: FIELD_SIZE,
+            height: FIELD_SIZE,
+            display: "flex",
+            borderRadius: 12,
+            justifyContent: "center",
+            alignItems: "center",
+            overflow: "hidden",
+            cursor: "pointer",
+          }}
+        >
+          {(imageUrl && imageFile) ? (
+            <img
+              src={imageUrl}
+              alt="アップロード画像"
+              style={{ objectFit: "cover", width: "100%", height: "100%" }}
+            />
+          ) : equipmentImg ? (
+            <img
+              src={equipmentImg}
+              alt="現在の画像"
+              style={{ objectFit: "cover", width: "100%", height: "100%" }}
+            />
+          ) : (
+            "+ 画像をアップロード"
+          )}
+          <InputImage
+            ref={inputFileRef}
+            id="imageInput"
+            onChange={handleFileChange}
+          />
+        </label>
+        <input
+          className='mb-1 rounded-md px-1'
+          type="text"
+          placeholder="機材名を入力してください"
+          style={{ border: '1px solid black' }}
+          value={equipmentName}
+          onChange={(e) => setEquipmentName(e.target.value)}
+        />
+        <textarea
+          className="rounded-md px-1"
+          placeholder="説明文を入力してください"
+          style={{ width: '100%', height: '100px', border: '1px solid black' }}
+          value={equipmentDetail}
+          onChange={(e) => setEquipmentDetail(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <Button
+            onClick={handleUpdateEquipment}
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: '#00bfff',
+              color: 'white',
+              fontSize: '16px',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              width: '80px',
+              height: '40px'
+            }}
+          >
+            更新
+          </Button>
+          <Button
+            onClick={handleClickCancelButton}
+            style={{ backgroundColor: '#f5b942', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer', width: '95px', height: '40px' }}>
+            キャンセル
+          </Button>
+        </div>
       </div>
     </div>
   )

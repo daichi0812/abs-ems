@@ -77,6 +77,7 @@ export const ResetForm = () => {
                                         <Input
                                             {...field}
                                             disabled={isPending}
+                                            className="text-[16px]"
                                             placeholder="daichi@example.com"
                                             type="email"
                                         />

@@ -17,7 +17,8 @@ const ProtectedLayout = async ({ children }: ProtectedLayoutProps) => {
                 <Navbar />
                 {children}
             </div> */}
-            <div>
+            <div className="h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
+        from-sky-400 to-blue-800">
                 {children}
             </div>
         </SessionProvider>
