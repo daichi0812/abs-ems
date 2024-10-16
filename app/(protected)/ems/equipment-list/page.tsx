@@ -82,57 +82,47 @@ const EquipmentList = () => {
 
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md">
                 <p className='text-xl'>機材一覧</p>
+                {!isLoading && equipments ? (
+                    <>
+                        {
+                            equipments.map((equipment) => (
+                                <div key={equipment.id} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">
+                                    <div className="flex justify-center items-center">
+                                        <p>{equipment.name}</p>
+                                    </div>
+
+                                    {loading && loadingId === equipment.id ? (
+                                        <Button
+                                            isLoading
+                                            disabled={loading && loadingId === equipment.id}
+                                            onClick={() => handlePasswordSubmit(equipment.id)}
+                                            colorScheme='blue'
+                                        >
+                                            予約
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            disabled={loading && loadingId === equipment.id}
+                                            onClick={() => handlePasswordSubmit(equipment.id)}
+                                            colorScheme='blue'
+                                        >
+                                            予約
+                                        </Button>
+                                    )
+                                    }
+
+
+                                </div>
+                            ))
+                        }
+                    </>
+                ) : (
+                    <Center my={4}>
+                        <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
+                    </Center>
+                )
+                }
             </div>
-            {!isLoading && equipments ? (
-                <div className="bg-[#F5F5F8] rounded-md p-3 my-3 mx-2 shadow">
-
-                    {equipments.map((equipment) => (
-                        <div key={equipment.id} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">
-                            <div className="flex justify-center items-center">
-                                <p>{equipment.name}</p>
-                            </div>
-
-                            {loading && loadingId === equipment.id ? (
-                                <Button
-                                    isLoading
-                                    disabled={loading && loadingId === equipment.id}
-                                    onClick={() => handlePasswordSubmit(equipment.id)}
-                                    colorScheme='blue'
-                                >
-                                    予約
-                                </Button>
-                            ) : (
-                                <Button
-                                    disabled={loading && loadingId === equipment.id}
-                                    onClick={() => handlePasswordSubmit(equipment.id)}
-                                    colorScheme='blue'
-                                >
-                                    予約
-                                </Button>
-                            )
-                            }
-
-
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <Box
-                    position="absolute"
-                    top="50%"
-                    left="50%"
-                    transform="translate(-50%, -50%)"
-                >
-                    <Spinner
-                        thickness="4px"
-                        speed="0.65s"
-                        emptyColor="gray.200"
-                        color="blue.500"
-                        size="xl"
-                    />
-                </Box>
-            )
-            }
         </div>
     );
 };
