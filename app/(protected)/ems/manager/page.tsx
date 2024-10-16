@@ -7,8 +7,8 @@ import Header from "@/app/(protected)/_components/Header";
 
 import type { PutBlobResult } from '@vercel/blob';
 import { useGetImageUrl } from "./useGetImageUrl";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { Button } from "@chakra-ui/react";
 
 
 const IMAGE_ID = "imageId";
@@ -24,7 +24,8 @@ interface Equipment {
 function App() {
     const inputFileRef = useRef<HTMLInputElement>(null);
 
-    const [isPending, startTransition] = useTransition();
+    const [isPending_1, startTransition_1] = useTransition();
+    const [isPending_2, startTransition_2] = useTransition();
 
     const router = useRouter();
 
@@ -172,28 +173,30 @@ function App() {
                     onChange={(e) => setEquipmentDetail(e.target.value)}
                 />
                 <div className="flex gap-2">
-                    <Button
-                        disabled={isPending}
-                        onClick={() => startTransition(() => sendEquipmentData())}
-                        style={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            backgroundColor: '#00bfff',
-                            color: 'white',
-                            fontSize: '16px',
-                            borderRadius: '5px',
-                            cursor: 'pointer',
-                            width: '80px',
-                            height: '40px'
-                        }}
-                    >
-                        {isPending ? "ロード中" : "登録"}
-                    </Button>
+
+                    {isPending_1 ? (
+                        <Button
+                            isLoading
+                            colorScheme='blue'
+                        >
+                            登録
+                        </Button>
+                    ) : (
+                        <Button
+                            disabled={isPending_1}
+                            onClick={() => startTransition_1(() => sendEquipmentData())}
+                            colorScheme='blue'
+                        >
+                            登録
+                        </Button>
+                    )
+                    }
+
                     {(imageFile || equipmentName || equipmentDetail) && (
                         <Button
                             onClick={handleClickCancelButton}
-                            style={{ backgroundColor: '#f5b942', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer', width: '95px', height: '40px' }}>
+                            colorScheme='yellow'
+                        >
                             キャンセル
                         </Button>
                     )}
@@ -207,16 +210,30 @@ function App() {
                             <p>{equipment.name}</p>
                         </div>
                         <div>
-                            <Button
-                                onClick={() => handleEditEquipment(equipment.id)}
-                                className='px-4 mr-2 py-2 ms-2'
-                                style={{ backgroundColor: '#4499EE', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                                編集
-                            </Button>
+
+                            {isPending_2 ? (
+                                <Button
+                                    isLoading
+                                    me={1}
+                                    colorScheme='yellow'
+                                >
+                                    編集
+                                </Button>
+                            ) : (
+                                <Button
+                                    disabled={isPending_2}
+                                    onClick={() => startTransition_2(() => handleEditEquipment(equipment.id))}
+                                    me={1}
+                                    colorScheme='yellow'
+                                >
+                                    編集
+                                </Button>
+                            )
+                            }
                             <Button
                                 onClick={() => handleDeleteEquipment(equipment.id)}
-                                className='px-4 py-2 ms-2'
-                                style={{ backgroundColor: '#F33F23', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
+                                colorScheme='red'
+                            >
                                 削除
                             </Button>
                         </div>
