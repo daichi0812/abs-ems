@@ -260,7 +260,7 @@ export default function ReservationCalendar({ userId, listId }: Props) {
     const start = moment(newEvent.start).tz('Asia/Tokyo').format('YYYY-MM-DD');
     const end = moment(newEvent.end).tz('Asia/Tokyo').format('YYYY-MM-DD');
 
-    if (start < today || end < today) {
+    if (start < today || end < today || end < start) {
 
       window.alert('無効な予約日です。');
       setShowModal(false);

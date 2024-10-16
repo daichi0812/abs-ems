@@ -101,10 +101,10 @@ const Header = () => {
                       </div>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500 w-screen" href="/ems/mypage">マイページ</a>
+                      <a className="hover:text-gray-500 w-screen" href="/ems/mypage">マイ予約</a>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500 w-screen" href="/ems/common">共通予約カレンダー</a>
+                      <a className="hover:text-gray-500 w-screen" href="/ems/common">共通カレンダー</a>
                     </li>
                     <li>
                       <a className="hover:text-gray-500 w-screen" href="/ems/equipment-list">機材予約</a>
@@ -142,10 +142,10 @@ const Header = () => {
                 <div>
                   <ul className="bg flex md:flex-row flex-col md:items-center md:gap-[4vw] gap-8 text-lg font-medium">
                     <li>
-                      <a className="hover:text-gray-500" href={`/ems/mypage`}>マイページ</a>
+                      <a className="hover:text-gray-500" href={`/ems/mypage`}>マイ予約</a>
                     </li>
                     <li>
-                      <a className="hover:text-gray-500" href="/ems/common">共通予約カレンダー</a>
+                      <a className="hover:text-gray-500" href="/ems/common">共通カレンダー</a>
                     </li>
                     <li>
                       <a className="hover:text-gray-500" href="/ems/equipment-list">機材予約</a>

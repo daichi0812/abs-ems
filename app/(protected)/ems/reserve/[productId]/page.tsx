@@ -22,13 +22,7 @@ const ProductDetails = () => {
     const [equipmentImg, setEquipmentImg] = useState('');
     const [reservesData, setReservesData] = useState('');
 
-    const [isOpen, setIsOpen] = useState(false);
-
     const user = useCurrentUser();
-
-    const handleToggleMenu = () => {
-        setIsOpen(!isOpen);
-    };
 
     const params = useParams();
     const { productId } = params;
@@ -56,19 +50,6 @@ const ProductDetails = () => {
         fetchReservesData();
     }, []);
 
-    // useEffect(() => {
-    //     const storedUserId = getUserIdFromCookie(); // クッキーからユーザーIDを取得
-    //     if (storedUserId) {
-    //         setUserId(storedUserId); // コンテキストにユーザーIDを設定
-    //     }
-    // }, []);
-
-    // useEffect(() => {
-    //     if (userId) {
-    //         setUserIdCookie(userId); // クッキーにユーザーIDを設定
-    //     }
-    // }, [userId]);
-
     return (
         <div className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 pb-3">
@@ -84,26 +65,18 @@ const ProductDetails = () => {
                         height={280}
                         src={equipmentImg}
                         alt={equipmentName}
-                        className="w-[280px] h-[280px] rounded-lg my-0.5 mb-2"
+                        className="w-[100%] h-[100%] rounded-lg my-0.5"
                     />
                 )}
-
-                {!isOpen ? (
-                    <div className="flex justify-center items-center cursor-pointer" onClick={handleToggleMenu}>
-                        <p className="mr-1">この機材の詳細</p>
-                        <SlArrowDown />
-                    </div>
-                ) : (
-                    <>
-                        <div className="flex justify-center items-center cursor-pointer" onClick={handleToggleMenu}>
-                            <SlArrowUp />
-                        </div>
-                        <p className="break-words overflow-hidden text-ellipsis max-w-full">{equipmentDetail}</p>
-                    </>
-                )}
             </div>
-            <div className="rounded-md">
+
+            <div className="rounded-md mb-3">
                 <ReservationCalendar userId={user?.id} listId={Number(productId)} />
+            </div>
+
+            <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7]'>
+                <p className='text-xl mb-2'>機材の詳細</p>
+                <p className="mr-1">{equipmentDetail}</p>
             </div>
 
         </div>
