@@ -80,13 +80,13 @@ const Header = () => {
 
   return (
     <>
-      <div className="font-[Poppins] mb-3 shadow-md">
+      <div className="mb-3 shadow-md">
         <header className="bg-[#F5F5F8]">
           <nav className="flex justify-between items-center w-[92%] mx-auto h-[7.0vh]">
             <div>
               {isOpen ? "" : (
-                <div className="wf-nicomoji">
-                  <span className="font-bold">{user?.name}</span> <span className="text-sm">さん</span>
+                <div className="wf-nicomoji text-2xl">
+                  🎥 ABS EMS
                 </div>
               )}
             </div>
@@ -94,8 +94,11 @@ const Header = () => {
               <div className="z-[49] duration-500 md:static absolute bg-[#F5F5F8] md:min-h-fit min-h-[60vh] left-0 top-[5.8%] md:w-auto w-full flex items-center px-5">
                 <div>
                   <ul className="flex md:flex-row flex-col md:items-center md:gap-[4vw] gap-8 text-lg font-semibold">
-                    <li>
+                    <li className="flex items-center">
                       <UserButton />
+                      <div className="wf-nicomoji mx-4">
+                        <span className="font-bold">{user?.name}</span> <span className="text-sm">さん</span>
+                      </div>
                     </li>
                     <li>
                       <a className="hover:text-gray-500 w-screen" href="/ems/mypage">マイページ</a>
@@ -177,7 +180,7 @@ const Header = () => {
                           </DialogContent>
                         </Dialog>
                       )}
-                    <li>
+                    <li className="mt-1">
                       <UserButton />
                     </li>
                   </ul>
@@ -195,13 +198,16 @@ const Header = () => {
                     width="40px"
                   />
                 ) : (
-                  <MenuOutline
-                    onClick={handleToggleMenu}
-                    color={'#00000'}
-                    title={""}
-                    height="40px"
-                    width="40px"
-                  />
+                  <div className="flex items-center gap-x-3">
+                    <MenuOutline
+                      onClick={handleToggleMenu}
+                      color={'#00000'}
+                      title={""}
+                      height="40px"
+                      width="40px"
+                    />
+                    <UserButton />
+                  </div>
                 )}
               </div>
             </div>

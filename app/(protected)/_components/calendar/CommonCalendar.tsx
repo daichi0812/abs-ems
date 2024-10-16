@@ -10,6 +10,7 @@ import { EventSourceInput } from '@fullcalendar/core/index.js'
 
 import jaLocale from '@fullcalendar/core/locales/ja';
 import styled from 'styled-components';
+import { useBreakpointValue } from '@chakra-ui/react'
 
 function formatDate1(date: Date | string): string {
   const d = new Date(date);
@@ -203,6 +204,8 @@ export default function CommonCalendar() {
     setIdToDelete(null)
   }
 
+  const isMobile = useBreakpointValue({base: 500, md: 720})
+
   const isOverlapping = (newEvent: Event, filteredData: Reserves[]) => {
     const newEventStart = new Date(newEvent.start).getTime();
     const newEventEnd = new Date(newEvent.end).getTime();
@@ -278,7 +281,7 @@ export default function CommonCalendar() {
               interactionPlugin,
               timeGridPlugin
             ]}
-            height={500}
+            height={isMobile}
             events={allEvents as EventSourceInput}
             nowIndicator={true}
             droppable={true}
