@@ -1,11 +1,11 @@
 "use client"
-import React, { use, useContext, useEffect, useRef, useState } from 'react'
+import React, { use, useContext, useEffect, useRef, useState, useTransition } from 'react'
 import MypageCalendar from '../../_components/calendar/MypageCalendar';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import Header from '@/app/(protected)/_components/Header';
-import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { Button } from '@chakra-ui/react';
 
 type Reserves = {
     id: number,
@@ -37,6 +37,9 @@ const Mypage = () => {
 
     const router = useRouter();
     const user = useCurrentUser();
+
+    const [isPending_1, startTransition_1] = useTransition();
+    const [isPending_2, startTransition_2] = useTransition();
 
     // const [ip, setIP] = useState(null);
 
@@ -82,7 +85,7 @@ const Mypage = () => {
 
     useEffect(() => {
         mypageFetchReservesData();
-    },[])
+    }, [])
 
 
     /* プロジェクト統一するなら必要ないかも */
@@ -191,12 +194,15 @@ const Mypage = () => {
                                     </div>
                                     {reserve.isRenting === 1 && (
                                         <div className="flex justify-center items-center">
-                                            <Button
-                                                onClick={() => handleBorrow(reserve.id, reserve.list_id)}
-                                                className='px-4 py-2 ms-2'
-                                                style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                                                借りる
-                                            </Button>
+                                            {isPending_1 ? (
+                                                <Button isLoading colorScheme='blue'>
+                                                    借りる
+                                                </Button>
+                                            ) : (
+                                                <Button disabled={isPending_1} onClick={() => startTransition_1(() => handleBorrow(reserve.id, reserve.list_id))} colorScheme='blue'>
+                                                    借りる
+                                                </Button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -220,12 +226,15 @@ const Mypage = () => {
                                         )}
                                     </div>
                                     <div className="flex justify-center items-center">
-                                        <Button
-                                            onClick={() => handleReturn(reserve.id, reserve.list_id)}
-                                            className='px-4 py-2 ms-2'
-                                            style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer' }}>
-                                            返却
-                                        </Button>
+                                        {isPending_2 ? (
+                                                <Button isLoading colorScheme='blue'>
+                                                    返却
+                                                </Button>
+                                            ) : (
+                                                <Button disabled={isPending_2} onClick={() => startTransition_2(() => handleReturn(reserve.id, reserve.list_id))} colorScheme='blue'>
+                                                    返却
+                                                </Button>
+                                            )}
                                     </div>
                                 </div>
                             ))}
