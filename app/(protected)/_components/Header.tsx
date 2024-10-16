@@ -86,7 +86,7 @@ const Header = () => {
             <div>
               {isOpen ? "" : (
                 <div className="wf-nicomoji text-2xl">
-                  🎥 ABS EMS
+                  ABS EMS
                 </div>
               )}
             </div>

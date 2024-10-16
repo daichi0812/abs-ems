@@ -10,7 +10,7 @@ import { EventSourceInput } from '@fullcalendar/core/index.js'
 
 import jaLocale from '@fullcalendar/core/locales/ja';
 import styled from 'styled-components';
-import { useBreakpointValue } from '@chakra-ui/react'
+import { Center, Spinner, useBreakpointValue } from '@chakra-ui/react'
 
 function formatDate1(date: Date | string): string {
   const d = new Date(date);
@@ -78,6 +78,8 @@ export default function CommonCalendar() {
 
   const [equipmentState, setEquipmentState] = useState(false);
 
+  const [isFetching, setIsFetching] = useState(true);
+
   const fetchReservesData = async () => {
     // ユーザーリストを取得
     const responseLists1 = await fetch('https://logicode.fly.dev/users');
@@ -122,6 +124,8 @@ export default function CommonCalendar() {
 
     // 全イベントを更新
     setAllEvents(newEvents);
+
+    setIsFetching(false);
 
   };
 
@@ -204,7 +208,7 @@ export default function CommonCalendar() {
     setIdToDelete(null)
   }
 
-  const isMobile = useBreakpointValue({base: 500, md: 720})
+  const isMobile = useBreakpointValue({ base: 500, md: 720 })
 
   const isOverlapping = (newEvent: Event, filteredData: Reserves[]) => {
     const newEventStart = new Date(newEvent.start).getTime();
@@ -229,7 +233,6 @@ export default function CommonCalendar() {
       margin-left: 0.5rem;
       margin-right: 0.5rem;
       border-radius: 0.5rem;
-      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     }
 
     /* 曜日のレイアウトを変更する */
@@ -273,101 +276,112 @@ export default function CommonCalendar() {
 
   return (
     <>
-      <div style={{ position: "relative", zIndex: "0" }}>
-        <StyleWrapper>
-          <FullCalendar
-            plugins={[
-              dayGridPlugin,
-              interactionPlugin,
-              timeGridPlugin
-            ]}
-            height={isMobile}
-            events={allEvents as EventSourceInput}
-            nowIndicator={true}
-            droppable={true}
-            selectMirror={true}
-            dateClick={handleDateClick}
-            drop={(data) => addEvent(data)}
-            eventClick={(data) => handleDeleteModal(data)}
-            displayEventTime={false}
-            locales={[jaLocale]}
-            locale='ja'
-            titleFormat={{ year: 'numeric', month: 'short' }}
-          />
-        </StyleWrapper>
-      </div >
+      {isFetching ? (
+        <>
+          <Center my={4}>
+            <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
+          </Center>
+        </>
+      ) : (
+        <>
+          <div style={{ position: "relative", zIndex: "0" }}>
+            <StyleWrapper>
+              <FullCalendar
+                plugins={[
+                  dayGridPlugin,
+                  interactionPlugin,
+                  timeGridPlugin
+                ]}
+                height={isMobile}
+                events={allEvents as EventSourceInput}
+                nowIndicator={true}
+                droppable={true}
+                selectMirror={true}
+                dateClick={handleDateClick}
+                drop={(data) => addEvent(data)}
+                eventClick={(data) => handleDeleteModal(data)}
+                displayEventTime={false}
+                locales={[jaLocale]}
+                locale='ja'
+                titleFormat={{ year: 'numeric', month: 'short' }}
+              />
+            </StyleWrapper>
+          </div >
 
-      <Transition.Root show={showDeleteModal} as={Fragment}>
-        <Dialog as="div" className="relative z-10" onClose={setShowDeleteModal}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-          </Transition.Child>
-          <div className="fixed inset-0 z-10 overflow-y-auto">
-            <div className="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
+          <Transition.Root show={showDeleteModal} as={Fragment}>
+            <Dialog as="div" className="relative z-10" onClose={setShowDeleteModal}>
               <Transition.Child
                 as={Fragment}
                 enter="ease-out duration-300"
-                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                enterFrom="opacity-0"
+                enterTo="opacity-100"
                 leave="ease-in duration-200"
-                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
               >
-                <Dialog.Panel className="relative transform overflow-hidden rounded-lg
+                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+              </Transition.Child>
+              <div className="fixed inset-0 z-10 overflow-y-auto">
+                <div className="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
+                  <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-300"
+                    enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    enterTo="opacity-100 translate-y-0 sm:scale-100"
+                    leave="ease-in duration-200"
+                    leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                    leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                  >
+                    <Dialog.Panel className="relative transform overflow-hidden rounded-lg
                    bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
-                >
+                    >
 
-                  <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <div className="sm:flex sm:items-start">
-                      <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                        <Dialog.Title as="h3" className="text-xl font-semibold leading-6 text-gray-900">
-                          予約の詳細
-                        </Dialog.Title>
-                        <div className="mt-2">
-                          <p className="text-xl text-gray-500">
-                            機材名: {eqipNameToShow}
-                          </p>
-                          <p className="text-xl text-gray-500">
-                            予約者: {nameToShow}
-                          </p>
-                          <p className="text-xl text-gray-500">
-                            状態: {getRentingStatusText(isRentingToShow)}
-                          </p>
-                          <p className="text-xl text-gray-500">
-                            期間: {startToShow} から {endToShow} まで
-                          </p>
-                          <a
-                            className="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"
-                            href={"/reserve/" + idToShow.toString()}
-                          >
-                            {eqipNameToShow}の詳細・予約ページ
-                          </a>
+                      <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div className="sm:flex sm:items-start">
+                          <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                            <Dialog.Title as="h3" className="text-xl font-semibold leading-6 text-gray-900">
+                              予約の詳細
+                            </Dialog.Title>
+                            <div className="mt-2">
+                              <p className="text-xl text-gray-500">
+                                機材名: {eqipNameToShow}
+                              </p>
+                              <p className="text-xl text-gray-500">
+                                予約者: {nameToShow}
+                              </p>
+                              <p className="text-xl text-gray-500">
+                                状態: {getRentingStatusText(isRentingToShow)}
+                              </p>
+                              <p className="text-xl text-gray-500">
+                                期間: {startToShow} から {endToShow} まで
+                              </p>
+                              <a
+                                className="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"
+                                href={"/reserve/" + idToShow.toString()}
+                              >
+                                {eqipNameToShow}の詳細・予約ページ
+                              </a>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                    <button type="button" className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 
+                      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="button" className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 
                       shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                      onClick={handleCloseModal}
-                    >
-                      閉じる
-                    </button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition.Root>
+                          onClick={handleCloseModal}
+                        >
+                          閉じる
+                        </button>
+                      </div>
+                    </Dialog.Panel>
+                  </Transition.Child>
+                </div>
+              </div>
+            </Dialog>
+          </Transition.Root>
+        </>
+      )
+      }
     </>
   )
 }

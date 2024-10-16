@@ -11,8 +11,6 @@ const CommonPage = () => {
             <Header />
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-3 py-2 px-2 shadow-md">
                 <p className='text-xl'>共通予約カレンダー</p>
-            </div>
-            <div className='shadow-md'>
                 <CommonCalendar />
             </div>
         </div>
