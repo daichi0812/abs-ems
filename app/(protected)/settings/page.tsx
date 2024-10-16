@@ -245,7 +245,7 @@ const SettingsPage = () => {
                                 disabled={isPending}
                                 type="submit"
                             >
-                                {isPending ? "ロード中.." : "保存して戻る"}
+                                {isPending ? "ロード中..." : "保存して戻る"}
                             </Button>
                         </form>
                     </Form>
