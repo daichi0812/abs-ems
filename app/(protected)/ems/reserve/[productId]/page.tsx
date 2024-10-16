@@ -1,4 +1,5 @@
 "use client"
+
 import ReservationCalendar from "@/app/(protected)/_components/calendar/ReservationCalendar";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -35,6 +36,15 @@ const ProductDetails = () => {
 
     // const { userId, setUserId } = useAppContext();
 
+    const fetchEquipmentData = async () => {
+        const equipmentData = await fetch(`https://logicode.fly.dev/lists/${params.productId}`).then(res => res.json());
+        console.log(equipmentData);
+        setEquipmentName(equipmentData.name);
+        setEquipmentDetail(equipmentData.detail);
+        setEquipmentImg(equipmentData.image)
+        console.log(equipmentData.image)
+    };
+
     const fetchReservesData = async () => {
         const reservesData = await fetch(`https://logicode.fly.dev/reserves`).then(res => res.json());
         const filteredData = reservesData.filter((item: Reserves) => item.list_id === Number(productId));
@@ -42,16 +52,7 @@ const ProductDetails = () => {
     };
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            const equipmentData = await fetch(`https://logicode.fly.dev/lists/${params.productId}`).then(res => res.json());
-            console.log(equipmentData);
-            setEquipmentName(equipmentData.name);
-            setEquipmentDetail(equipmentData.detail);
-            setEquipmentImg(equipmentData.image)
-            // console.log(equipmentData.image)
-        };
-
-        fetchUserData();
+        fetchEquipmentData();
         fetchReservesData();
     }, []);
 
