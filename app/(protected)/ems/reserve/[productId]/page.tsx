@@ -7,6 +7,7 @@ import Header from "@/app/(protected)/_components/Header";
 import { useParams } from "next/navigation";
 import { SlArrowDown, SlArrowUp } from "react-icons/sl";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Center, Spinner } from "@chakra-ui/react";
 
 type Reserves = {
     id: number,
@@ -59,7 +60,7 @@ const ProductDetails = () => {
             </div>
 
             <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
-                {equipmentImg && (
+                {equipmentImg ? (
                     <Image
                         width={280}
                         height={280}
@@ -67,7 +68,13 @@ const ProductDetails = () => {
                         alt={equipmentName}
                         className="w-[100%] h-[100%] rounded-lg my-0.5"
                     />
-                )}
+                )
+                    :
+                    (
+                        <Center my={10}>
+                            <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
+                        </Center>
+                    )}
             </div>
 
             <div className="rounded-md mb-3">
