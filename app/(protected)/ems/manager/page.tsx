@@ -8,7 +8,7 @@ import Header from "@/app/(protected)/_components/Header";
 import type { PutBlobResult } from '@vercel/blob';
 import { useGetImageUrl } from "./useGetImageUrl";
 import { useRouter } from "next/navigation";
-import { Button } from "@chakra-ui/react";
+import { Box, Button, Center, Spinner } from "@chakra-ui/react";
 
 
 const IMAGE_ID = "imageId";
@@ -26,6 +26,7 @@ function App() {
 
     const [isPending_1, startTransition_1] = useTransition();
     const [isPending_2, startTransition_2] = useTransition();
+    const [isLoading, setIsLoading] = useState<boolean>(true);
 
     const router = useRouter();
 
@@ -97,6 +98,7 @@ function App() {
         const data: Equipment[] = await response.json();
         setEquipments(data);
         // console.log(data);
+        setIsLoading(false);
     };
 
     const deleteEquipmentData = async (equipmentId: number) => {
@@ -204,42 +206,58 @@ function App() {
             </div>
             <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 my-3 mx-2">
                 <p className='text-xl mb-1'>編集・削除</p>
-                {equipments.map((equipment, index) => (
-                    <div key={index} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">
-                        <div className="flex justify-center items-center">
-                            <p>{equipment.name}</p>
-                        </div>
-                        <div>
 
-                            {isPending_2 ? (
-                                <Button
-                                    isLoading
-                                    me={1}
-                                    colorScheme='yellow'
-                                >
-                                    編集
-                                </Button>
-                            ) : (
-                                <Button
-                                    disabled={isPending_2}
-                                    onClick={() => startTransition_2(() => handleEditEquipment(equipment.id))}
-                                    me={1}
-                                    colorScheme='yellow'
-                                >
-                                    編集
-                                </Button>
-                            )
-                            }
-                            <Button
-                                onClick={() => handleDeleteEquipment(equipment.id)}
-                                colorScheme='red'
-                            >
-                                削除
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                {!isLoading && equipments ? (
+                    <>
+                        {equipments.map((equipment, index) => (
+                            <div key={index} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">
+                                <div className="flex justify-center items-center">
+                                    <p>{equipment.name}</p>
+                                </div>
+                                <div>
+
+                                    {isPending_2 ? (
+                                        <Button
+                                            isLoading
+                                            me={1}
+                                            colorScheme='yellow'
+                                        >
+                                            編集
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            disabled={isPending_2}
+                                            onClick={() => startTransition_2(() => handleEditEquipment(equipment.id))}
+                                            me={1}
+                                            colorScheme='yellow'
+                                        >
+                                            編集
+                                        </Button>
+                                    )
+                                    }
+                                    <Button
+                                        onClick={() => handleDeleteEquipment(equipment.id)}
+                                        colorScheme='red'
+                                    >
+                                        削除
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <Center my={2}>
+                        <Spinner
+                            thickness="4px"
+                            speed="0.65s"
+                            emptyColor="gray.200"
+                            color="blue.500"
+                            size="xl"
+                        />
+                    </Center>
+                )
+                }
+            </div >
         </>
     );
 }
