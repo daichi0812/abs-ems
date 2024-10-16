@@ -5,6 +5,8 @@ import { auth } from "@/auth";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
+import { ChakraProvider } from '@chakra-ui/react'
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -27,7 +29,7 @@ export default async function RootLayout({
       <html lang="en">
         <body className={inter.className}>
           <Toaster />
-          {children}
+          <ChakraProvider>{children}</ChakraProvider>
         </body>
       </html>
     </SessionProvider>

@@ -2,10 +2,10 @@
 import React, { useEffect, useState, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/app/(protected)/_components/Header';
-import { Button } from '@/components/ui/button';
 import { SlArrowRight } from "react-icons/sl";
 import { useCurrentUser } from '@/hooks/use-current-user';
 import axios from 'axios';
+import { Button } from '@chakra-ui/react';
 
 interface Equipment {
     id: number;
@@ -18,7 +18,7 @@ const EquipmentList = () => {
     const router = useRouter();
     const user = useCurrentUser();
     const [ip, setIP] = useState<string | null>(null);
-    const [isPending, startTransition] = useTransition();
+    const [loading, startTransition] = useTransition();
     const [loadingId, setLoadingId] = useState<number | null>(null);
 
     const handlePasswordSubmit = (id: number) => {
@@ -39,7 +39,7 @@ const EquipmentList = () => {
             console.error("Error fetching IP:", err);
         }
     };
-    
+
     const pushUserData = async () => {
         try {
             const getUser = await axios.get(`https://logicode.fly.dev/users/${user?.id}`);
@@ -85,14 +85,28 @@ const EquipmentList = () => {
                             <div className="flex justify-center items-center">
                                 <p>{equipment.name}</p>
                             </div>
-                            <Button
-                                disabled={isPending && loadingId === equipment.id}
-                                onClick={() => handlePasswordSubmit(equipment.id)}
-                                className='px-4 py-2 ms-2'
-                                style={{ backgroundColor: '#00bfff', color: 'white', fontSize: '16px', borderRadius: '5px', cursor: 'pointer', width: '60px', height: '40px' }}
-                            >
-                                {isPending && loadingId === equipment.id ? "ロード中..." : <SlArrowRight />}
-                            </Button>
+
+                            {loading && loadingId === equipment.id ? (
+                                <Button
+                                    isLoading
+                                    disabled={loading && loadingId === equipment.id}
+                                    onClick={() => handlePasswordSubmit(equipment.id)}
+                                    colorScheme='blue'
+                                >
+                                    予約
+                                </Button>
+                            ) : (
+                                <Button
+                                    disabled={loading && loadingId === equipment.id}
+                                    onClick={() => handlePasswordSubmit(equipment.id)}
+                                    colorScheme='blue'
+                                >
+                                    予約
+                                </Button>
+                            )
+                            }
+
+
                         </div>
                     ))}
                 </div>
