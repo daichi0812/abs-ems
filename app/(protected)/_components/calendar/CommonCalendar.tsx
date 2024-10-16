@@ -342,7 +342,7 @@ export default function CommonCalendar() {
                             <Dialog.Title as="h3" className="text-xl font-semibold leading-6 text-gray-900">
                               予約の詳細
                             </Dialog.Title>
-                            <div className="mt-2">
+                            <div className="mt-2 flex flex-col text-left">
                               <p className="text-xl text-gray-500">
                                 機材名: {eqipNameToShow}
                               </p>
@@ -353,11 +353,11 @@ export default function CommonCalendar() {
                                 状態: {getRentingStatusText(isRentingToShow)}
                               </p>
                               <p className="text-xl text-gray-500">
-                                期間: {startToShow} から {endToShow} まで
+                                期間: {startToShow} ~ {endToShow} 
                               </p>
                               <a
                                 className="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"
-                                href={"/reserve/" + idToShow.toString()}
+                                href={"/ems/reserve/" + idToShow.toString()}
                               >
                                 {eqipNameToShow}の詳細・予約ページ
                               </a>

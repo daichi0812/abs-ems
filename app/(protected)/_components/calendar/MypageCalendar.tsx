@@ -102,7 +102,7 @@ export default function MypageCalendar({ filteredData, idToNameMap, userId, mypa
   }
 
   function handleDeleteModal(data: { event: { id: string } }) {
-    console.log("今イベントクリックしましたね");
+    // console.log("今イベントクリックしましたね");
     setShowDeleteModal(true)
     setIdToDelete(Number(data.event.id))
   }
