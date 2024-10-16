@@ -2,9 +2,7 @@
 import { Poppins } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-import Image from "next/image";
 import { Button } from "@/components/ui/button"
-import { useEffect } from "react";
 import { LoginButton } from "@/components/auth/login-button";
 
 const font = Poppins({

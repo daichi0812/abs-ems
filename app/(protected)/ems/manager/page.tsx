@@ -124,7 +124,7 @@ function App() {
     return (
         <>
             <Header />
-            <div className="bg-[#F5F5F8] shadow rounded-md p-3 mt-3 mx-2">
+            <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 mt-3 mx-2">
                 <p className='text-xl mb-1'>機材登録</p>
                 <label
                     htmlFor={IMAGE_ID}
@@ -199,7 +199,7 @@ function App() {
                     )}
                 </div>
             </div>
-            <div className="bg-[#F5F5F8] shadow rounded-md p-3 my-3 mx-2">
+            <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 my-3 mx-2">
                 <p className='text-xl mb-1'>編集・削除</p>
                 {equipments.map((equipment, index) => (
                     <div key={index} className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow">

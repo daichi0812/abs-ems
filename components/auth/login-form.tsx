@@ -98,6 +98,7 @@ export const LoginForm = () => {
                                         <FormControl>
                                             <Input
                                                 {...field}
+                                                className="text-[16px]"
                                                 disabled={isPending}
                                                 placeholder="123456"
                                             />
@@ -118,6 +119,7 @@ export const LoginForm = () => {
                                             <FormControl>
                                                 <Input
                                                     {...field}
+                                                    className="text-[16px]"
                                                     disabled={isPending}
                                                     placeholder="daichi@example.com"
                                                     type="email"
@@ -136,6 +138,7 @@ export const LoginForm = () => {
                                             <FormControl>
                                                 <Input
                                                     {...field}
+                                                    className="text-[16px]"
                                                     disabled={isPending}
                                                     placeholder="******"
                                                     type="password"

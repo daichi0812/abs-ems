@@ -175,11 +175,11 @@ const Mypage = () => {
             <div className=''>
                 <Header />
 
-                <div className="mb-2">
+                <div className="mb-3 shadow-md">
                     <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
                 </div>
 
-                <div className='bg-[#F5F5F8] shadow rounded-md p-3 mb-3 mx-2'>
+                <div className='bg-[#F5F5F8] shadow-md rounded-md p-3 mb-3 mx-2'>
                     {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).length > 0 ? (
                         <>
                             <p>予約済</p>
@@ -206,7 +206,7 @@ const Mypage = () => {
                         <p>予約済の機材はありません。</p>
                     )}
                 </div>
-                <div className='bg-[#F5F5F8] shadow rounded-md p-3 mb-3 mx-2'>
+                <div className='bg-[#F5F5F8] shadow-md rounded-md p-3 mb-3 mx-2'>
                     {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).length > 0 ? (
                         <>
                             <p>貸し出し中</p>

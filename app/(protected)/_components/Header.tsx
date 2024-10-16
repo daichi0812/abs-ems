@@ -80,8 +80,8 @@ const Header = () => {
 
   return (
     <>
-      <div className="font-[Poppins] mb-3">
-        <header className="bg-[#F5F5F8] shadow">
+      <div className="font-[Poppins] mb-3 shadow-md">
+        <header className="bg-[#F5F5F8]">
           <nav className="flex justify-between items-center w-[92%] mx-auto h-[7.0vh]">
             <div>
               {isOpen ? "" : (
