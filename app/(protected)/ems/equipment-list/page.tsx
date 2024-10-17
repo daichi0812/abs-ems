@@ -80,7 +80,7 @@ const EquipmentList = () => {
             from-sky-400 to-blue-800 min-h-full pb-3'>
             <Header />
 
-            <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md">
+            <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md md:w-[80%] md:mx-auto">
                 <p className='text-xl'>予約</p>
                 {!isLoading && equipments ? (
                     <>

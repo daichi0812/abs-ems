@@ -195,8 +195,6 @@ export default function ReservationCalendar({ userId, listId }: Props) {
     .fc {
       background-color: #f5f5f7;
       padding: 0.5rem;
-      margin-left: 0.5rem;
-      margin-right: 0.5rem;
       border-radius: 0.5rem;
       box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     }
@@ -294,8 +292,6 @@ export default function ReservationCalendar({ userId, listId }: Props) {
           height="500px"
           bg="#f5f5f7"
           p="0.5rem"
-          ml="0.5rem"
-          mr="0.5rem"
           borderRadius="0.5rem"
           boxShadow="0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)">
           <Box
