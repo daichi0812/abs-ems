@@ -77,7 +77,7 @@ const ProductDetails = () => {
                                 height={280}
                                 src={equipmentImg}
                                 alt={equipmentName}
-                                className="w-[100%] h-[100%] rounded-lg my-0.5"
+                                className="w-[auto] h-[100%] max-h-[500px] rounded-lg my-0.5"
                             />
                         )
                     )}
@@ -89,7 +89,7 @@ const ProductDetails = () => {
 
             <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7]'>
                 <p className='text-xl mb-2'>機材の詳細</p>
-                <p className="mr-1">{equipmentDetail}</p>
+                <p className="mr-1" dangerouslySetInnerHTML={{ __html: equipmentDetail.replace(/\n/g, "<br>") }} />
             </div>
 
         </div>
