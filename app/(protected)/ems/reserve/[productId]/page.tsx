@@ -59,11 +59,11 @@ const ProductDetails = () => {
         <div className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 pb-3">
             <Header />
-            <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7]'>
+            <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7] md:w-[80%] md:mx-auto'>
                 <p className="text-xl">{equipmentName}</p>
             </div>
 
-            <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center'>
+            <div id="listBox" className='p-3 mx-2 shadow-md bg-[#F5F5F7] rounded-lg mb-3 flex-col flex justify-center items-center md:w-[80%] md:mx-auto'>
                 {isFetching ? (
                     <Center my={10}>
                         <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
@@ -83,11 +83,11 @@ const ProductDetails = () => {
                     )}
             </div>
 
-            <div className="rounded-md mb-3">
+            <div className="rounded-md mb-3 md:w-[80%] md:mx-auto">
                 <ReservationCalendar userId={user?.id} listId={Number(productId)} />
             </div>
 
-            <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7]'>
+            <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7] md:w-[80%] md:mx-auto'>
                 <p className='text-xl mb-2'>機材の詳細</p>
                 <p className="mr-1" dangerouslySetInnerHTML={{ __html: equipmentDetail.replace(/\n/g, "<br>") }} />
             </div>

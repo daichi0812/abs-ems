@@ -115,11 +115,11 @@ const Mypage = () => {
         <>
             <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800 min-h-full pb-3'>
                 <Header />
-                <div className="mb-3 shadow-md">
+                <div className=" md:w-[80%] mx-2 md:mx-auto mb-3 shadow-md">
                     <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
                 </div>
 
-                <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mb-3 mx-2'>
+                <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mb-3 mx-2 md:w-[80%] md:mx-auto'>
                     {filteredData.filter(reserve => reserve.isRenting === 0 || reserve.isRenting === 1).length > 0 ? (
                         <>
                             <p>予約済</p>
@@ -148,7 +148,7 @@ const Mypage = () => {
                     )}
                 </div>
 
-                <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mx-2'>
+                <div className='bg-[#F5F5F8] shadow-md rounded-lg p-3 mx-2 md:w-[80%] md:mx-auto'>
                     {filteredData.filter(reserve => reserve.isRenting === 2 || reserve.isRenting === 3).length > 0 ? (
                         <>
                             <p>貸出中</p>
