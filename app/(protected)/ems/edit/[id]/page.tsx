@@ -168,7 +168,7 @@ const EditPage = () => {
           value={equipmentDetail}
           onChange={(e) => setEquipmentDetail(e.target.value)}
         />
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-between">
           {isPending_1 ? (
             <Button
               isLoading
@@ -188,17 +188,19 @@ const EditPage = () => {
           {isPending_2 ? (
             <Button
               isLoading
-              colorScheme='yellow'
+              colorScheme='blue'
+              variant={'outline'}
             >
-              キャンセル
+              戻る
             </Button>
           ) : (
             <Button
               disabled={isPending_2}
               onClick={() => startTransition_2(() => handleClickCancelButton())}
-              colorScheme='yellow'
+              colorScheme='blue'
+              variant={'outline'}
             >
-              キャンセル
+              戻る
             </Button>
           )}
         </div>
