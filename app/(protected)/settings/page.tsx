@@ -20,7 +20,6 @@ import {
     CardHeader,
     CardContent,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { settings } from "@/actions/settings"
 import {
     Form,
@@ -37,6 +36,7 @@ import { FormError } from "@/components/form-error";
 import { FormSuccess } from "@/components/form-success";
 import { UserRole } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { Button } from "@chakra-ui/react";
 
 const SettingsPage = () => {
     const user = useCurrentUser();
@@ -241,12 +241,27 @@ const SettingsPage = () => {
                             </div>
                             <FormError message={error} />
                             <FormSuccess message={success} />
-                            <Button
-                                disabled={isPending}
-                                type="submit"
-                            >
-                                {isPending ? "ロード中.." : "保存して戻る"}
-                            </Button>
+                            {isPending ? (
+                                <Button
+                                    isLoading
+                                    disabled={isPending}
+                                    type="submit"
+                                    colorScheme='blue'
+                                >
+                                    変更
+                                </Button>
+
+
+                            ) : (
+                                <Button
+                                    disabled={isPending}
+                                    type="submit"
+                                    colorScheme='blue'
+                                >
+                                    変更
+                                </Button>
+                            )
+                            }
                         </form>
                     </Form>
                 </CardContent>
