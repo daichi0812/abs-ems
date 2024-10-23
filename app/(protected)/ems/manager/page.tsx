@@ -187,27 +187,37 @@ function App() {
                         {equipments.map((equipment) => (
                             <div
                                 key={equipment.id}
-                                className="bg-slate-200 rounded-md p-3 mt-3 flex justify-between shadow"
+                                className="bg-slate-200 rounded-md p-2 mt-3 flex shadow gap-x-1"
                             >
                                 <div className="flex justify-center items-center">
                                     <p>{equipment.name}</p>
                                 </div>
-                                <div>
+                                <div className="ml-auto items-center flex gap-x-1">
                                     {isPending_2 && loadingId === equipment.id ? (
-                                        <Button isLoading disabled={isPending_2 && loadingId === equipment.id}  me={1} colorScheme="yellow">
+                                        <Button 
+                                            isLoading 
+                                            disabled={isPending_2 && loadingId === equipment.id} 
+                                            size={'md'} 
+                                            me={1} 
+                                            colorScheme="yellow"
+                                        >
                                             編集
                                         </Button>
                                     ) : (
                                         <Button
                                             disabled={isPending_2 && loadingId === equipment.id}
                                             onClick={() => handleEditEquipment(equipment.id)}
+                                            size={'md'}
                                             me={1}
                                             colorScheme="yellow"
                                         >
                                             編集
                                         </Button>
                                     )}
-                                    <Button onClick={() => handleDeleteEquipment(equipment.id)} colorScheme="red">
+                                    <Button 
+                                        onClick={() => handleDeleteEquipment(equipment.id)} 
+                                        size={'md'}
+                                        colorScheme="red">
                                         削除
                                     </Button>
                                 </div>
