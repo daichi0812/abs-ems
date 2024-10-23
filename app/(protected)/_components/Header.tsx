@@ -119,7 +119,7 @@ const Header = () => {
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger className="text-left">機材管理</DialogTrigger>
+                          <DialogTrigger className="text-left">管理者用ページ</DialogTrigger>
                           <DialogContent className="w-[90%] max-w-md p-6 bg-white rounded-lg shadow-lg">
                             <DialogHeader>
                               <DialogTitle className="text-xl font-bold text-center mb-4">パスワードを入力してください</DialogTitle>
@@ -179,7 +179,7 @@ const Header = () => {
                         </li>
                       ) : (
                         <Dialog>
-                          <DialogTrigger className="text-left">機材管理</DialogTrigger>
+                          <DialogTrigger className="text-left">管理者用ページ</DialogTrigger>
                           <DialogContent className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
                             <DialogHeader>
                               <DialogTitle className="text-xl font-bold text-center mb-4">パスワードを入力してください</DialogTitle>
