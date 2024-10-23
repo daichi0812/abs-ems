@@ -83,7 +83,7 @@ const ProductDetails = () => {
                     )}
             </div>
 
-            <div className="rounded-md mb-3 md:w-[80%] md:mx-auto">
+            <div className="rounded-md mb-3 md:w-[80%] md:mx-auto mx-2">
                 <ReservationCalendar userId={user?.id} listId={Number(productId)} />
             </div>
 
