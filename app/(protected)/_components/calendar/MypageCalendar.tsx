@@ -31,15 +31,25 @@ type Reserves = {
   isRenting: number
 }
 
-type Props = {
+type List = {
+  id: number;
+  name: string;
+  tag: {
+    color: string;
+  };
+};
+
+type MypageCalendarProps = {
   filteredData: Reserves[],
   idToNameMap: { [key: number]: string };
   userId: string | undefined;
   mypageFetchReservesData: () => Promise<void>;
 }
 
-export default function MypageCalendar({ filteredData, idToNameMap, userId, mypageFetchReservesData }: Props) {
+export default function MypageCalendar({ filteredData, idToNameMap, userId, mypageFetchReservesData }: MypageCalendarProps) {
   const [allEvents, setAllEvents] = useState<Event[]>([])
+  const [isFetching, setIsFetching] = useState(true);
+  const [listColorMap, setListColorMap] = useState<{ [key: number]: string }>({});
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [idToDelete, setIdToDelete] = useState<number | null>(null)
@@ -51,29 +61,75 @@ export default function MypageCalendar({ filteredData, idToNameMap, userId, mypa
     id: 0
   })
 
+
   const router = useRouter()  // Initialize useRouter
 
-  const [isFetching, setIsFetching] = useState(true);
+  // リストデータを取得して色をマッピング
+  useEffect(() => {
+    const fetchListData = async () => {
+      try {
+        const response = await fetch('https://logicode.fly.dev/lists');
+        const listData: List[] = await response.json();
+        const colorMap: { [key: number]: string } = {};
+        listData.forEach((list) => {
+          colorMap[list.id] = list.tag?.color || '#3788D8'; // デフォルト色を設定
+        });
+        setListColorMap(colorMap);
+      } catch (error) {
+        console.error('Error fetching list data:', error);
+      }
+    };
 
-  const calFetchReservesData = () => {
-    const newEvents = filteredData.map(item => {
-      const endDate = new Date(item.end);
-      endDate.setDate(endDate.getDate() + 1); // 1日プラス
+    fetchListData();
+  }, []);
 
-      return {
-        title: idToNameMap[item.list_id],
-        start: item.start,
-        end: endDate,
-        allDay: true,
-        id: item.id
-      };
-    });
+  // 予約データからイベントを作成
+  useEffect(() => {
+    const createEvents = () => {
+      // 新しいイベントを作成
+      const newEvents = filteredData.map((item) => {
+        const endDate = new Date(item.end);
+        endDate.setDate(endDate.getDate() + 1); // 一日追加
 
-    setAllEvents(newEvents);
+        // 色の条件を指定
+        const backgroundColor = listColorMap[item.list_id] || "#3788D8"; // マップから色を取得
+        const textColor = getTextColorForBackground(backgroundColor);
 
-    setIsFetching(false);
+        return {
+          title: idToNameMap[item.list_id],
+          start: item.start,
+          end: endDate,
+          allDay: true,
+          id: item.id,
+          backgroundColor,
+          borderColor: backgroundColor,
+          textColor,
+        }
+      })
+
+      setAllEvents(newEvents);
+      setIsFetching(false);
+    }
+
+    if(Object.keys(listColorMap).length > 0){
+      createEvents();
+    }
+  },[filteredData, idToNameMap, listColorMap]);
+
+  // イベントの背景の明るさを計算する関数
+  function getTextColorForBackground(bgColor: string): string {
+    // 背景色がHEXの場合を想定（例: #ff6666）
+    const hex = bgColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // 明るさを計算
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+    // 明るさが128未満なら文字を白、それ以外は黒
+    return brightness < 128 ? '#ffffff' : '#000000';
   }
-
 
   useEffect(() => {
     let draggableEl = document.getElementById('draggable-el')
@@ -88,7 +144,6 @@ export default function MypageCalendar({ filteredData, idToNameMap, userId, mypa
         }
       })
     }
-    calFetchReservesData();
   }, [filteredData])
 
   function handleDateClick(arg: { date: Date, allDay: boolean }) {
@@ -200,6 +255,17 @@ export default function MypageCalendar({ filteredData, idToNameMap, userId, mypa
     /* ボタンを変更する */
     .fc .fc-button {
       font-size: 0.8rem; /* ボタンのフォントサイズ */
+    }
+
+    /* "イベント"に対するCSS */
+    .fc-event {
+      padding-left: 2px !important; /* 左側のパディングを追加 */
+      border-radius: 7px; /* 角を少し丸くする */
+    }
+
+    /* "イベント名"に対するCSS */
+    .fc-event-title {
+      padding-left: 2px; /* イベント名の左側にパディングを追加 */
     }
   `
 

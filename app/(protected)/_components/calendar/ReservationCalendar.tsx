@@ -237,6 +237,17 @@ export default function ReservationCalendar({ userId, listId }: Props) {
       font-size: 0.8rem; /* ボタンのフォントサイズ */
       border-radius: 0.375rem;
     }
+
+    /* "イベント"に対するCSS */
+    .fc-event {
+      padding-left: 2px !important; /* 左側のパディングを追加 */
+      border-radius: 7px; /* 角を少し丸くする */
+    }
+
+    /* "イベント名"に対するCSS */
+    .fc-event-title {
+      padding-left: 2px; /* イベント名の左側にパディングを追加 */
+    }
   `
 
 
