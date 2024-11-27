@@ -46,7 +46,7 @@ export const Navbar = () => {
                     </Link>
                 </Button>
             </div>
-            <UserButton />
+            <UserButton isAdmin={true} />
         </nav>
     );
 };
