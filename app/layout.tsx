@@ -30,7 +30,7 @@ export default async function RootLayout({
         {/* headタグとその中にアイコンやテーマカラー、manifestを記述する */}
         <head>
           <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#b8e986" />
+          <meta name="theme-color" content="#F5F5F8" />
         </head>
         <body className={inter.className}>
           <Toaster />
