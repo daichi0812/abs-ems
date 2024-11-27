@@ -249,8 +249,7 @@ export default function ReservationCalendar({ userId, listId }: Props) {
       padding-left: 2px; /* イベント名の左側にパディングを追加 */
     }
   `
-
-
+  
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
