@@ -16,6 +16,7 @@ const FIELD_SIZE = 210;
 interface Tags {
   id: number;
   name: string;
+  color: string;
 }
 
 const EditPage = () => {
@@ -50,27 +51,30 @@ const EditPage = () => {
 
   const handleAddTag = async () => {
     if (addTagName === "") {
-        alert("カテゴリ名は1文字以上入力してください.")
-        setAddTagName("");
-        return;
+      alert("カテゴリ名は1文字以上入力してください.")
+      setAddTagName("");
+      return;
     }
 
     const isDuplicate = tags.some((tag) => tag.name === addTagName.trim());
     if (isDuplicate) {
-        alert("このカテゴリは既に存在しています.");
-        setAddTagName("");
-        return;
+      alert("このカテゴリは既に存在しています.");
+      setAddTagName("");
+      return;
     }
 
     await axios.post("https://logicode.fly.dev/tags", {
-        name: addTagName,
+      name: addTagName,
+      color: editTagColor
     });
+    setEditTagColor("");
     setAddTagName("");
     setTagsFunc();
-}
+  }
 
   useEffect(() => {
     fetchEquipmentData();
+    setTagsFunc();
   }, []);
 
   const fetchEquipmentData = async () => {
@@ -213,11 +217,25 @@ const EditPage = () => {
                     value={tag.name}
                     key={tag.id}
                   >
-                    <p>{tag.name}</p>
+                    <div className='flex'>
+                      <div className="flex justify-center items-center">
+                        <div className="rounded-full flex h-3 w-3" style={{ backgroundColor: tag.color }}></div>
+                      </div>
+                      <div className="flex justify-center items-center">
+                        <p className='rounded p-1'>{tag.name}</p>
+                      </div>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectGroup>
               <div className="flex mt-1">
+                <div className='flex justify-center items-center me-1'>
+                  <input
+                    className='w-8 h-8 border rounded-md'
+                    type="color"
+                    onChange={(e) => setEditTagColor(e.target.value)}
+                    value={editTagColor} />
+                </div>
                 <input
                   className="rounded-md px-1"
                   type="text"
@@ -251,25 +269,27 @@ const EditPage = () => {
             </SelectContent>
           </Select>
 
-          <div className="flex justify-center items-center ml-2">
-            {isPending_4 ? (
-              <Button
-                size={'sm'}
-                colorScheme="yellow"
-                isLoading
-              >
-                カテゴリ編集
-              </Button>
-            ) : (
-              <Button
-                size={'sm'}
-                colorScheme="yellow"
-                onClick={() => startTransition_4(() => router.push("/ems/categories"))}
-              >
-                カテゴリ編集
-              </Button>
-            )}
-          </div>
+          {tags.length > 0 && (
+            <div className="flex justify-center items-center ml-2">
+              {isPending_4 ? (
+                <Button
+                  size={'sm'}
+                  colorScheme="yellow"
+                  isLoading
+                >
+                  カテゴリ編集
+                </Button>
+              ) : (
+                <Button
+                  size={'sm'}
+                  colorScheme="yellow"
+                  onClick={() => startTransition_4(() => router.push("/ems/categories"))}
+                >
+                  カテゴリ編集
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         <input
           className='mb-1 rounded-md px-1'
