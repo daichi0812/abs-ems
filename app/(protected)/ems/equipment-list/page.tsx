@@ -16,40 +16,6 @@ interface Equipment {
     tag_id: string;
 }
 
-// テスト用のカテゴリーデータを作成
-const categories = [
-    {
-        id: 'all',
-        name: 'All',
-        description: 'すべてのカテゴリを表示',
-    },
-    {
-        id: 'usb',
-        name: 'USB',
-        description: 'USBデバイスやケーブルに関連するカテゴリ',
-    },
-    {
-        id: 'sentury',
-        name: 'Sentry',
-        description: 'セントリー機器や監視装置に関連するカテゴリ',
-    },
-    {
-        id: 'audio',
-        name: 'Audio',
-        description: 'オーディオ関連機器 (マイク、スピーカー)',
-    },
-    {
-        id: 'video',
-        name: 'Video',
-        description: 'ビデオ機器 (カメラ、ディスプレイ)',
-    },
-    {
-        id: 'network',
-        name: 'Network',
-        description: 'ネットワーク機器 (ルーター、スイッチ)',
-    },
-];
-
 const EquipmentList = () => {
     const router = useRouter();
     const user = useCurrentUser();
@@ -64,7 +30,7 @@ const EquipmentList = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
     // 取得したカテゴリーを保存する状態変数
-    const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+    const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
     const [categoriesLoading, setCategoriesLoading] =useState<boolean>(true);
 
     /* ユーザの情報をバックエンドに送る */

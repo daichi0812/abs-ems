@@ -18,10 +18,11 @@ interface Equipment {
     name: string;
     detail: string;
     image: string;
+    tag_id: string;
 }
 
 interface Tags {
-    id: number;
+    id: string;
     name: string;
     color: string;
 }
@@ -46,7 +47,13 @@ function App() {
 
     const [editTagColor, setEditTagColor] = useState<string>('');
 
-    const [selectedTag, setSelectedTag] = useState("");
+    // 選択されたカテゴリーを管理する状態
+    const [selectedTag, setSelectedTag] = useState("all"); // 機材登録用
+    const [selectedCategory, setSelectedCategory] = useState<string>('all'); // 編集・削除のソート用
+
+    // 取得したカテゴリーを保存する状態変数
+    const [categories, setCategories] = useState<Tags[]>([]);
+    const [categoriesLoading, setCategoriesLoading] = useState<boolean>(true);
 
     const [loadingId, setLoadingId] = useState<number | null>(null);
 
@@ -94,16 +101,30 @@ function App() {
         }
     };
 
-    const setTagsFunc = async () => {
-        const response = await fetch("https://logicode.fly.dev/tags");
-        const data: Tags[] = await response.json();
-        setTags(data);
+    // カテゴリデータを取得
+    const fetchTags = async () => {
+        setCategoriesLoading(true)
+        try {
+            const response = await fetch("https://logicode.fly.dev/tags");
+            const data = await response.json();
+            setTags(data);
+            setCategories(data);
+        } catch (error) {
+            console.error("Error fetching categories: ", error);
+        } finally {
+            setCategoriesLoading(false)
+        }
     }
 
+    // 選択されたカテゴリーに基づいて機材をフィルタリング
+    const filteredEquipments = selectedCategory === 'all'
+        ? equipments
+        : equipments.filter(equipment => equipment.tag_id === selectedCategory);
+
+    // 機材データを取得する
     const fetchEquipmentData = async () => {
         const response = await fetch("https://logicode.fly.dev/lists");
         const data: Equipment[] = await response.json();
-        setTagsFunc();
         setEquipments(data);
         setIsLoading(false);
     };
@@ -149,17 +170,18 @@ function App() {
         });
         setAddTagName("");
         setEditTagColor("");
-        setTagsFunc();
+        fetchTags();
     }
 
     useEffect(() => {
+        fetchTags();
         fetchEquipmentData();
     }, []);
 
     return (
         <div
             className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
-            from-sky-400 to-blue-800 pb-2"
+            from-sky-400 to-blue-800 pb-2 min-h-full"
         >
             <Header />
             <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 mt-3 mx-2 md:w-[80%] md:mx-auto">
@@ -319,49 +341,74 @@ function App() {
                 </div>
             </div>
             <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 my-3 mx-2 md:w-[80%] md:mx-auto">
-                <p className="text-xl mb-1">編集・削除</p>
+                <div className='flex justify-between items-center'>
+                    <p className='text-xl'>編集・削除</p>
+                    <Select
+                        value={selectedCategory}
+                        onValueChange={(value) => setSelectedCategory(value)}
+                        disabled={categoriesLoading}    // カテゴリー取得中はSelectを無効化
+                    >
+                        <SelectTrigger className="w-[180px] shadow-none border-black text-black bg-slate-50 hover:bg-slate-150">
+                            <SelectValue placeholder="All" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            {categories.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                    {category.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                {!isLoading ? (
+                {!isLoading && equipments ? (
                     <>
-                        {equipments.map((equipment) => (
-                            <div
-                                key={equipment.id}
-                                className="bg-slate-200 rounded-md p-2 mt-3 flex shadow gap-x-1"
-                            >
-                                <div className="flex justify-center items-center">
-                                    <p>{equipment.name}</p>
-                                </div>
-                                <div className="ml-auto items-center flex gap-x-1">
-                                    {isPending_2 && loadingId === equipment.id ? (
+                        {filteredEquipments.length > 0 ? (
+                            filteredEquipments.map((equipment) => (
+                                <div
+                                    key={equipment.id}
+                                    className="bg-slate-200 rounded-md p-2 mt-3 flex shadow gap-x-1"
+                                >
+                                    <div className="flex justify-center items-center">
+                                        <p>{equipment.name}</p>
+                                    </div>
+                                    <div className="ml-auto items-center flex gap-x-1">
+                                        {isPending_2 && loadingId === equipment.id ? (
+                                            <Button
+                                                isLoading
+                                                disabled={isPending_2 && loadingId === equipment.id}
+                                                size={'md'}
+                                                me={1}
+                                                colorScheme="yellow"
+                                            >
+                                                編集
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                disabled={isPending_2 && loadingId === equipment.id}
+                                                onClick={() => handleEditEquipment(equipment.id)}
+                                                size={'md'}
+                                                me={1}
+                                                colorScheme="yellow"
+                                            >
+                                                編集
+                                            </Button>
+                                        )}
                                         <Button
-                                            isLoading
-                                            disabled={isPending_2 && loadingId === equipment.id}
+                                            onClick={() => handleDeleteEquipment(equipment.id)}
                                             size={'md'}
-                                            me={1}
-                                            colorScheme="yellow"
-                                        >
-                                            編集
+                                            colorScheme="red">
+                                            削除
                                         </Button>
-                                    ) : (
-                                        <Button
-                                            disabled={isPending_2 && loadingId === equipment.id}
-                                            onClick={() => handleEditEquipment(equipment.id)}
-                                            size={'md'}
-                                            me={1}
-                                            colorScheme="yellow"
-                                        >
-                                            編集
-                                        </Button>
-                                    )}
-                                    <Button
-                                        onClick={() => handleDeleteEquipment(equipment.id)}
-                                        size={'md'}
-                                        colorScheme="red">
-                                        削除
-                                    </Button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <Center my={4}>
+                                <p>該当する機材が見つかりませんでした。</p>
+                            </Center>
+                        )}
                     </>
                 ) : (
                     <Center my={4}>
