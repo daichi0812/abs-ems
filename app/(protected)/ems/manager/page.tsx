@@ -8,6 +8,7 @@ import { useGetImageUrl } from "./useGetImageUrl";
 import { useRouter } from "next/navigation";
 import { Box, Button, Center, Spinner } from "@chakra-ui/react";
 import type { PutBlobResult } from "@vercel/blob";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const IMAGE_ID = "imageId";
 const FIELD_SIZE = 210;
@@ -19,10 +20,17 @@ interface Equipment {
     image: string;
 }
 
+interface Tags {
+    id: number;
+    name: string;
+}
+
 function App() {
     const inputFileRef = useRef<HTMLInputElement>(null);
     const [isPending_1, startTransition_1] = useTransition();
     const [isPending_2, startTransition_2] = useTransition();
+    const [isPending_3, startTransition_3] = useTransition();
+    const [isPending_4, startTransition_4] = useTransition();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +39,11 @@ function App() {
     const [equipmentName, setEquipmentName] = useState("");
     const [equipmentDetail, setEquipmentDetail] = useState("");
     const [equipments, setEquipments] = useState<Equipment[]>([]);
+
+    const [tags, setTags] = useState<Tags[]>([]); // タグを保持する変数
+    const [addTagName, setAddTagName] = useState<string>(''); // 追加するタグを保持する変数
+
+    const [selectedTag, setSelectedTag] = useState("");
 
     const [loadingId, setLoadingId] = useState<number | null>(null);
 
@@ -44,6 +57,7 @@ function App() {
         setImageFile(null);
         setEquipmentName("");
         setEquipmentDetail("");
+        setSelectedTag("");
         if (inputFileRef.current) {
             inputFileRef.current.value = "";
         }
@@ -66,9 +80,10 @@ function App() {
                 name: equipmentName,
                 detail: equipmentDetail,
                 image: blob?.url || "",
+                tag_id: tags.find((tag) => tag.name === selectedTag)?.id
             });
-
             alert("機材登録が完了しました");
+            setSelectedTag("");
             fetchEquipmentData();
             handleClickCancelButton(); // Reset inputs after successful registration
         } catch (err) {
@@ -76,9 +91,16 @@ function App() {
         }
     };
 
+    const setTagsFunc = async () => {
+        const response = await fetch("https://logicode.fly.dev/tags");
+        const data: Tags[] = await response.json();
+        setTags(data);
+    }
+
     const fetchEquipmentData = async () => {
         const response = await fetch("https://logicode.fly.dev/lists");
         const data: Equipment[] = await response.json();
+        setTagsFunc();
         setEquipments(data);
         setIsLoading(false);
     };
@@ -103,6 +125,27 @@ function App() {
             fetchEquipmentData();
         }
     };
+
+    const handleAddTag = async () => {
+        if (addTagName === "") {
+            alert("カテゴリ名は1文字以上入力してください.")
+            setAddTagName("");
+            return;
+        }
+
+        const isDuplicate = tags.some((tag) => tag.name === addTagName.trim());
+        if (isDuplicate) {
+            alert("このカテゴリは既に存在しています.");
+            setAddTagName("");
+            return;
+        }
+
+        await axios.post("https://logicode.fly.dev/tags", {
+            name: addTagName,
+        });
+        setAddTagName("");
+        setTagsFunc();
+    }
 
     useEffect(() => {
         fetchEquipmentData();
@@ -142,6 +185,81 @@ function App() {
                     )}
                     <InputImage ref={inputFileRef} id={IMAGE_ID} onChange={handleFileChange} />
                 </label>
+                <div className="mb-2 flex">
+                    <Select
+                        value={selectedTag}
+                        onValueChange={(value) => {
+                            setSelectedTag(value);
+                        }}
+                    >
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="カテゴリ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                {tags.map((tag) => (
+                                    <SelectItem
+                                        value={tag.name}
+                                        key={tag.id}
+                                    >
+                                        <p>{tag.name}</p>
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
+                            <div className="flex mt-1">
+                                <input
+                                    className="rounded-md px-1"
+                                    type="text"
+                                    placeholder="カテゴリの追加"
+                                    style={{ border: "1px solid black", width: "180px" }}
+                                    onChange={(e) => setAddTagName(e.target.value)}
+                                    value={addTagName}
+                                    onKeyDown={(e) => {
+                                        e.stopPropagation();
+                                    }}
+                                    onFocus={(e) => e.stopPropagation()}
+                                />
+                                {isPending_3 ? (
+                                    <div className="flex justify-center items-center ml-1">
+                                        <Button isLoading size={"sm"} colorScheme="blue">
+                                            追加
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-center items-center ml-1">
+                                        <Button
+                                            size={"sm"}
+                                            colorScheme="blue"
+                                            onClick={() => startTransition_3(handleAddTag)}
+                                        >
+                                            追加
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </SelectContent>
+                    </Select>
+
+                    <div className="flex justify-center items-center ml-2">
+                        {isPending_4 ? (
+                            <Button
+                                size={'sm'}
+                                colorScheme="yellow"
+                                isLoading
+                            >
+                                カテゴリ編集
+                            </Button>
+                        ) : (
+                            <Button
+                                size={'sm'}
+                                colorScheme="yellow"
+                                onClick={() => startTransition_4(() => router.push("/ems/categories"))}
+                            >
+                                カテゴリ編集
+                            </Button>
+                        )}
+                    </div>
+                </div>
                 <input
                     className="mb-1 rounded-md px-1"
                     type="text"
@@ -194,11 +312,11 @@ function App() {
                                 </div>
                                 <div className="ml-auto items-center flex gap-x-1">
                                     {isPending_2 && loadingId === equipment.id ? (
-                                        <Button 
-                                            isLoading 
-                                            disabled={isPending_2 && loadingId === equipment.id} 
-                                            size={'md'} 
-                                            me={1} 
+                                        <Button
+                                            isLoading
+                                            disabled={isPending_2 && loadingId === equipment.id}
+                                            size={'md'}
+                                            me={1}
                                             colorScheme="yellow"
                                         >
                                             編集
@@ -214,8 +332,8 @@ function App() {
                                             編集
                                         </Button>
                                     )}
-                                    <Button 
-                                        onClick={() => handleDeleteEquipment(equipment.id)} 
+                                    <Button
+                                        onClick={() => handleDeleteEquipment(equipment.id)}
                                         size={'md'}
                                         colorScheme="red">
                                         削除
@@ -230,7 +348,7 @@ function App() {
                     </Center>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 
