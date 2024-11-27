@@ -6,7 +6,7 @@ import InputImage from "@/components/InputImage";
 import Header from "@/app/(protected)/_components/Header";
 import { useGetImageUrl } from "./useGetImageUrl";
 import { useRouter } from "next/navigation";
-import { Box, Button, Center, Spinner } from "@chakra-ui/react";
+import { Button, Center, Spinner } from "@chakra-ui/react";
 import type { PutBlobResult } from "@vercel/blob";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
