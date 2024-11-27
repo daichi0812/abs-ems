@@ -43,6 +43,8 @@ function App() {
     const [tags, setTags] = useState<Tags[]>([]); // タグを保持する変数
     const [addTagName, setAddTagName] = useState<string>(''); // 追加するタグを保持する変数
 
+    const [editTagColor, setEditTagColor] = useState<string>('');
+
     const [selectedTag, setSelectedTag] = useState("");
 
     const [loadingId, setLoadingId] = useState<number | null>(null);

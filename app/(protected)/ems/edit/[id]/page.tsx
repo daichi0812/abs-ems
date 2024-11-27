@@ -9,8 +9,14 @@ import type { PutBlobResult } from '@vercel/blob';
 
 import { Button } from '@chakra-ui/react';
 import Header from '@/app/(protected)/_components/Header';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const FIELD_SIZE = 210;
+
+interface Tags {
+  id: number;
+  name: string;
+}
 
 const EditPage = () => {
   const params = useParams();
@@ -22,10 +28,46 @@ const EditPage = () => {
   const [equipmentImg, setEquipmentImg] = useState(''); // 現在の画像URL
   const [imageFile, setImageFile] = useState<File | null>(null); // 新しい画像ファイル
 
+  const [tags, setTags] = useState<Tags[]>([]); // タグを保持する変数
+  const [addTagName, setAddTagName] = useState<string>(''); // 追加するタグを保持する変数
+
+  const [editTagColor, setEditTagColor] = useState<string>('');
+
+  const [selectedTag, setSelectedTag] = useState("");
+
   const [isPending_1, startTransition_1] = useTransition();
   const [isPending_2, startTransition_2] = useTransition();
+  const [isPending_3, startTransition_3] = useTransition();
+  const [isPending_4, startTransition_4] = useTransition();
 
   const inputFileRef = useRef<HTMLInputElement>(null);
+
+  const setTagsFunc = async () => {
+    const response = await fetch("https://logicode.fly.dev/tags");
+    const data: Tags[] = await response.json();
+    setTags(data);
+  }
+
+  const handleAddTag = async () => {
+    if (addTagName === "") {
+        alert("カテゴリ名は1文字以上入力してください.")
+        setAddTagName("");
+        return;
+    }
+
+    const isDuplicate = tags.some((tag) => tag.name === addTagName.trim());
+    if (isDuplicate) {
+        alert("このカテゴリは既に存在しています.");
+        setAddTagName("");
+        return;
+    }
+
+    await axios.post("https://logicode.fly.dev/tags", {
+        name: addTagName,
+    });
+    setAddTagName("");
+    setTagsFunc();
+}
 
   useEffect(() => {
     fetchEquipmentData();
@@ -84,6 +126,7 @@ const EditPage = () => {
             name: equipmentName,
             detail: equipmentDetail,
             image: blobUrl,
+            tag_id: tags.find((tag) => tag.name === selectedTag)?.id
           },
           {
             headers: {
@@ -153,6 +196,81 @@ const EditPage = () => {
             onChange={handleFileChange}
           />
         </label>
+        <div className="mb-2 flex">
+          <Select
+            value={selectedTag}
+            onValueChange={(value) => {
+              setSelectedTag(value);
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="カテゴリ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {tags.map((tag) => (
+                  <SelectItem
+                    value={tag.name}
+                    key={tag.id}
+                  >
+                    <p>{tag.name}</p>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <div className="flex mt-1">
+                <input
+                  className="rounded-md px-1"
+                  type="text"
+                  placeholder="カテゴリの追加"
+                  style={{ border: "1px solid black", width: "180px" }}
+                  onChange={(e) => setAddTagName(e.target.value)}
+                  value={addTagName}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onFocus={(e) => e.stopPropagation()}
+                />
+                {isPending_3 ? (
+                  <div className="flex justify-center items-center ml-1">
+                    <Button isLoading size={"sm"} colorScheme="blue">
+                      追加
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex justify-center items-center ml-1">
+                    <Button
+                      size={"sm"}
+                      colorScheme="blue"
+                      onClick={() => startTransition_3(handleAddTag)}
+                    >
+                      追加
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SelectContent>
+          </Select>
+
+          <div className="flex justify-center items-center ml-2">
+            {isPending_4 ? (
+              <Button
+                size={'sm'}
+                colorScheme="yellow"
+                isLoading
+              >
+                カテゴリ編集
+              </Button>
+            ) : (
+              <Button
+                size={'sm'}
+                colorScheme="yellow"
+                onClick={() => startTransition_4(() => router.push("/ems/categories"))}
+              >
+                カテゴリ編集
+              </Button>
+            )}
+          </div>
+        </div>
         <input
           className='mb-1 rounded-md px-1'
           type="text"
