@@ -99,7 +99,7 @@ const EditCategories = () => {
                                 {editTagId === tag.id ? (
                                     // 編集モード
                                     <div className='flex'>
-                                        <div className='flex justify-center items-center'>
+                                        <div className='flex justify-center items-center me-1'>
                                             <input
                                                 className='w-8 h-8 border rounded-md'
                                                 type="color"
