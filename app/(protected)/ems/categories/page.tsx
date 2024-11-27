@@ -28,7 +28,7 @@ const EditCategories = () => {
             const sortedTags = response.data.sort((a: Tags, b: Tags) => a.id - b.id);
             setTags(sortedTags);
         } catch (err) {
-            console.error("カテゴリ一覧の取得に失敗しました", err);
+            console.error("カテゴリ一覧の取得に失敗しました.", err);
         } finally {
             setIsLoading(false);
         }
