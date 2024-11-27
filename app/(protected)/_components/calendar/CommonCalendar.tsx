@@ -5,7 +5,6 @@ import interactionPlugin, { Draggable, DropArg } from '@fullcalendar/interaction
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { Fragment, useEffect, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid'
 import { EventSourceInput } from '@fullcalendar/core/index.js'
 
 import jaLocale from '@fullcalendar/core/locales/ja';
@@ -29,6 +28,7 @@ function formatDate2(date: Date | string): string {
 }
 
 interface Event {
+  textColor: string
   isRenting: number;
   name: string;
   title: string;
@@ -54,11 +54,13 @@ type Reserves = {
 };
 
 type Lists = {
+  tag: {name: string, color: string},
   id: number,
   name: string,
   detail: string,
   image: string,
-  usable: boolean
+  usable: boolean,
+  color: string,
 }
 
 
@@ -91,17 +93,20 @@ export default function CommonCalendar() {
       return map;
     }, {} as { [key: string]: string });
 
-    // 機材名とidの対応リストを作成
+    // 機材データを取得
     const responseLists2 = await fetch('https://logicode.fly.dev/lists');
     const reservesListsData2: Lists[] = await responseLists2.json();
 
-    // IDをキーにして機材名をマッピング
-    const idToNameMap2: { [key: string]: string } = reservesListsData2.reduce((map, item) => {
-      map[item.id] = item.name; // idをキーにして機材名をマッピング
-      return map;
-    }, {} as { [key: string]: string });
+    // IDをキーにして機材名と色をマッピング
+    const idToNameMap2: { [key: string]: string } = {};
+    const idToColorMap: { [key: string]: string } = {};
+  
+    reservesListsData2.forEach(item => {
+      idToNameMap2[item.id] = item.name;
+      idToColorMap[item.id] = item.tag?.color || '#3788D8'; // デフォルトの色を設定
+    });
 
-
+    // 予約データを取得
     const response = await fetch('https://logicode.fly.dev/reserves');
     const reservesData: Reserves[] = await response.json();
 
@@ -109,6 +114,12 @@ export default function CommonCalendar() {
     const newEvents = reservesData.map(item => {
       const endDate = new Date(item.end);
       endDate.setDate(endDate.getDate() + 1); // 1日プラス
+
+      // 色の条件を指定
+      const backgroundColor = idToColorMap[item.list_id] || '#3788D8'; // デフォルト色を使用
+
+      // 文字色を計算
+      const textColor = getTextColorForBackground(backgroundColor);
 
       return {
         title: idToNameMap2[item.list_id],
@@ -118,7 +129,10 @@ export default function CommonCalendar() {
         id: item.id,
         name: idToNameMap1[item.user_id],
         isRenting: item.isRenting,
-        list_id: item.list_id
+        list_id: item.list_id,
+        backgroundColor, // 背景色
+        borderColor: backgroundColor, // 枠線の色
+        textColor // 文字色
       };
     });
 
@@ -128,6 +142,21 @@ export default function CommonCalendar() {
     setIsFetching(false);
 
   };
+
+  // イベントの背景の明るさを計算する関数
+  function getTextColorForBackground(bgColor: string): string {
+    // 背景色がHEXの場合を想定（例: #ff6666）
+    const hex = bgColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // 明るさを計算
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+    // 明るさが128未満なら文字を白、それ以外は黒
+    return brightness < 128 ? '#ffffff' : '#000000';
+  }
 
   useEffect(() => {
     let draggableEl = document.getElementById('draggable-el')
@@ -268,6 +297,17 @@ export default function CommonCalendar() {
     .fc .fc-button {
       font-size: 0.8rem; /* ボタンのフォントサイズ */
     }
+    
+    /* "イベント"に対するCSS */
+    .fc-event {
+      padding-left: 2px !important; /* 左側のパディングを追加 */
+      border-radius: 7px; /* 角を少し丸くする */
+    }
+
+    /* "イベント名"に対するCSS */
+    .fc-event-title {
+      padding-left: 2px; /* イベント名の左側にパディングを追加 */
+    }
   `
 
   return (
@@ -289,7 +329,10 @@ export default function CommonCalendar() {
                   timeGridPlugin
                 ]}
                 height={isMobile}
-                events={allEvents as EventSourceInput}
+                events={allEvents.map(event => ({
+                  ...event,
+                  textColor: event.textColor // 文字色を追加
+                })) as EventSourceInput}
                 nowIndicator={true}
                 droppable={true}
                 selectMirror={true}
@@ -349,7 +392,7 @@ export default function CommonCalendar() {
                                 状態: {getRentingStatusText(isRentingToShow)}
                               </p>
                               <p className="text-xl text-gray-500">
-                                期間: {startToShow} ~ {endToShow} 
+                                期間: {startToShow} ~ {endToShow}
                               </p>
                               <a
                                 className="bg-white hover:bg-gray-100 text-center text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"

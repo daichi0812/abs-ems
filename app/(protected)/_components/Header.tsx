@@ -98,7 +98,7 @@ const Header = () => {
                 <div>
                   <ul className="flex md:flex-row flex-col md:items-center md:gap-[4vw] gap-8 text-lg font-semibold">
                     <li className="flex items-center">
-                      <UserButton />
+                      <UserButton isAdmin={manager} />
                       <div className="wf-nicomoji mx-4">
                         <span className="font-bold">{user?.name}</span> <span className="text-sm">さん</span>
                       </div>
@@ -217,7 +217,7 @@ const Header = () => {
                         </Dialog>
                       )}
                     <li className="mt-1">
-                      <UserButton />
+                      <UserButton isAdmin={manager} />
                     </li>
                   </ul>
                 </div>
@@ -242,7 +242,7 @@ const Header = () => {
                       height="40px"
                       width="40px"
                     />
-                    <UserButton />
+                    <UserButton isAdmin={manager}/>
                   </div>
                 )}
               </div>
