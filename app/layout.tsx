@@ -27,6 +27,11 @@ export default async function RootLayout({
   return (
     <SessionProvider session={session}>
       <html lang="ja">
+        {/* headタグとその中にアイコンやテーマカラー、manifestを記述する */}
+        <head>
+          <link rel="manifest" href="/manifest.json" />
+          <meta name="theme-color" content="#b8e986" />
+        </head>
         <body className={inter.className}>
           <Toaster />
           <ChakraProvider>{children}</ChakraProvider>
