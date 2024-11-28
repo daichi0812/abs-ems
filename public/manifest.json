@@ -20,5 +20,19 @@
     "dir": "auto",
     "lang": "ja",
     "name": "ABS-EMS",
-    "short_name": "ABS-EMS"
+    "short_name": "ABS-EMS",
+    "start_url": "./",
+    "screenshots": [
+        {
+            "src": "screenshot_desktop.png",
+            "sizes": "3022x1728",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "screenshot2.png",
+            "sizes": "750x1294",
+            "type": "image/png"
+        }
+    ]
 }
