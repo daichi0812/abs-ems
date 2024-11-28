@@ -30,7 +30,7 @@
             "form_factor": "wide"
         },
         {
-            "src": "screenshot2.png",
+            "src": "screenshot_mobile.png",
             "sizes": "750x1294",
             "type": "image/png"
         }
