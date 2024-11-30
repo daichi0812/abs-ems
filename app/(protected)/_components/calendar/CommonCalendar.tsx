@@ -328,7 +328,7 @@ export default function CommonCalendar() {
                   interactionPlugin,
                   timeGridPlugin
                 ]}
-                height={isMobile}
+                height="auto"
                 events={allEvents.map(event => ({
                   ...event,
                   textColor: event.textColor // 文字色を追加
