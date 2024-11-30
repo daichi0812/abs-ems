@@ -54,7 +54,7 @@ type Reserves = {
 };
 
 type Lists = {
-  tag: {name: string, color: string},
+  tag: { name: string, color: string },
   id: number,
   name: string,
   detail: string,
@@ -66,19 +66,13 @@ type Lists = {
 
 export default function CommonCalendar() {
   const [allEvents, setAllEvents] = useState<Event[]>([])
-  const [showModal, setShowModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [idToDelete, setIdToDelete] = useState<number | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [nameToShow, setNameToShow] = useState<string | null>(null);
   const [isRentingToShow, setIsRentingToShow] = useState<number | null>(null);
   const [startToShow, setStartToShow] = useState<string | null>(null)
   const [endToShow, setEndToShow] = useState<string | null>(null)
   const [idToShow, setIdToShow] = useState<number>(0)
   const [eqipNameToShow, setEqipNameToShow] = useState<string | null>(null)
-
-  const [filteredData, setFilteredData] = useState<Reserves[]>([])
-
-  const [equipmentState, setEquipmentState] = useState(false);
 
   const [isFetching, setIsFetching] = useState(true);
 
@@ -100,7 +94,7 @@ export default function CommonCalendar() {
     // IDをキーにして機材名と色をマッピング
     const idToNameMap2: { [key: string]: string } = {};
     const idToColorMap: { [key: string]: string } = {};
-  
+
     reservesListsData2.forEach(item => {
       idToNameMap2[item.id] = item.name;
       idToColorMap[item.id] = item.tag?.color || '#3788D8'; // デフォルトの色を設定
@@ -174,17 +168,7 @@ export default function CommonCalendar() {
     fetchReservesData()
   }, [])
 
-  function handleDateClick(arg: { date: Date, allDay: boolean }) {
-    // setNewEvent({ ...newEvent, start: arg.date, allDay: arg.allDay, id: new Date().getTime() })
-    setShowModal(true)
-  }
-
-  function addEvent(data: DropArg) {
-    // const event = { ...newEvent, start: data.date.toISOString(), title: data.draggedEl.innerText, allDay: data.allDay, id: new Date().getTime() }
-    // setAllEvents([...allEvents, event])
-  }
-
-  function handleDeleteModal(data: { event: { id: string } }) {
+  function handleDetailModal(data: { event: { id: string } }) {
     const event = allEvents.find(event => event.id === Number(data.event.id));
     if (event) {
       const userName = event.name; // Assuming title is the user's name
@@ -199,8 +183,7 @@ export default function CommonCalendar() {
 
       setEqipNameToShow(event.title);
     }
-    setShowDeleteModal(true)
-    setIdToDelete(Number(data.event.id))
+    setShowDetailModal(true)
   }
 
   const getRentingStatusText = (isRentingToShow: number | null) => {
@@ -218,42 +201,9 @@ export default function CommonCalendar() {
     }
   };
 
-  function handleDelete() {
-    setAllEvents(allEvents.filter(event => Number(event.id) !== Number(idToDelete)))
-    setShowDeleteModal(false)
-    setIdToDelete(null)
-  }
-
   function handleCloseModal() {
-    setShowModal(false)
-    // setNewEvent({
-    //   title: userId,
-    //   start: '',
-    //   end: '',
-    //   allDay: true,
-    //   id: 0
-    // })
-    setShowDeleteModal(false)
-    setIdToDelete(null)
+    setShowDetailModal(false)
   }
-
-  const isMobile = useBreakpointValue({ base: 500, md: 720 })
-
-  const isOverlapping = (newEvent: Event, filteredData: Reserves[]) => {
-    const newEventStart = new Date(newEvent.start).getTime();
-    const newEventEnd = new Date(newEvent.end).getTime();
-
-    return filteredData.some(event => {
-      const existingEventStart = new Date(event.start).getTime();
-      const existingEventEnd = new Date(event.end).getTime();
-
-      return (
-        (newEventStart >= existingEventStart && newEventStart <= existingEventEnd) ||
-        (newEventEnd >= existingEventStart && newEventEnd <= existingEventEnd) ||
-        (newEventStart <= existingEventStart && newEventEnd >= existingEventEnd)
-      );
-    });
-  };
 
   const StyleWrapper = styled.div`
     .fc {
@@ -264,7 +214,7 @@ export default function CommonCalendar() {
     .fc .fc-col-header-cell {
       font-size: 0.75rem;
       font-weight: normal;
-      color: #b6b5b3;
+      color: #000;
       border: none;
     }
 
@@ -336,9 +286,7 @@ export default function CommonCalendar() {
                 nowIndicator={true}
                 droppable={true}
                 selectMirror={true}
-                dateClick={handleDateClick}
-                drop={(data) => addEvent(data)}
-                eventClick={(data) => handleDeleteModal(data)}
+                eventClick={(data) => handleDetailModal(data)}
                 displayEventTime={false}
                 locales={[jaLocale]}
                 locale='ja'
@@ -347,8 +295,8 @@ export default function CommonCalendar() {
             </StyleWrapper>
           </div >
 
-          <Transition.Root show={showDeleteModal} as={Fragment}>
-            <Dialog as="div" className="relative z-10" onClose={setShowDeleteModal}>
+          <Transition.Root show={showDetailModal} as={Fragment}>
+            <Dialog as="div" className="relative z-10" onClose={setShowDetailModal}>
               <Transition.Child
                 as={Fragment}
                 enter="ease-out duration-300"
