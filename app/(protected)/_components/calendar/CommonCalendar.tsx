@@ -1,29 +1,28 @@
 "use client"
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import interactionPlugin, { Draggable, DropArg } from '@fullcalendar/interaction'
+import interactionPlugin, { Draggable } from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { Fragment, useEffect, useState } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
 import { EventSourceInput } from '@fullcalendar/core/index.js'
 
 import jaLocale from '@fullcalendar/core/locales/ja';
 import styled from 'styled-components';
-import { Center, Spinner, useBreakpointValue } from '@chakra-ui/react'
+import { Center, Spinner } from '@chakra-ui/react'
+
+import DetailModal from './../DetailModal'; 
 
 function formatDate1(date: Date | string): string {
   const d = new Date(date);
-  const year = d.getFullYear();
-  const month = `${d.getMonth() + 1}`.padStart(2, '0'); // Convert month to 2 digits
-  const day = `${d.getDate()}`.padStart(2, '0'); // Convert day to 2 digits
+  const month = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate()}`.padStart(2, '0');
   return `${month}月${day}日`;
 }
 
 function formatDate2(date: Date | string): string {
   const d = new Date(date);
-  const year = d.getFullYear();
-  const month = `${d.getMonth() + 1}`.padStart(2, '0'); // Convert month to 2 digits
-  const day = `${d.getDate() - 1}`.padStart(2, '0'); // Convert day to 2 digits
+  const month = `${d.getMonth() + 1}`.padStart(2, '0');
+  const day = `${d.getDate() - 1}`.padStart(2, '0');
   return `${month}月${day}日`;
 }
 
@@ -33,7 +32,7 @@ interface Event {
   name: string;
   title: string;
   start: Date | string;
-  end: Date | string; // Added end date
+  end: Date | string;
   allDay: boolean;
   id: number;
   list_id: number;
@@ -47,8 +46,8 @@ interface Users {
 type Reserves = {
   id: number;
   user_id: string;
-  start: string;  // Use string if API returns date in string format
-  end: string;    // Use string if API returns date in string format
+  start: string;
+  end: string;
   list_id: number;
   isRenting: number;
 };
@@ -62,7 +61,6 @@ type Lists = {
   usable: boolean,
   color: string,
 }
-
 
 export default function CommonCalendar() {
   const [allEvents, setAllEvents] = useState<Event[]>([])
@@ -83,7 +81,7 @@ export default function CommonCalendar() {
 
     // ユーザーIDをキーにして名前をマッピング
     const idToNameMap1: { [key: string]: string } = reservesListsData1.reduce((map, item) => {
-      map[item.user_id] = item.name; // idをキーにして名前をマッピング
+      map[item.user_id] = item.name;
       return map;
     }, {} as { [key: string]: string });
 
@@ -97,7 +95,7 @@ export default function CommonCalendar() {
 
     reservesListsData2.forEach(item => {
       idToNameMap2[item.id] = item.name;
-      idToColorMap[item.id] = item.tag?.color || '#3788D8'; // デフォルトの色を設定
+      idToColorMap[item.id] = item.tag?.color || '#3788D8';
     });
 
     // 予約データを取得
@@ -107,12 +105,9 @@ export default function CommonCalendar() {
     // 新しいイベントの一時配列を作成
     const newEvents = reservesData.map(item => {
       const endDate = new Date(item.end);
-      endDate.setDate(endDate.getDate() + 1); // 1日プラス
+      endDate.setDate(endDate.getDate() + 1);
 
-      // 色の条件を指定
-      const backgroundColor = idToColorMap[item.list_id] || '#3788D8'; // デフォルト色を使用
-
-      // 文字色を計算
+      const backgroundColor = idToColorMap[item.list_id] || '#3788D8';
       const textColor = getTextColorForBackground(backgroundColor);
 
       return {
@@ -124,31 +119,24 @@ export default function CommonCalendar() {
         name: idToNameMap1[item.user_id],
         isRenting: item.isRenting,
         list_id: item.list_id,
-        backgroundColor, // 背景色
-        borderColor: backgroundColor, // 枠線の色
-        textColor // 文字色
+        backgroundColor,
+        borderColor: backgroundColor,
+        textColor
       };
     });
 
-    // 全イベントを更新
     setAllEvents(newEvents);
-
     setIsFetching(false);
-
   };
 
   // イベントの背景の明るさを計算する関数
   function getTextColorForBackground(bgColor: string): string {
-    // 背景色がHEXの場合を想定（例: #ff6666）
     const hex = bgColor.replace('#', '');
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
 
-    // 明るさを計算
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-
-    // 明るさが128未満なら文字を白、それ以外は黒
     return brightness < 128 ? '#ffffff' : '#000000';
   }
 
@@ -168,38 +156,18 @@ export default function CommonCalendar() {
     fetchReservesData()
   }, [])
 
-  function handleDetailModal(data: { event: { id: string } }) {
+  const handleDetailModal = (data: { event: { id: string } }) => {
     const event = allEvents.find(event => event.id === Number(data.event.id));
     if (event) {
-      const userName = event.name; // Assuming title is the user's name
-      setNameToShow(userName); // Set the user's name to display
-      const isRenting = event.isRenting; // Assuming title is the user's name
-      setIsRentingToShow(isRenting); // Set the user's name to display
-
+      setNameToShow(event.name);
+      setIsRentingToShow(event.isRenting);
       setStartToShow(formatDate1(event.start.toString()));
       setEndToShow(formatDate2(event.end.toString()));
-
       setIdToShow(event.list_id);
-
       setEqipNameToShow(event.title);
     }
     setShowDetailModal(true)
   }
-
-  const getRentingStatusText = (isRentingToShow: number | null) => {
-    switch (isRentingToShow) {
-      case 0:
-        return "予約";
-      case 1:
-        return "貸出期間（未貸出）";
-      case 2:
-        return "貸出期間";
-      case 3:
-        return "返却遅れ";
-      case 4:
-        return "返却完了";
-    }
-  };
 
   function handleCloseModal() {
     setShowDetailModal(false)
@@ -236,38 +204,36 @@ export default function CommonCalendar() {
       font-size: 0.75rem;
     }
 
-     /* タイトルを変更する */
+    /* タイトルを変更する */
     .fc .fc-toolbar-title {
-      font-size: 1.2rem; /* タイトルのフォントサイズ */
-      color: #000; /* タイトルの色 */
+      font-size: 1.2rem;
+      color: #000;
       padding-left: 1rem;
     }
 
     /* ボタンを変更する */
     .fc .fc-button {
-      font-size: 0.8rem; /* ボタンのフォントサイズ */
+      font-size: 0.8rem;
     }
     
     /* "イベント"に対するCSS */
     .fc-event {
-      padding-left: 2px !important; /* 左側のパディングを追加 */
-      border-radius: 7px; /* 角を少し丸くする */
+      padding-left: 2px !important;
+      border-radius: 7px;
     }
 
     /* "イベント名"に対するCSS */
     .fc-event-title {
-      padding-left: 2px; /* イベント名の左側にパディングを追加 */
+      padding-left: 2px;
     }
   `
 
   return (
     <>
       {isFetching ? (
-        <>
-          <Center my={4}>
-            <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
-          </Center>
-        </>
+        <Center my={4}>
+          <Spinner thickness="4px" speed="0.65s" emptyColor="gray.200" color="blue.500" size="xl" />
+        </Center>
       ) : (
         <>
           <div style={{ position: "relative", zIndex: "0" }}>
@@ -281,7 +247,7 @@ export default function CommonCalendar() {
                 height="auto"
                 events={allEvents.map(event => ({
                   ...event,
-                  textColor: event.textColor // 文字色を追加
+                  textColor: event.textColor
                 })) as EventSourceInput}
                 nowIndicator={true}
                 droppable={true}
@@ -295,80 +261,18 @@ export default function CommonCalendar() {
             </StyleWrapper>
           </div >
 
-          <Transition.Root show={showDetailModal} as={Fragment}>
-            <Dialog as="div" className="relative z-10" onClose={setShowDetailModal}>
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0"
-                enterTo="opacity-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
-              >
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-              </Transition.Child>
-              <div className="fixed inset-0 z-10 overflow-y-auto">
-                <div className="flex min-h-full justify-center p-4 text-center items-center sm:p-0">
-                  <Transition.Child
-                    as={Fragment}
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                    enterTo="opacity-100 translate-y-0 sm:scale-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                    leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                  >
-                    <Dialog.Panel className="relative transform overflow-hidden rounded-lg
-                   bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
-                    >
-
-                      <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                        <div className="sm:flex sm:items-start">
-                          <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                            <Dialog.Title as="h3" className="text-xl font-semibold leading-6 text-gray-900">
-                              予約の詳細
-                            </Dialog.Title>
-                            <div className="mt-2 flex flex-col text-left">
-                              <p className="text-xl text-gray-500">
-                                機材名: {eqipNameToShow}
-                              </p>
-                              <p className="text-xl text-gray-500">
-                                予約者: {nameToShow}
-                              </p>
-                              <p className="text-xl text-gray-500">
-                                状態: {getRentingStatusText(isRentingToShow)}
-                              </p>
-                              <p className="text-xl text-gray-500">
-                                期間: {startToShow} ~ {endToShow}
-                              </p>
-                              <a
-                                className="bg-white hover:bg-gray-100 text-center text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded inline-block shadow mt-4 mb-4"
-                                href={"/ems/reserve/" + idToShow.toString()}
-                              >
-                                {eqipNameToShow}{" "}のページ
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                        <button type="button" className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 
-                      shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                          onClick={handleCloseModal}
-                        >
-                          閉じる
-                        </button>
-                      </div>
-                    </Dialog.Panel>
-                  </Transition.Child>
-                </div>
-              </div>
-            </Dialog>
-          </Transition.Root>
+          <DetailModal
+            isOpen={showDetailModal}
+            onClose={handleCloseModal}
+            eqipName={eqipNameToShow}
+            userName={nameToShow}
+            rentingStatus={isRentingToShow}
+            startDate={startToShow}
+            endDate={endToShow}
+            listId={idToShow}
+          />
         </>
-      )
-      }
+      )}
     </>
   )
 }
