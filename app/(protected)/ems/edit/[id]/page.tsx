@@ -208,7 +208,7 @@ const EditPage = () => {
             }}
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="カテゴリ" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
