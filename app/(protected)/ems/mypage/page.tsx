@@ -64,8 +64,8 @@ const Mypage = () => {
         setFilteredData(reservesData.filter((item: Reserves) => item.user_id == user?.id));
     }
 
-    const fetchEquipmentState = async (listId: number) => {
-        const response = await fetch(`/api/lists/${listId}`);
+    const fetchEquipmentState = async (equipmentId: number) => {
+        const response = await fetch(`/api/lists/${equipmentId}`);
         const equipmentData: Lists = await response.json();
         return equipmentData.usable;
     }
