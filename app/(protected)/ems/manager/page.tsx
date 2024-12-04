@@ -101,6 +101,11 @@ function App() {
         }
     };
 
+    // テストでリストを登録
+    const testPostList = async () => {
+        const response = await axios.post("/api/lists")
+    }
+
     // カテゴリデータを取得
     const fetchTags = async () => {
         setCategoriesLoading(true)
@@ -176,6 +181,7 @@ function App() {
     useEffect(() => {
         fetchTags();
         fetchEquipmentData();
+        testPostList();
     }, []);
 
     return (

@@ -86,3 +86,27 @@ model TwoFactorConfirmation {
 
   @@unique([userId])
 }
+
+model lists {
+  id      String  @id @default(cuid())
+  name    String?
+  detail  String?
+  image   String?
+  usable  Boolean @default(true)
+  tag_id  Int?
+}
+
+model reserves {
+  id        String  @id @default(cuid())
+  user_id   String?
+  start     DateTime?
+  end       DateTime?
+  list_id   Int?
+  isRenting Int?
+}
+
+model tags {
+  id      String  @id @default(cuid())
+  name    String?
+  color   String @default("#3788D8")
+}
