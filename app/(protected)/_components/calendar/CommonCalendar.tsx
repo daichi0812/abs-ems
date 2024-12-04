@@ -9,8 +9,8 @@ import { EventSourceInput } from '@fullcalendar/core/index.js'
 import jaLocale from '@fullcalendar/core/locales/ja';
 import styled from 'styled-components';
 import { Center, Spinner } from '@chakra-ui/react'
-
-import DetailModal from './../DetailModal'; 
+import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 function formatDate1(date: Date | string): string {
   const d = new Date(date);
@@ -71,8 +71,22 @@ export default function CommonCalendar() {
   const [endToShow, setEndToShow] = useState<string | null>(null)
   const [idToShow, setIdToShow] = useState<number>(0)
   const [eqipNameToShow, setEqipNameToShow] = useState<string | null>(null)
-
+  const [displayWeekly, setDisplayWeekly] = useState(false);
+  const [displayMonthly, setDisplayMonthly] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    // 初期ロード時に画面幅でモバイル判定
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768); // 幅768px以下ならモバイル
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize); // リサイズ時に判定更新
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const fetchReservesData = async () => {
     // ユーザーリストを取得
@@ -173,6 +187,36 @@ export default function CommonCalendar() {
     setShowDetailModal(false)
   }
 
+  // イベントをクリックした時の処理
+  const handleDetailInfo = (data: { event: { id: string } }) => {
+    const event = allEvents.find(event => event.id === Number(data.event.id));
+    router.push(`/ems/reserve/${event?.list_id}`)
+  }
+
+  // 週表示ボタンを押した時の処理
+  const handleDisplayWeekly = () => {
+    setDisplayMonthly(false);
+    setDisplayWeekly(true);
+  }
+
+  // 月表示ボタンを押した時の処理
+  const handleDisplayMonthly = () => {
+    setDisplayWeekly(false);
+    setDisplayMonthly(true);
+  }
+
+  // カスタムイベントコンテンツ
+  const renderEventContent = (eventInfo: any) => {
+    return (
+      <div style={{ padding: '10px', fontSize: '12px', backgroundColor: eventInfo.event.backgroundColor, color: eventInfo.event.textColor }}>
+        <div><strong>{eventInfo.event.title}</strong></div>
+        <div>{eventInfo.event.extendedProps.name}</div>
+        <div>開始: {formatDate1(eventInfo.event.start)}</div>
+        <div>終了: {formatDate2(eventInfo.event.end)}</div>
+      </div>
+    );
+  };
+
   const StyleWrapper = styled.div`
     .fc {
       background-color: #f5f5f7;
@@ -220,11 +264,25 @@ export default function CommonCalendar() {
     .fc-event {
       padding-left: 2px !important;
       border-radius: 7px;
+      overflow: hidden; /* はみ出した文字を隠す */
+      text-overflow: ellipsis; /* はみ出した場合に "..." を表示 */
+      white-space: nowrap; /* テキストを1行に収める */
     }
 
     /* "イベント名"に対するCSS */
     .fc-event-title {
       padding-left: 2px;
+      overflow: hidden; /* はみ出した文字を隠す */
+      text-overflow: ellipsis; /* はみ出した場合に "..." を表示 */
+      white-space: nowrap; /* テキストを1行に収める */
+    }
+
+    /* 週表示に対するCSS */
+    .fc-timegrid-event {
+      height: auto !important;
+      overflow: hidden; /* はみ出した文字を隠す */
+      text-overflow: ellipsis; /* はみ出した場合に "..." を表示 */
+      white-space: nowrap; /* テキストを1行に収める */
     }
   `
 
@@ -236,41 +294,113 @@ export default function CommonCalendar() {
         </Center>
       ) : (
         <>
-          <div style={{ position: "relative", zIndex: "0" }}>
-            <StyleWrapper>
-              <FullCalendar
-                plugins={[
-                  dayGridPlugin,
-                  interactionPlugin,
-                  timeGridPlugin
-                ]}
-                height="auto"
-                events={allEvents.map(event => ({
-                  ...event,
-                  textColor: event.textColor
-                })) as EventSourceInput}
-                nowIndicator={true}
-                droppable={true}
-                selectMirror={true}
-                eventClick={(data) => handleDetailModal(data)}
-                displayEventTime={false}
-                locales={[jaLocale]}
-                locale='ja'
-                titleFormat={{ year: 'numeric', month: 'short' }}
-              />
-            </StyleWrapper>
-          </div >
+          {displayMonthly && (
+            <>
+              <div style={{ position: "relative", zIndex: "0" }}>
+                <div className='flex mb-2'>
+                  <p className='text-xl ml-1'>共通カレンダー</p>
+                  <Button
+                    className='items-center justify-center ml-auto text-white bg-[#2C3E50] hover:text-white hover:bg-slate-800'
+                    variant={'outline'}
+                    onClick={handleDisplayWeekly}
+                  >
+                    週表示
+                  </Button>
+                </div>
+                <StyleWrapper>
+                  <FullCalendar
+                    plugins={[
+                      dayGridPlugin,
+                      interactionPlugin,
+                      timeGridPlugin
+                    ]}
+                    height="auto"
+                    events={allEvents.map(event => ({
+                      ...event,
+                      textColor: event.textColor
+                    })) as EventSourceInput}
+                    nowIndicator={true}
+                    droppable={true}
+                    selectMirror={true}
+                    eventClick={(data) => handleDetailInfo(data)}
+                    displayEventTime={false}
+                    headerToolbar={{
+                      left: '',
+                      center: 'title',
+                      right: 'prev,next'
+                    }}
+                    locales={[jaLocale]}
+                    locale='ja'
+                    titleFormat={{ year: 'numeric', month: 'short' }}
+                  />
+                </StyleWrapper>
+              </div >
 
-          <DetailModal
-            isOpen={showDetailModal}
-            onClose={handleCloseModal}
-            eqipName={eqipNameToShow}
-            userName={nameToShow}
-            rentingStatus={isRentingToShow}
-            startDate={startToShow}
-            endDate={endToShow}
-            listId={idToShow}
-          />
+
+              {/* <DetailModal
+                isOpen={showDetailModal}
+                onClose={handleCloseModal}
+                eqipName={eqipNameToShow}
+                userName={nameToShow}
+                rentingStatus={isRentingToShow}
+                startDate={startToShow}
+                endDate={endToShow}
+                listId={idToShow}
+              /> */}
+            </>
+          )}
+          {displayWeekly && (
+            <>
+              <div style={{ position: "relative", zIndex: "0" }}>
+                <div className='flex mb-2'>
+                  <p className='text-xl ml-1'>共通カレンダー</p>
+                  <Button
+                    className='items-center justify-center ml-auto text-white bg-[#2C3E50] hover:text-white hover:bg-slate-800'
+                    variant={'outline'}
+                    onClick={handleDisplayMonthly}
+                  >
+                    月表示
+                  </Button>
+                </div>
+                <StyleWrapper>
+                  <FullCalendar
+                    plugins={[timeGridPlugin]}
+                    height="auto"
+                    events={allEvents.map(event => ({
+                      ...event,
+                      textColor: event.textColor
+                    })) as EventSourceInput}
+                    nowIndicator={true}
+                    droppable={true}
+                    selectMirror={true}
+                    eventClick={(data) => handleDetailInfo(data)}
+                    eventContent={renderEventContent} // カスタムレンダリングを設定
+                    locales={[jaLocale]}
+                    locale='ja'
+                    initialView={isMobile ? "timeGridThreeDay" : "timeGridWeek"} // モバイルかどうかで初期ビューを切り替え
+                    views={{
+                      timeGridThreeDay: {
+                        type: "timeGrid",
+                        duration: { days: 3 }, // 3日間表示
+                        buttonText: "3日間",
+                      },
+                      timeGridWeek: {
+                        type: "timeGrid",
+                        duration: { days: 7 }, // 1週間表示
+                        buttonText: "週",
+                      },
+                    }}
+                    headerToolbar={{
+                      left: '',
+                      center: 'title',
+                      right: 'prev,next'
+                    }}
+                    titleFormat={{ year: 'numeric', month: 'short', day: 'numeric' }}
+                  />
+                </StyleWrapper>
+              </div>
+            </>
+          )}
         </>
       )}
     </>
