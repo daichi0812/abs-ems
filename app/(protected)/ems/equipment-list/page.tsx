@@ -74,9 +74,13 @@ const EquipmentList = () => {
 
     // 機材データを取得する
     const fetchEquipmentData = async () => {
-        const response = await fetch('https://logicode.fly.dev/lists');
+        const response = await fetch('/api/lists');
         const data: Equipment[] = await response.json();
-        setEquipments(data);
+
+        // 名前順（昇順）にソート
+        const sortedData = data.sort((a, b) => a.name.localeCompare(b.name));
+
+        setEquipments(sortedData);
         setIsLoading(false);
     };
 

@@ -28,23 +28,21 @@ const ProductDetails = () => {
     const user = useCurrentUser();
 
     const params = useParams();
-    const { productId } = params;
-    console.log(productId);
+    const { equipmentId } = params;
 
     // const { userId, setUserId } = useAppContext();
 
     const fetchEquipmentData = async () => {
-        const equipmentData = await fetch(`https://logicode.fly.dev/lists/${params.productId}`).then(res => res.json());
-        console.log(equipmentData);
+        const equipmentData = await fetch(`/api/lists/${params.equipmentId}`).then(res => res.json());
+        console.log(equipmentData.detail);
         setEquipmentName(equipmentData.name);
         setEquipmentDetail(equipmentData.detail);
         setEquipmentImg(equipmentData.image)
-        console.log(equipmentData.image)
     };
 
     const fetchReservesData = async () => {
         const reservesData = await fetch(`https://logicode.fly.dev/reserves`).then(res => res.json());
-        const filteredData = reservesData.filter((item: Reserves) => item.list_id === Number(productId));
+        const filteredData = reservesData.filter((item: Reserves) => item.list_id === Number(equipmentId));
         setReservesData(filteredData);
 
         setIsFetching(false);
@@ -84,12 +82,12 @@ const ProductDetails = () => {
             </div>
 
             <div className="rounded-md mb-3 md:w-[80%] md:mx-auto mx-2">
-                <ReservationCalendar userId={user?.id} listId={Number(productId)} />
+                <ReservationCalendar userId={user?.id} listId={Number(equipmentId)} />
             </div>
 
             <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7] md:w-[80%] md:mx-auto'>
                 <p className='text-xl mb-2'>機材の詳細</p>
-                <p className="mr-1" dangerouslySetInnerHTML={{ __html: equipmentDetail.replace(/\n/g, "<br>") }} />
+                <p className="mr-1" dangerouslySetInnerHTML={{ __html: equipmentDetail?.replace(/\n/g, "<br>") }} />
             </div>
 
         </div>

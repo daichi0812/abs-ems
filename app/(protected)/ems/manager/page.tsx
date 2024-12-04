@@ -86,7 +86,7 @@ function App() {
                 blob = (await responseVaecel.json()) as PutBlobResult;
             }
 
-            await axios.post("https://logicode.fly.dev/lists", {
+            await axios.post("/api/lists", {
                 name: equipmentName,
                 detail: equipmentDetail,
                 image: blob?.url || "",
@@ -100,11 +100,6 @@ function App() {
             alert("機材登録ができません");
         }
     };
-
-    // テストでリストを登録
-    const testPostList = async () => {
-        const response = await axios.post("/api/lists")
-    }
 
     // カテゴリデータを取得
     const fetchTags = async () => {
@@ -121,21 +116,24 @@ function App() {
         }
     }
 
+    // 機材データを取得する
+    const fetchEquipmentData = async () => {
+        const response = await fetch("/api/lists");
+        const data: Equipment[] = await response.json();
+
+        // 名前順（昇順）にソート
+        const sortedData = data.sort((a, b) => a.name.localeCompare(b.name));
+        setEquipments(sortedData);
+        setIsLoading(false);
+    };
+
     // 選択されたカテゴリーに基づいて機材をフィルタリング
     const filteredEquipments = selectedCategory === 'all'
         ? equipments
         : equipments.filter(equipment => equipment.tag_id === selectedCategory);
 
-    // 機材データを取得する
-    const fetchEquipmentData = async () => {
-        const response = await fetch("https://logicode.fly.dev/lists");
-        const data: Equipment[] = await response.json();
-        setEquipments(data);
-        setIsLoading(false);
-    };
-
     const deleteEquipmentData = async (equipmentId: number) => {
-        await fetch(`https://logicode.fly.dev/lists/${equipmentId}`, {
+        await fetch(`/api/lists/${equipmentId}`, {
             method: "DELETE",
         });
     };
@@ -181,7 +179,6 @@ function App() {
     useEffect(() => {
         fetchTags();
         fetchEquipmentData();
-        testPostList();
     }, []);
 
     return (

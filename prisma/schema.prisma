@@ -87,8 +87,8 @@ model TwoFactorConfirmation {
   @@unique([userId])
 }
 
-model lists {
-  id      String  @id @default(cuid())
+model List {
+  id      Int  @id @default(autoincrement())
   name    String?
   detail  String?
   image   String?
@@ -96,8 +96,8 @@ model lists {
   tag_id  Int?
 }
 
-model reserves {
-  id        String  @id @default(cuid())
+model Reserve {
+  id        Int  @id @default(autoincrement())
   user_id   String?
   start     DateTime?
   end       DateTime?
@@ -105,8 +105,8 @@ model reserves {
   isRenting Int?
 }
 
-model tags {
-  id      String  @id @default(cuid())
+model Tag {
+  id      Int  @id @default(autoincrement())
   name    String?
   color   String @default("#3788D8")
 }

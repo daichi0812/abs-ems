@@ -86,7 +86,7 @@ export default function CommonCalendar() {
     }, {} as { [key: string]: string });
 
     // 機材データを取得
-    const responseLists2 = await fetch('https://logicode.fly.dev/lists');
+    const responseLists2 = await fetch('/api/lists');
     const reservesListsData2: Lists[] = await responseLists2.json();
 
     // IDをキーにして機材名と色をマッピング

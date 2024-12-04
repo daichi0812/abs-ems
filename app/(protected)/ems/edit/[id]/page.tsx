@@ -79,7 +79,7 @@ const EditPage = () => {
 
   const fetchEquipmentData = async () => {
     try {
-      const equipmentData = await fetch(`https://logicode.fly.dev/lists/${equipmentId}`).then(res => res.json());
+      const equipmentData = await fetch(`/api/lists/${equipmentId}`).then(res => res.json());
       setEquipmentName(equipmentData.name);
       setEquipmentDetail(equipmentData.detail);
       setEquipmentImg(equipmentData.image);
@@ -125,7 +125,7 @@ const EditPage = () => {
 
       try {
         const response = await axios.put(
-          `https://logicode.fly.dev/lists/${equipmentId}`,
+          `/api/lists/${equipmentId}`,
           {
             name: equipmentName,
             detail: equipmentDetail,

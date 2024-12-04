@@ -49,7 +49,7 @@ const Mypage = () => {
     };
 
     const mypageFetchReservesData = async () => {
-        const responseLists = await fetch('https://logicode.fly.dev/lists');
+        const responseLists = await fetch('/api/lists');
         const reservesListsData: Lists[] = await responseLists.json();
 
         const idToNameMap: { [key: number]: string } = reservesListsData.reduce((map, item) => {
@@ -65,7 +65,7 @@ const Mypage = () => {
     }
 
     const fetchEquipmentState = async (listId: number) => {
-        const response = await fetch(`https://logicode.fly.dev/lists/${listId}`);
+        const response = await fetch(`/api/lists/${listId}`);
         const equipmentData: Lists = await response.json();
         return equipmentData.usable;
     }
@@ -80,7 +80,7 @@ const Mypage = () => {
         startTransition_1(async () => {
             const equipState = await fetchEquipmentState(EquipId);
             const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/borrow`);
-            const response2 = await axios.patch(`https://logicode.fly.dev/lists/${EquipId}`, {
+            const response2 = await axios.patch(`/api/lists/${EquipId}`, {
                 usable: false
             });
 
@@ -98,7 +98,7 @@ const Mypage = () => {
 
         startTransition_2(async () => {
             const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/return`);
-            const response2 = await axios.patch(`https://logicode.fly.dev/lists/${EquipId}`, {
+            const response2 = await axios.patch(`/api/lists/${EquipId}`, {
                 usable: true
             });
 

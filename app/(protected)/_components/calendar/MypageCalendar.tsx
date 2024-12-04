@@ -68,7 +68,7 @@ export default function MypageCalendar({ filteredData, idToNameMap, userId, mypa
   useEffect(() => {
     const fetchListData = async () => {
       try {
-        const response = await fetch('https://logicode.fly.dev/lists');
+        const response = await fetch('/api/lists');
         const listData: List[] = await response.json();
         const colorMap: { [key: number]: string } = {};
         listData.forEach((list) => {
