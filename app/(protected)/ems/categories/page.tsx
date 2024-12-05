@@ -24,7 +24,7 @@ const EditCategories = () => {
     // カテゴリ一覧を取得
     const fetchTags = async () => {
         try {
-            const response = await axios.get("https://logicode.fly.dev/tags");
+            const response = await axios.get("/api/tags");
             const sortedTags = response.data.sort((a: Tags, b: Tags) => a.id - b.id);
             setTags(sortedTags);
         } catch (err) {
@@ -41,7 +41,7 @@ const EditCategories = () => {
             return;
         }
         try {
-            await axios.put(`https://logicode.fly.dev/tags/${id}`, {
+            await axios.put(`/api/tags/${id}`, {
                 name: editTagName,
                 color: editTagColor,
             });
@@ -61,7 +61,7 @@ const EditCategories = () => {
         );
         if (confirmed) {
             try {
-                await axios.delete(`https://logicode.fly.dev/tags/${id}`);
+                await axios.delete(`/api/tags/${id}`);
                 alert("カテゴリが削除されました.");
                 fetchTags(); // 最新のカテゴリ一覧を取得
             } catch (err) {

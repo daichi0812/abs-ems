@@ -44,7 +44,7 @@ const EditPage = () => {
   const inputFileRef = useRef<HTMLInputElement>(null);
 
   const setTagsFunc = async () => {
-    const response = await fetch("https://logicode.fly.dev/tags");
+    const response = await fetch("/api/tags");
     const data: Tags[] = await response.json();
     setTags(data);
   }
@@ -63,7 +63,7 @@ const EditPage = () => {
       return;
     }
 
-    await axios.post("https://logicode.fly.dev/tags", {
+    await axios.post("/api/tags", {
       name: addTagName,
       color: editTagColor
     });
@@ -212,7 +212,7 @@ const EditPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {tags.map((tag) => (
+                {tags && tags.map((tag) => (
                   <SelectItem
                     value={tag.name}
                     key={tag.id}

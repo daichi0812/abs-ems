@@ -90,7 +90,7 @@ const EquipmentList = () => {
     const fetchCategories = async () => {
         setCategoriesLoading(true);
         try {
-            const response = await fetch("https://logicode.fly.dev/tags");
+            const response = await fetch("/api/tags");
             const data = await response.json();
             setCategories(data);
         } catch (error) {

@@ -105,7 +105,7 @@ function App() {
     const fetchTags = async () => {
         setCategoriesLoading(true)
         try {
-            const response = await fetch("https://logicode.fly.dev/tags");
+            const response = await fetch("/api/tags");
             const data = await response.json();
             setTags(data);
             setCategories(data);
@@ -167,7 +167,7 @@ function App() {
             return;
         }
 
-        await axios.post("https://logicode.fly.dev/tags", {
+        await axios.post("/api/tags", {
             name: addTagName,
             color: editTagColor
         });
@@ -227,7 +227,7 @@ function App() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectGroup>
-                                {tags.map((tag) => (
+                                {tags && tags.map((tag) => (
                                     <SelectItem
                                         value={tag.name}
                                         key={tag.id}
