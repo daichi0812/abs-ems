@@ -11,6 +11,7 @@ import styled from 'styled-components';
 import { Center, Spinner } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import axios from 'axios'
 
 function formatDate1(date: Date | string): string {
   const d = new Date(date);
@@ -114,6 +115,7 @@ export default function CommonCalendar() {
 
     // 予約データを取得
     const response = await fetch('https://logicode.fly.dev/reserves');
+    // const response = await fetch("/api/reserves");
     const reservesData: Reserves[] = await response.json();
 
     // 新しいイベントの一時配列を作成

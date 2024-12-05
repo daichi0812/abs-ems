@@ -22,12 +22,13 @@ interface Tags {
 const EditPage = () => {
   const params = useParams();
   const router = useRouter();
-  const equipmentId = params.id;
+  const equipmentId = params.equipmentId;
 
   const [equipmentName, setEquipmentName] = useState('');
   const [equipmentDetail, setEquipmentDetail] = useState('');
   const [equipmentImg, setEquipmentImg] = useState(''); // 現在の画像URL
   const [imageFile, setImageFile] = useState<File | null>(null); // 新しい画像ファイル
+  const [equipmentTag, setEquipmentTag] = useState();
 
   const [tags, setTags] = useState<Tags[]>([]); // タグを保持する変数
   const [addTagName, setAddTagName] = useState<string>(''); // 追加するタグを保持する変数
@@ -83,10 +84,21 @@ const EditPage = () => {
       setEquipmentName(equipmentData.name);
       setEquipmentDetail(equipmentData.detail);
       setEquipmentImg(equipmentData.image);
+      setEquipmentTag(equipmentData.tag_id);
     } catch (err) {
       console.error('機材データの取得に失敗しました:', err);
     }
   };
+
+  // ここにuseEffectを追加
+  useEffect(() => {
+    if (tags.length > 0 && equipmentTag) {
+      const tag = tags.find(tag => tag.id === equipmentTag);
+      if (tag) {
+        setSelectedTag(tag.name);
+      }
+    }
+  }, [tags, equipmentTag]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.currentTarget?.files && e.currentTarget.files[0]) {
