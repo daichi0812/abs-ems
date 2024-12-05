@@ -1,39 +1,28 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
+export async function GET() {
     try {
-        const data = await request.json();
-
-        const { user_id, list_id, isRenting } = data;
-
-        await db.reserve.create({
-            data: {
-                user_id: user_id,
-                list_id: list_id,
-                isRenting: isRenting,
-            },
-        });
-
-        return new Response(JSON.stringify({ message: 'データが正常に追加されました。' }), {
-            status: 201,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        const reserves = await db.reserve.findMany();
+        return NextResponse.json(reserves, { status: 200 });
     } catch (error) {
-        console.error('エラー詳細:', error);
-        return new Response(JSON.stringify({ error: 'データの追加に失敗しました。' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        console.error('Error fetching reserves:', error);
+        return NextResponse.json({ error: 'Failed to fetch reserves.' }, { status: 500 });
     }
 }
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
     try {
-        const reserves = await db.reserve.findMany();
+        const data = await request.json();
+        const { user_id, list_id, start, end, isRenting } = data;
 
-        return NextResponse.json(reserves, { status: 201 });
+        const reserve = await db.reserve.create({
+            data: { user_id, list_id, start, end, isRenting },
+        });
+
+        return NextResponse.json(reserve, { status: 201 });
     } catch (error) {
-        return NextResponse.json({ status: 500 });
+        console.error('Error creating reserve:', error);
+        return NextResponse.json({ error: 'Failed to create reserve.' }, { status: 500 });
     }
 }

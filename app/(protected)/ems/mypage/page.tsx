@@ -59,7 +59,7 @@ const Mypage = () => {
 
         setIdToNameMap(idToNameMap);
 
-        const response = await fetch('https://logicode.fly.dev/reserves');
+        const response = await fetch('/api/reserves');
         const reservesData: Reserves[] = await response.json();
         setFilteredData(reservesData.filter((item: Reserves) => item.user_id == user?.id));
     }

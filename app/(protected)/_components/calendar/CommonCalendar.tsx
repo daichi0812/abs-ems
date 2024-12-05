@@ -114,8 +114,7 @@ export default function CommonCalendar() {
     });
 
     // 予約データを取得
-    const response = await fetch('https://logicode.fly.dev/reserves');
-    // const response = await fetch("/api/reserves");
+    const response = await fetch('/api/reserves');
     const reservesData: Reserves[] = await response.json();
 
     // 新しいイベントの一時配列を作成

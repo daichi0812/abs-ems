@@ -41,7 +41,7 @@ const ProductDetails = () => {
     };
 
     const fetchReservesData = async () => {
-        const reservesData = await fetch(`https://logicode.fly.dev/reserves`).then(res => res.json());
+        const reservesData = await fetch(`/api/reserves`).then(res => res.json());
         const filteredData = reservesData.filter((item: Reserves) => item.list_id === Number(equipmentId));
         setReservesData(filteredData);
 

@@ -10,14 +10,14 @@ interface Params {
 // 特定のIDのデータを取得する
 export async function GET(request: Request, { params }: Params) {
     try {
-        const productId = parseInt(params.equipmentId, 10);
+        const equipmentId = parseInt(params.equipmentId, 10);
 
-        if (isNaN(productId)) {
+        if (isNaN(equipmentId)) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
 
         const equipmentData = await db.list.findUnique({
-            where: { id: productId },
+            where: { id: equipmentId },
         });
 
         if (!equipmentData) {
@@ -85,11 +85,11 @@ export async function DELETE(request: Request, { params }: Params) {
         }
 
         // 機材データを削除
-        const updatedEquipment = await db.list.delete({
+        const deleteEquipment = await db.list.delete({
             where: { id: equipmentId }
         });
 
-        return NextResponse.json(updatedEquipment, { status: 200 });
+        return NextResponse.json(deleteEquipment, { status: 200 });
     } catch (error) {
         console.error('エラー詳細:', error);
         return NextResponse.json({ error: 'データの取得に失敗しました。' }, { status: 500 });

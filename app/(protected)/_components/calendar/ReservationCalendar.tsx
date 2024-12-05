@@ -80,7 +80,7 @@ export default function ReservationCalendar({ userId, listId }: Props) {
     const startDate = new Date(newEvent.start);
     startDate.setDate(startDate.getDate() + 1); // 1日プラス
 
-    const response = await axios.post('https://logicode.fly.dev/reserves', {
+    const response = await axios.post('/api/reserves', {
       user_id: userId,
       start: startDate,
       end: newEvent.end,
@@ -100,7 +100,7 @@ export default function ReservationCalendar({ userId, listId }: Props) {
     }, {} as { [key: string]: string });
 
 
-    const response = await fetch('https://logicode.fly.dev/reserves');
+    const response = await fetch('/api/reserves');
     const reservesData: Reserves[] = await response.json();
     const filteredData = reservesData.filter((item: Reserves) => item.list_id == listId);
 
