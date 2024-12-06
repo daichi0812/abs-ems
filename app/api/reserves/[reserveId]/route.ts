@@ -2,18 +2,18 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 interface Params {
-    params: { equipmentId: string };
+    params: { reserveId: string };
 }
 
 export async function GET(request: Request, { params }: Params) {
     try {
-        const equipmentId = parseInt(params.equipmentId, 10);
-        if (isNaN(equipmentId)) {
+        const reserveId = parseInt(params.reserveId, 10);
+        if (isNaN(reserveId)) {
             return NextResponse.json({ error: 'Invalid equipment ID.' }, { status: 400 });
         }
 
         const reserve = await db.reserve.findMany({
-            where: { list_id: equipmentId },
+            where: { id: reserveId },
         });
 
         return NextResponse.json(reserve, { status: 200 });
@@ -25,13 +25,13 @@ export async function GET(request: Request, { params }: Params) {
 
 export async function DELETE(request: Request, { params }: Params) {
     try {
-        const equipmentId = parseInt(params.equipmentId, 10);
-        if (isNaN(equipmentId)) {
+        const reserveId = parseInt(params.reserveId, 10);
+        if (isNaN(reserveId)) {
             return NextResponse.json({ error: 'Invalid equipment ID.' }, { status: 400 });
         }
 
         await db.reserve.deleteMany({
-            where: { list_id: equipmentId },
+            where: { id: reserveId },
         });
 
         return NextResponse.json({ message: 'Reserve deleted successfully.' }, { status: 200 });

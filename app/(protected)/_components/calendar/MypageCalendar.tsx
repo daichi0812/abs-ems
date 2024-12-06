@@ -179,7 +179,7 @@ export default function MypageCalendar({ filteredData, idToNameMap, userId, mypa
     }
 
     const deleteReservesData = async () => {
-      const response = await axios.delete(`https://logicode.fly.dev/reserves/${Number(idToDelete)}`);
+      const response = await axios.delete(`/api/reserves/${Number(idToDelete)}`);
 
       await mypageFetchReservesData(); // マイページの予約の箱更新のための関数
 

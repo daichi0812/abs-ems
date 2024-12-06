@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 interface Params {
-    params: { equipmentId: string };
+    params: { reservesId: string };
 }
 
 export async function POST(request: Request, { params }: Params) {

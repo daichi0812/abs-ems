@@ -271,7 +271,9 @@ const EditPage = () => {
                     <Button
                       size={"sm"}
                       colorScheme="blue"
-                      onClick={() => startTransition_3(handleAddTag)}
+                      onClick={() => startTransition_3(() => {
+                        handleAddTag().catch(console.error);
+                      })}
                     >
                       追加
                     </Button>
@@ -295,7 +297,9 @@ const EditPage = () => {
                 <Button
                   size={'sm'}
                   colorScheme="yellow"
-                  onClick={() => startTransition_4(() => router.push("/ems/categories"))}
+                  onClick={() => startTransition_4(() => {
+                    router.push("/ems/categories")
+                  })}
                 >
                   カテゴリ編集
                 </Button>
@@ -329,7 +333,9 @@ const EditPage = () => {
           ) : (
             <Button
               disabled={isPending_1}
-              onClick={() => startTransition_1(() => handleUpdateEquipment())}
+              onClick={() => startTransition_1(() => {
+                handleUpdateEquipment().catch(console.error);
+              })}
               colorScheme='blue'
             >
               更新
