@@ -84,9 +84,9 @@ export default function ReservationCalendar({ userId, listId }: Props) {
       user_id: userId,
       start: startDate,
       end: newEvent.end,
-      list_id: listId,
-      isRentig: 0
+      list_id: listId
     });
+    console.log(response);
   };
 
   const fetchReservesData = async () => {
