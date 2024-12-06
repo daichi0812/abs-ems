@@ -274,7 +274,7 @@ function App() {
                                         <Button
                                             size={"sm"}
                                             colorScheme="blue"
-                                            onClick={() => startTransition_3(handleAddTag)}
+                                            onClick={() => startTransition_3(() => {handleAddTag})}
                                         >
                                             追加
                                         </Button>
@@ -329,7 +329,7 @@ function App() {
                     ) : (
                         <Button
                             disabled={isPending_1}
-                            onClick={() => startTransition_1(() => sendEquipmentData())}
+                            onClick={() => startTransition_1(() => {sendEquipmentData().catch(console.error)})}
                             colorScheme="blue"
                         >
                             登録

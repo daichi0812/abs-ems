@@ -77,37 +77,41 @@ const Mypage = () => {
     const handleBorrow = async (id: number, EquipId: number) => {
         setLoadingId_1(id);
 
-        startTransition_1(async () => {
-            const equipState = await fetchEquipmentState(EquipId);
-            const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/borrow`);
-            const response2 = await axios.patch(`/api/lists/${EquipId}`, {
-                usable: false
-            });
+        startTransition_1(() => {
+            (async () => {
+                const equipState = await fetchEquipmentState(EquipId);
+                const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/borrow`);
+                const response2 = await axios.patch(`/api/lists/${EquipId}`, {
+                    usable: false,
+                });
 
-            if (response1.status === 200 && response2.status === 200) {
-                window.alert('貸し出し手続きが完了しました。');
-                mypageFetchReservesData();
-            } else {
-                window.alert('貸し出しに失敗しました。');
-            }
+                if (response1.status === 200 && response2.status === 200) {
+                    window.alert('貸し出し手続きが完了しました。');
+                    mypageFetchReservesData();
+                } else {
+                    window.alert('貸し出しに失敗しました。');
+                }
+            })();
         });
     }
 
     const handleReturn = async (id: number, EquipId: number) => {
         setLoadingId_2(id);
 
-        startTransition_2(async () => {
-            const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/return`);
-            const response2 = await axios.patch(`/api/lists/${EquipId}`, {
-                usable: true
-            });
+        startTransition_2(() => {
+            (async () => {
+                const response1 = await axios.post(`https://logicode.fly.dev/reserves/${id}/return`);
+                const response2 = await axios.patch(`/api/lists/${EquipId}`, {
+                    usable: true
+                });
 
-            if (response1.status === 200 && response2.status === 200) {
-                window.alert('返却手続きが完了しました。');
-                mypageFetchReservesData();
-            } else {
-                window.alert('返却手続きに失敗しました。');
-            }
+                if (response1.status === 200 && response2.status === 200) {
+                    window.alert('返却手続きが完了しました。');
+                    mypageFetchReservesData();
+                } else {
+                    window.alert('返却手続きに失敗しました。');
+                }
+            })();
         });
     }
 
