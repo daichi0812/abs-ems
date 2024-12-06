@@ -86,6 +86,7 @@ export default function ReservationCalendar({ userId, listId }: Props) {
       end: newEvent.end,
       list_id: listId
     });
+    console.log(response);
   };
 
   const fetchReservesData = async () => {

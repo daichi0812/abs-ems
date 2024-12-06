@@ -102,7 +102,7 @@ model Reserve {
   start     DateTime?
   end       DateTime?
   list_id   Int?
-  isRenting Int?
+  isRenting Int? @default(0)
 }
 
 model Tag {
