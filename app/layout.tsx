@@ -35,6 +35,7 @@ export default async function RootLayout({
         <body className={inter.className}>
           <Toaster />
           <ChakraProvider>{children}</ChakraProvider>
+          <SpeedInsights />
         </body>
       </html>
     </SessionProvider>
