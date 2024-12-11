@@ -54,12 +54,17 @@ type Reserves = {
 };
 
 type Lists = {
-  tag: { name: string, color: string },
   id: number,
   name: string,
   detail: string,
   image: string,
   usable: boolean,
+  tag_id: number,
+}
+
+type Tags = {
+  id: number,
+  name: string,
   color: string,
 }
 
@@ -104,14 +109,23 @@ export default function CommonCalendar() {
     const responseLists2 = await fetch('/api/lists');
     const reservesListsData2: Lists[] = await responseLists2.json();
 
+    // タグデータを取得
+    const responseTags = await fetch('/api/tags');
+    const tags: Tags[] = await responseTags.json();
+
     // IDをキーにして機材名と色をマッピング
     const idToNameMap2: { [key: string]: string } = {};
     const idToColorMap: { [key: string]: string } = {};
+    const idTolistId: { [key: number]: number } = {};
 
     reservesListsData2.forEach(item => {
       idToNameMap2[item.id] = item.name;
-      idToColorMap[item.id] = item.tag?.color || '#3788D8';
+      idTolistId[item.id] = item.tag_id;
     });
+
+    tags.forEach(tag => {
+      idToColorMap[tag.id] = tag.color;
+    })
 
     // 予約データを取得
     const response = await fetch('/api/reserves');
@@ -122,7 +136,8 @@ export default function CommonCalendar() {
       const endDate = new Date(item.end);
       endDate.setDate(endDate.getDate() + 1);
 
-      const backgroundColor = idToColorMap[item.list_id] || '#3788D8';
+      const backgroundColor = idToColorMap[idTolistId[item.list_id]] || '#3788D8';
+      console.log(backgroundColor);
       const textColor = getTextColorForBackground(backgroundColor);
 
       return {
