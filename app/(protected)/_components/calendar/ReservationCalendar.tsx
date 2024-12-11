@@ -1,19 +1,20 @@
 "use client"
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import jaLocale from '@fullcalendar/core/locales/ja'
 import interactionPlugin, { Draggable, DropArg } from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { Fragment, useEffect, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
+import { Box, Spinner } from '@chakra-ui/react'
 import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid'
 import { EventSourceInput } from '@fullcalendar/core/index.js'
 
-import jaLocale from '@fullcalendar/core/locales/ja';
 import styled from 'styled-components';
 
 import axios from 'axios'
 import moment from 'moment-timezone';
-import { Box, Spinner } from '@chakra-ui/react'
+
 
 function formatDate(date: Date | string): string {
   const d = new Date(date);
@@ -90,13 +91,19 @@ export default function ReservationCalendar({ userId, listId }: Props) {
   };
 
   const fetchReservesData = async () => {
-    // ユーザーリストを取得
-    const responseLists = await fetch('https://logicode.fly.dev/users');
-    const reservesListsData: Users[] = await responseLists.json();
+    const key = process.env.NEXT_PUBLIC_API_KEY as string
+
+    const usersResponse = await fetch(`/api/users?key=${encodeURIComponent(key)}`)
+    if (!usersResponse.ok) {
+      console.error('Failed to fetch users: ', usersResponse.status)
+      return
+    }
+
+    const reservesListsData = await usersResponse.json();
 
     // ユーザーIDをキーにして名前をマッピング
-    const idToNameMap: { [key: string]: string } = reservesListsData.reduce((map, item) => {
-      map[item.user_id] = item.name; // idをキーにして名前をマッピング
+    const idToNameMap: { [key: string]: string } = reservesListsData.reduce((map: { [x: string]: string }, item: { id: string | number; name: string }) => {
+      map[item.id] = item.name as string; // idをキーにして名前をマッピング
       return map;
     }, {} as { [key: string]: string });
 
