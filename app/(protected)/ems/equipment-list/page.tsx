@@ -36,35 +36,35 @@ const EquipmentList = () => {
     const [categoriesLoading, setCategoriesLoading] = useState<boolean>(true);
 
     /* ユーザの情報をバックエンドに送る */
-    const getIP = async () => {
-        try {
-            const res = await axios.get('https://api.ipify.org?format=json');
-            setIP(res.data.ip);
-        } catch (err) {
-            console.error("Error fetching IP:", err);
-        }
-    };
+    // const getIP = async () => {
+    //     try {
+    //         const res = await axios.get('https://api.ipify.org?format=json');
+    //         setIP(res.data.ip);
+    //     } catch (err) {
+    //         console.error("Error fetching IP:", err);
+    //     }
+    // };
 
     // ユーザ情報をバックエンドに送信
-    const pushUserData = async () => {
-        try {
-            const getUser = await axios.get(`https://logicode.fly.dev/users/${user?.id}`);
-            if (getUser.data) {
-                await axios.put(`https://logicode.fly.dev/users/${user?.id}`, {
-                    name: user?.name,
-                    ip: ip
-                });
-            } else {
-                await axios.post('https://logicode.fly.dev/users', {
-                    user_id: user?.id,
-                    name: user?.name,
-                    ip: ip
-                });
-            }
-        } catch (err) {
-            alert("ユーザー情報の処理中にエラーが発生しました。");
-        }
-    }
+    // const pushUserData = async () => {
+    //     try {
+    //         const getUser = await axios.get(`https://logicode.fly.dev/users/${user?.id}`);
+    //         if (getUser.data) {
+    //             await axios.put(`https://logicode.fly.dev/users/${user?.id}`, {
+    //                 name: user?.name,
+    //                 ip: ip
+    //             });
+    //         } else {
+    //             await axios.post('https://logicode.fly.dev/users', {
+    //                 user_id: user?.id,
+    //                 name: user?.name,
+    //                 ip: ip
+    //             });
+    //         }
+    //     } catch (err) {
+    //         alert("ユーザー情報の処理中にエラーが発生しました。");
+    //     }
+    // }
 
     // 各機材の予約ページに遷移
     const handleReserveSubmit = (id: number) => {
@@ -135,8 +135,6 @@ const EquipmentList = () => {
     };
 
     useEffect(() => {
-        getIP();
-        pushUserData();
         fetchEquipmentData();
         fetchCategories();
     }, []);
