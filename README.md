@@ -22,23 +22,23 @@
 
 ### パソコン画面
 ログインページ（メールアドレス・googleアカウント・githubアカウントでのログインが可能です。）
-![image](public\readme/login.png)
+![image](public/readme/login.png)
 マイページ（自分の予約を確認・削除することができます）
-![image](public\readme/mypage.png)
+![image](public/readme/mypage.png)
 共通カレンダー（部員全員の予約状況を見ることができます）
-![image](public\readme/common_calender.png)
+![image](public/readme/common_calender.png)
 機材一覧（画面右上のタグ指定機能を使うことで、目的の機材をスムーズに見つけられます。）
-![image](public\readme/new_list.png)
+![image](public/readme/new_list.png)
 新規予約（機材の詳細画面から予約ができます）
-![image](public\readme/new.png)
+![image](public/readme/new.png)
 管理者画面（機材の追加・編集・削除ができます）
-![image](public\readme/owner.png)
+![image](public/readme/owner.png)
 
 
 ### スマホ画面
 部員の多くはスマホで操作をすることを想定し、レスポンシブ対応もしています
-![image](public\readme/smartphone2.png)
-![image](public\readme/smartphone1.png)
+![image](public/readme/smartphone2.png)
+![image](public/readme/smartphone1.png)
 
 
 
@@ -53,7 +53,7 @@
 - React Hook Form と Zod を使用したフォーム管理とスキーマバリデーション
 
 ## 技術スタック
-![image](public\readme/stack.png)
+![image](public/readme/stack.png)
 
 ### コア
 - **[Next.js](https://nextjs.org/):** サーバーサイドレンダリングと静的サイト生成に対応した React ベースのフレームワーク
