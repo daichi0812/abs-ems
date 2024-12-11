@@ -65,10 +65,14 @@ const StorePage = () => {
                 className="rounded-full"
               />
             </div>
-            <p className="text-center text-2xl font-semibold text-gray-800 mb-4">
-              価格: ¥90,000
-            </p>
-            <p className="text-center text-gray-600 mb-6">
+            <a
+              href="/meisai.xlsx"
+              download
+              className="text-center text-2xl font-semibold text-blue-500 hover:text-blue-600 mb-4"
+            >
+              明細書はこちら
+            </a>
+            <p className="text-center text-gray-600 mt-3 mb-6">
               Logicodeが提供するABS機材管理システムは、放送部の機材管理をシンプルかつ効率的にサポートします。
             </p>
             <p className="text-center text-gray-600">
