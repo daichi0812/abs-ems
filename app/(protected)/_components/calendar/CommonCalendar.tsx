@@ -341,8 +341,8 @@ export default function CommonCalendar() {
                     eventClick={(data) => handleDetailInfo(data)}
                     displayEventTime={false}
                     headerToolbar={{
-                      left: '',
-                      center: 'title',
+                      left: 'title',
+                      center: '',
                       right: 'prev,next'
                     }}
                     locales={[jaLocale]}
@@ -407,8 +407,8 @@ export default function CommonCalendar() {
                       },
                     }}
                     headerToolbar={{
-                      left: '',
-                      center: 'title',
+                      left: 'title',
+                      center: '',
                       right: 'prev,next'
                     }}
                     titleFormat={{ year: 'numeric', month: 'short', day: 'numeric' }}
