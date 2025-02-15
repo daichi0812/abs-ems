@@ -1,7 +1,46 @@
+# ABS EMS
+学内の放送部で使用する機材予約システムです。
 
-# Next Auth プロジェクト
+このプロジェクトは **Next.js** を使用して構築された Web アプリケーションであり,
+モダンなライブラリやフレームワークを活用しています。
+- フロントエンド：
+[@GO0128](https://github.com/GO0128)、
+[@daichi0812](https://github.com/daichi0812)
+- バックエンド：
+[@Mii0829](https://github.com/Mii0829)
+- プロジェクトリーダー: [@GO0128](https://github.com/GO0128)
 
-このプロジェクトは **Next.js** を使用して構築された Web アプリケーションであり、認証、ユーザー管理、およびモダンなライブラリやフレームワークを活用した UI/UX に焦点を当てています。
+約８か月で製作を行いました。実際に学内の放送部に使用していただいています。
+
+## 作品概要
+部員が放送部では多くの機材を管理しており、部員は必要時に借りて利用しています。しかし、以前まではテキストのみのやり取りであり、予約状況や機材の所在が把握しづらく、予約重複や情報の見落としが発生する問題がありました。
+
+本プロジェクトではこのような問題を解決しています。
+
+
+## 作品画像
+
+### パソコン画面
+ログインページ（メールアドレス・googleアカウント・githubアカウントでのログインが可能です。）
+![image](public/readme/login.png)
+マイページ（自分の予約を確認・削除することができます）
+![image](public/readme/mypage.png)
+共通カレンダー（部員全員の予約状況を見ることができます）
+![image](public/readme/common_calender.png)
+機材一覧（画面右上のタグ指定機能を使うことで、目的の機材をスムーズに見つけられます。）
+![image](public/readme/new_list.png)
+新規予約（機材の詳細画面から予約ができます）
+![image](public/readme/new.png)
+管理者画面（機材の追加・編集・削除ができます）
+![image](public/readme/owner.png)
+
+
+### スマホ画面
+部員の多くはスマホで操作をすることを想定し、レスポンシブ対応もしています
+![image](public/readme/smartphone2.png)
+![image](public/readme/smartphone1.png)
+
+
 
 ## 特徴
 
@@ -14,6 +53,7 @@
 - React Hook Form と Zod を使用したフォーム管理とスキーマバリデーション
 
 ## 技術スタック
+![image](public/readme/stack.png)
 
 ### コア
 - **[Next.js](https://nextjs.org/):** サーバーサイドレンダリングと静的サイト生成に対応した React ベースのフレームワーク
@@ -41,53 +81,8 @@
 - **[Framer Motion](https://www.framer.com/motion/):** React 用アニメーションライブラリ
 - **[tailwindcss-animate](https://github.com/tailwindlabs/tailwindcss-animate):** Tailwind CSS 用アニメーションユーティリティ
 
-## 開発セットアップ
 
-### 必要条件
 
-- Node.js >= 18
-- npm または yarn
-- データベース (Prisma 用に PostgreSQL、MySQL、または SQLite を推奨)
+## 今後の展望
+- 機材の一括貸出
 
-### インストール手順
-
-1. リポジトリをクローン:
-   ```bash
-   git clone https://github.com/your-repo/next-auth.git
-   cd next-auth
-   ```
-
-2. 依存関係をインストール:
-   ```bash
-   npm install
-   ```
-
-3. 環境変数を設定:
-   `.env` ファイルを作成し、必要な変数 (例: データベース接続、NextAuth 設定) を記述してください。
-
-4. データベースをセットアップ:
-   ```bash
-   npx prisma migrate dev
-   ```
-
-5. 開発サーバーを起動:
-   ```bash
-   npm run dev
-   ```
-
-6. ブラウザでアプリケーションを開く:
-   ```
-   http://localhost:3000
-   ```
-
-### スクリプト
-
-- `npm run dev` - 開発サーバーを起動
-- `npm run build` - プロダクション用にアプリケーションをビルド
-- `npm run start` - プロダクションサーバーを起動
-- `npm run lint` - コード品質チェックのために ESLint を実行
-- `npm run postinstall` - 依存関係インストール後に Prisma クライアントを生成
-
-## ライセンス
-
-このプロジェクトは MIT ライセンスの下で提供されています。詳細は [LICENSE](LICENSE) ファイルをご確認ください。
