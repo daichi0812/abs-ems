@@ -96,7 +96,7 @@ export default function CommonCalendar() {
 
   const fetchReservesData = async () => {
     // ユーザーリストを取得
-    const responseLists1 = await fetch('https://logicode.fly.dev/users');
+    const responseLists1 = await fetch('/api/users');
     const reservesListsData1: Users[] = await responseLists1.json();
 
     // ユーザーIDをキーにして名前をマッピング
