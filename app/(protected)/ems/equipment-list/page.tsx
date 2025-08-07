@@ -146,8 +146,8 @@ const EquipmentList = () => {
 
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md md:w-[80%] md:mx-auto">
                 <div className='flex justify-between items-center'>
-                    <p className='text-xl'>予約</p>
-                    {isBulkReservation ? (
+                    <p className='text-xl ml-1'>予約</p>
+                    {/* {isBulkReservation ? (
                         <Button
                             colorScheme='orange'
                             className='ml-auto mr-2 opacity-90 md:text-xs'
@@ -163,8 +163,8 @@ const EquipmentList = () => {
                         >
                             まとめて予約(未実装)
                         </Button>
-                    )}
-                    <Select
+                    )} */}
+                    {/* <Select
                         value={selectedCategory}
                         onValueChange={(value) => setSelectedCategory(value)}
                         disabled={categoriesLoading}    // カテゴリー取得中はSelectを無効化
@@ -180,7 +180,7 @@ const EquipmentList = () => {
                                 </SelectItem>
                             ))}
                         </SelectContent>
-                    </Select>
+                    </Select> */}
                 </div>
                 {
                     !isLoading && equipments ? (
@@ -205,11 +205,13 @@ const EquipmentList = () => {
                                             ) : (
                                                 <>
                                                     {isBulkReservation ? (
-                                                        <Input
-                                                            type="checkbox"
-                                                            onChange={(e) => handleCheckboxChange(equipment.id, e.target.checked)}
-                                                            className='mr-4 text-3xl'
-                                                        />
+                                                        <>
+                                                            {/* <Input
+                                                                type="checkbox"
+                                                                onChange={(e) => handleCheckboxChange(equipment.id, e.target.checked)}
+                                                                className='mr-4 text-3xl'
+                                                            /> */}
+                                                        </>
                                                     ) : (
                                                         <Button
                                                             disabled={loading && loadingId === equipment.id}
