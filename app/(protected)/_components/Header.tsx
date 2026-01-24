@@ -112,6 +112,16 @@ const Header = () => {
                     <li>
                       <a className="hover:text-gray-500 w-screen" href="/ems/equipment-list">新規予約</a>
                     </li>
+                    <li>
+                      <a
+                        className="hover:text-gray-500 w-screen"
+                        href="https://docs.google.com/forms/d/e/1FAIpQLSdimBCnWkoJlV-2hsX4M8qeJMEolw1zX589cNveFN4pO8LR1A/viewform"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        お問い合わせ
+                      </a>
+                    </li>
                     {manager ?
                       (
                         <li>
@@ -171,6 +181,16 @@ const Header = () => {
                     </li>
                     <li>
                       <a className="hover:text-gray-500" href="/ems/equipment-list">新規予約</a>
+                    </li>
+                    <li>
+                      <a
+                        className="hover:text-gray-500"
+                        href="https://docs.google.com/forms/d/e/1FAIpQLSdimBCnWkoJlV-2hsX4M8qeJMEolw1zX589cNveFN4pO8LR1A/viewform"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        お問い合わせ
+                      </a>
                     </li>
                     {manager ?
                       (
