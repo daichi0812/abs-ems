@@ -441,7 +441,7 @@ const EquipmentList = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <form onSubmit={handleBulkSubmit}>
+                                            <form onSubmit={handleBulkSubmit} className="px-4">
                                                 <div className="mt-4">
                                                     <label className="block text-sm font-medium text-gray-700 text-left">開始日</label>
                                                     <input
