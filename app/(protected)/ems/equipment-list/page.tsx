@@ -414,8 +414,8 @@ const EquipmentList = () => {
                                 leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                                 leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                             >
-                                <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 w-full max-w-lg sm:pb-6 sm:pt-6">
-                                    <div className="px-4 sm:px-6">
+                                <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                                    <div>
                                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                                             <CheckIcon className="h-6 w-6 text-green-600" aria-hidden="true" />
                                         </div>
@@ -423,22 +423,20 @@ const EquipmentList = () => {
                                             <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
                                                 まとめて予約
                                             </Dialog.Title>
-                                            <div className="mt-2">
-                                                <p className="text-sm text-gray-500">
-                                                    選択した{selectedEquipments.size}件の機材を借りる期間を選択してください
-                                                </p>
-                                                <div className="mt-2 text-left">
-                                                    <p className="text-xs text-gray-400 mb-2">選択中の機材:</p>
-                                                    <div className="max-h-24 overflow-y-auto bg-gray-50 rounded p-2">
-                                                        {Array.from(selectedEquipments).map(id => {
-                                                            const equipment = equipments.find(e => e.id === id);
-                                                            return equipment ? (
-                                                                <span key={id} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1 mb-1">
-                                                                    {equipment.name}
-                                                                </span>
-                                                            ) : null;
-                                                        })}
-                                                    </div>
+                                            <p className="mt-2 text-sm text-gray-500">
+                                                選択した{selectedEquipments.size}件の機材を借りる期間を選択してください
+                                            </p>
+                                            <div className="mt-2 text-left">
+                                                <p className="text-xs text-gray-400 mb-2">選択中の機材:</p>
+                                                <div className="max-h-24 overflow-y-auto bg-gray-50 rounded p-2">
+                                                    {Array.from(selectedEquipments).map(id => {
+                                                        const equipment = equipments.find(e => e.id === id);
+                                                        return equipment ? (
+                                                            <span key={id} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-1 mb-1">
+                                                                {equipment.name}
+                                                            </span>
+                                                        ) : null;
+                                                    })}
                                                 </div>
                                             </div>
                                             <form onSubmit={handleBulkSubmit}>
@@ -449,17 +447,17 @@ const EquipmentList = () => {
                                                         name="start"
                                                         value={bulkReservation.start}
                                                         onChange={(e) => setBulkReservation({ ...bulkReservation, start: e.target.value })}
-                                                        className="mt-1 block w-full min-w-0 max-w-full rounded-md border border-gray-300 py-2 px-3 text-gray-900 focus:border-violet-500 focus:ring-violet-500"
+                                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-violet-600"
                                                     />
                                                 </div>
-                                                <div className="mt-4">
+                                                <div className="mt-2">
                                                     <label className="block text-sm font-medium text-gray-700 text-left">終了日</label>
                                                     <input
                                                         type="date"
                                                         name="end"
                                                         value={bulkReservation.end}
                                                         onChange={(e) => setBulkReservation({ ...bulkReservation, end: e.target.value })}
-                                                        className="mt-1 block w-full min-w-0 max-w-full rounded-md border border-gray-300 py-2 px-3 text-gray-900 focus:border-violet-500 focus:ring-violet-500"
+                                                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-violet-600"
                                                     />
                                                 </div>
                                                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
