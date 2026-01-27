@@ -262,13 +262,19 @@ const Header = () => {
                       height="40px"
                       width="40px"
                     />
-                    <UserButton isAdmin={manager}/>
+                    <UserButton isAdmin={manager} />
                   </div>
                 )}
               </div>
             </div>
           </nav>
         </header>
+        {/* 新機能バナー */}
+        <div className="bg-gradient-to-r from-orange-400 to-orange-500 py-2 px-3">
+          <p className="text-white text-center text-sm font-medium">
+            🎉 まとめて予約機能を実装しました
+          </p>
+        </div>
       </div>
     </>
   );
