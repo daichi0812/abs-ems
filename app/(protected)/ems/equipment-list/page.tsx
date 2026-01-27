@@ -449,7 +449,7 @@ const EquipmentList = () => {
                                                         name="start"
                                                         value={bulkReservation.start}
                                                         onChange={(e) => setBulkReservation({ ...bulkReservation, start: e.target.value })}
-                                                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 text-gray-900 focus:border-violet-500 focus:ring-violet-500"
+                                                        className="mt-1 block w-full min-w-0 max-w-full rounded-md border border-gray-300 py-2 px-3 text-gray-900 focus:border-violet-500 focus:ring-violet-500"
                                                     />
                                                 </div>
                                                 <div className="mt-4">
@@ -459,7 +459,7 @@ const EquipmentList = () => {
                                                         name="end"
                                                         value={bulkReservation.end}
                                                         onChange={(e) => setBulkReservation({ ...bulkReservation, end: e.target.value })}
-                                                        className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 text-gray-900 focus:border-violet-500 focus:ring-violet-500"
+                                                        className="mt-1 block w-full min-w-0 max-w-full rounded-md border border-gray-300 py-2 px-3 text-gray-900 focus:border-violet-500 focus:ring-violet-500"
                                                     />
                                                 </div>
                                                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
