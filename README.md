@@ -87,5 +87,5 @@
 - 機材の一括貸出
 
 ## 開発フロー
-ブランチ運用・タグ運用・コミット規約は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+ブランチ運用・タグ運用・コミット規約は [CONTRIBUTING.md](./docs/CONTRIBUTING.md) を参照してください。
 
