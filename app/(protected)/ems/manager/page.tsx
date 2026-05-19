@@ -9,18 +9,13 @@ import { useRouter } from "next/navigation";
 import { Button, Center, Spinner } from "@chakra-ui/react";
 import type { PutBlobResult } from "@vercel/blob";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Equipment } from "@/types/domain";
 
 const IMAGE_ID = "imageId";
 const FIELD_SIZE = 210;
 
-interface Equipment {
-    id: number;
-    name: string;
-    detail: string;
-    image: string;
-    tag_id: string;
-}
-
+// TODO: API レスポンスは number だが、ここでは既存 UI 実装の都合で string として扱っている。
+// `@/types/domain` の Tag (id: number) との整合は別タスクで対応予定。
 interface Tags {
     id: string;
     name: string;

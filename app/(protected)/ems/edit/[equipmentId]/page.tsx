@@ -10,14 +10,9 @@ import type { PutBlobResult } from '@vercel/blob';
 import { Button } from '@chakra-ui/react';
 import Header from '@/app/(protected)/_components/Header';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Tag as Tags } from "@/types/domain";
 
 const FIELD_SIZE = 210;
-
-interface Tags {
-  id: number;
-  name: string;
-  color: string;
-}
 
 const EditPage = () => {
   const params = useParams();

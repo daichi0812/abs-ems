@@ -210,6 +210,42 @@ git branch -d hotfix/critical-bug
 git push origin --delete hotfix/critical-bug
 ```
 
+## テスト
+
+`schemas/`, `lib/`, `data/`, `actions/`, `hooks/` のピュアロジック層は Vitest でユニットテストを書く方針。
+
+### 実行コマンド
+
+```bash
+npm test            # 一度だけ実行（CI 用途）
+npm run test:watch  # ファイル変更を監視して再実行
+npm run test:ui     # ブラウザ UI で結果を確認
+```
+
+### 配置規約
+
+テストはソースの隣にコロケーションで置く（`*.test.ts`）。例:
+```
+schemas/index.ts
+schemas/index.test.ts
+actions/login.ts
+actions/login.test.ts
+```
+
+### モック方針
+
+- Prisma (`@/lib/db`): 各テストファイル先頭で `vi.mock` してメソッドを個別に stub
+- NextAuth (`@/auth`, `next-auth`): `signIn` や `AuthError` はモックで提供（実体を読み込むと `next/server` の解決に失敗する）
+- メール (`@/lib/mail`): `vi.fn()` で送信を no-op に
+- `next-auth/react` の `useSession`: hooks テストで `vi.mock` + `renderHook`
+
+詳細な例は [actions/login.test.ts](../actions/login.test.ts) を参照。
+
+### 何を書くか / 書かないか
+
+- ✅ **書く**: Zod スキーマのバリデーション分岐、Server Action の各エラーパス、Prisma を呼ぶ data 層、純粋関数
+- ⚠️ **後回し**: UI コンポーネント（Phase 2 以降で snapshot / interaction テストを追加予定）
+
 ## 補足
 
 - 詳細な背景・図解・研究向けケースは Notion の [Gitブランチ戦略ベストプラクティス](https://www.notion.so/d0c1aee52da245b1a33fb0b35e7a53f4) を参照

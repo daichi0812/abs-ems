@@ -4,12 +4,7 @@ import React, { useState, useEffect, useTransition, useRef } from 'react';
 import { Button, Center, Spinner, Input } from '@chakra-ui/react';
 import Header from '@/app/(protected)/_components/Header';
 import axios from 'axios';
-
-interface Tags {
-    id: number;
-    name: string;
-    color: string;
-}
+import type { Tag as Tags } from "@/types/domain";
 
 const EditCategories = () => {
     const [isPending, startTransition] = useTransition();
