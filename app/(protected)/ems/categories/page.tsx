@@ -1,80 +1,19 @@
 "use client"
 
-import React, { useState, useEffect, useTransition, useRef } from 'react';
+import React from 'react';
 import { Button, Center, Spinner, Input } from '@chakra-ui/react';
 import Header from '@/app/(protected)/_components/Header';
-import axios from 'axios';
-import type { Tag as Tags } from "@/types/domain";
+import { useTransition } from 'react';
+import { useTagsList } from './hooks/use-tags-list';
+import { useTagEditing } from './hooks/use-tag-editing';
+import { useTagDeletion } from './hooks/use-tag-deletion';
 
 const EditCategories = () => {
     const [isPending, startTransition] = useTransition();
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [tags, setTags] = useState<Tags[]>([]);
-    const [editTagId, setEditTagId] = useState<number | null>(null); // 編集中のカテゴリID
-    const [editTagName, setEditTagName] = useState<string>(''); // 編集中のカテゴリ名
-    const [editTagColor, setEditTagColor] = useState<string>('');
 
-    const inputRef = useRef<HTMLInputElement | null>(null);
-
-    // カテゴリ一覧を取得
-    const fetchTags = async () => {
-        try {
-            const response = await axios.get("/api/tags");
-            const sortedTags = response.data.sort((a: Tags, b: Tags) => a.id - b.id);
-            setTags(sortedTags);
-        } catch (err) {
-            console.error("カテゴリ一覧の取得に失敗しました", err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // カテゴリを編集
-    const handleEditTag = async (id: number) => {
-        if (!editTagName.trim()) {
-            alert("カテゴリ名を入力してください.");
-            return;
-        }
-        try {
-            await axios.put(`/api/tags/${id}`, {
-                name: editTagName,
-                color: editTagColor,
-            });
-            alert("カテゴリが更新されました.");
-            setEditTagId(null); // 編集モードを終了
-            fetchTags(); // 最新のカテゴリ一覧を取得
-        } catch (err) {
-            console.error("カテゴリの更新に失敗しました.", err);
-            alert("カテゴリの更新に失敗しました.");
-        }
-    };
-
-    // カテゴリを削除
-    const handleDeleteTag = async (id: number) => {
-        const confirmed = window.confirm(
-            "機材に登録されたカテゴリが失われます.\n本当にこのカテゴリを削除しますか？"
-        );
-        if (confirmed) {
-            try {
-                await axios.delete(`/api/tags/${id}`);
-                alert("カテゴリが削除されました.");
-                fetchTags(); // 最新のカテゴリ一覧を取得
-            } catch (err) {
-                console.error("カテゴリの削除に失敗しました.", err);
-                alert("カテゴリの削除に失敗しました.");
-            }
-        }
-    };
-
-    useEffect(() => {
-        fetchTags();
-    }, []);
-
-    useEffect(() => {
-        if (editTagId !== null) {
-            inputRef.current?.focus();
-        }
-    }, [editTagId]);
+    const { tags, isLoading, refetch } = useTagsList();
+    const editing = useTagEditing({ refetchTags: refetch });
+    const { deleteTag } = useTagDeletion({ refetchTags: refetch });
 
     return (
         <div
@@ -91,20 +30,20 @@ const EditCategories = () => {
                                 key={tag.id}
                                 className="bg-slate-200 rounded-md p-2 mt-3 flex shadow gap-x-1"
                             >
-                                {editTagId === tag.id ? (
+                                {editing.editTagId === tag.id ? (
                                     // 編集モード
                                     <div className='flex'>
                                         <div className='flex justify-center items-center me-1'>
                                             <input
                                                 className='w-8 h-8 border rounded-md'
                                                 type="color"
-                                                onChange={(e) => setEditTagColor(e.target.value)}
-                                                value={editTagColor} />
+                                                onChange={(e) => editing.setEditTagColor(e.target.value)}
+                                                value={editing.editTagColor} />
                                         </div>
                                         <Input
-                                            ref={inputRef}
-                                            value={editTagName}
-                                            onChange={(e) => setEditTagName(e.target.value)}
+                                            ref={editing.inputRef}
+                                            value={editing.editTagName}
+                                            onChange={(e) => editing.setEditTagName(e.target.value)}
                                             placeholder="カテゴリ名を入力してください"
                                             size="md"
                                             border="2px solid"
@@ -121,7 +60,7 @@ const EditCategories = () => {
                                     </div>
                                 )}
                                 <div className="ml-auto items-center flex gap-x-1">
-                                    {editTagId === tag.id ? (
+                                    {editing.editTagId === tag.id ? (
                                         <>
                                             {isPending ? (
                                                 <Button
@@ -134,7 +73,7 @@ const EditCategories = () => {
                                                 </Button>
                                             ) : (
                                                 <Button
-                                                    onClick={() => handleEditTag(tag.id)}
+                                                    onClick={() => editing.saveEdit(tag.id)}
                                                     size={'md'}
                                                     ms={1}
                                                     colorScheme="blue"
@@ -146,11 +85,7 @@ const EditCategories = () => {
                                     ) : (
                                         <>
                                             <Button
-                                                onClick={() => {
-                                                    setEditTagId(tag.id); // 編集対象を設定
-                                                    setEditTagName(tag.name); // 編集中のカテゴリ名を設定
-                                                    setEditTagColor(tag.color); // 編集中のカテゴリ色を設定
-                                                }}
+                                                onClick={() => editing.startEdit(tag.id, tag.name, tag.color)}
                                                 size={'md'}
                                                 me={1}
                                                 colorScheme="yellow"
@@ -158,7 +93,7 @@ const EditCategories = () => {
                                                 編集
                                             </Button>
                                             <Button
-                                                onClick={() => handleDeleteTag(tag.id)}
+                                                onClick={() => deleteTag(tag.id)}
                                                 size={'md'}
                                                 colorScheme="red"
                                             >
