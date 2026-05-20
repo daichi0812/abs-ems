@@ -6,7 +6,7 @@ import { Button, Center, Spinner } from '@chakra-ui/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, Transition } from '@headlessui/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
-import { useEquipments } from './hooks/use-equipments';
+import { useEquipments } from '../_hooks/use-equipments';
 import { useCategories } from './hooks/use-categories';
 import { useReserves } from './hooks/use-reserves';
 import { useReservationNavigation } from './hooks/use-reservation-navigation';
