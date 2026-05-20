@@ -1,75 +1,28 @@
 "use client"
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
-import interactionPlugin, { Draggable } from '@fullcalendar/interaction'
+import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import { Fragment, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { EventSourceInput } from '@fullcalendar/core/index.js'
 
 import jaLocale from '@fullcalendar/core/locales/ja';
 import styled from 'styled-components';
 import { Center, Spinner } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
-import axios from 'axios'
 
-function formatDate1(date: Date | string): string {
-  const d = new Date(date);
-  const month = `${d.getMonth() + 1}`.padStart(2, '0');
-  const day = `${d.getDate()}`.padStart(2, '0');
-  return `${month}月${day}日`;
-}
-
-function formatDate2(date: Date | string): string {
-  const d = new Date(date);
-  const month = `${d.getMonth() + 1}`.padStart(2, '0');
-  const day = `${d.getDate() - 1}`.padStart(2, '0');
-  return `${month}月${day}日`;
-}
-
-interface Event {
-  textColor: string
-  isRenting: number;
-  name: string;
-  title: string;
-  start: Date | string;
-  end: Date | string;
-  allDay: boolean;
-  id: number;
-  list_id: number;
-}
-
-interface Users {
-  name: string;
-  user_id: string;
-}
-
-type Reserves = {
-  id: number;
-  user_id: string;
-  start: string;
-  end: string;
-  list_id: number;
-  isRenting: number;
-};
-
-type Lists = {
-  id: number,
-  name: string,
-  detail: string,
-  image: string,
-  usable: boolean,
-  tag_id: number,
-}
-
-type Tags = {
-  id: number,
-  name: string,
-  color: string,
-}
+import { formatDate1, formatDate2 } from '@/lib/calendar-event-rendering'
+import { useCalendarData } from './hooks/common/use-calendar-data'
+import { useResponsiveView } from './hooks/common/use-responsive-view'
+import { useEventNavigation } from './hooks/common/use-event-navigation'
 
 export default function CommonCalendar() {
-  const [allEvents, setAllEvents] = useState<Event[]>([])
+  const { allEvents, isFetching } = useCalendarData();
+  const { isMobile, displayWeekly, displayMonthly, showWeekly, showMonthly } = useResponsiveView();
+  const { navigateToDetail } = useEventNavigation(allEvents);
+
+  // NOTE: The detail modal below (showDetailModal) is currently commented out in the JSX.
+  // These state variables and handlers are kept for future re-enablement of the modal flow.
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [nameToShow, setNameToShow] = useState<string | null>(null);
   const [isRentingToShow, setIsRentingToShow] = useState<number | null>(null);
@@ -77,114 +30,6 @@ export default function CommonCalendar() {
   const [endToShow, setEndToShow] = useState<string | null>(null)
   const [idToShow, setIdToShow] = useState<number>(0)
   const [eqipNameToShow, setEqipNameToShow] = useState<string | null>(null)
-  const [displayWeekly, setDisplayWeekly] = useState(false);
-  const [displayMonthly, setDisplayMonthly] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    // 初期ロード時に画面幅でモバイル判定
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768); // 幅768px以下ならモバイル
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize); // リサイズ時に判定更新
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const fetchReservesData = async () => {
-    // ユーザーリストを取得
-    const responseLists1 = await fetch('/api/users');
-    const reservesListsData1: Users[] = await responseLists1.json();
-
-    // ユーザーIDをキーにして名前をマッピング
-    const idToNameMap1: { [key: string]: string } = reservesListsData1.reduce((map, item) => {
-      map[item.user_id] = item.name;
-      return map;
-    }, {} as { [key: string]: string });
-
-    // 機材データを取得
-    const responseLists2 = await fetch('/api/lists');
-    const reservesListsData2: Lists[] = await responseLists2.json();
-
-    // タグデータを取得
-    const responseTags = await fetch('/api/tags');
-    const tags: Tags[] = await responseTags.json();
-
-    // IDをキーにして機材名と色をマッピング
-    const idToNameMap2: { [key: string]: string } = {};
-    const idToColorMap: { [key: string]: string } = {};
-    const idTolistId: { [key: number]: number } = {};
-
-    reservesListsData2.forEach(item => {
-      idToNameMap2[item.id] = item.name;
-      idTolistId[item.id] = item.tag_id;
-    });
-
-    tags.forEach(tag => {
-      idToColorMap[tag.id] = tag.color;
-    })
-
-    // 予約データを取得
-    const response = await fetch('/api/reserves');
-    const reservesData: Reserves[] = await response.json();
-
-    // 新しいイベントの一時配列を作成
-    const newEvents = reservesData.map(item => {
-      const endDate = new Date(item.end);
-      endDate.setDate(endDate.getDate() + 1);
-
-      const backgroundColor = idToColorMap[idTolistId[item.list_id]] || '#3788D8';
-      console.log(backgroundColor);
-      const textColor = getTextColorForBackground(backgroundColor);
-
-      return {
-        title: idToNameMap2[item.list_id],
-        start: item.start,
-        end: endDate,
-        allDay: true,
-        id: item.id,
-        name: idToNameMap1[item.user_id],
-        isRenting: item.isRenting,
-        list_id: item.list_id,
-        backgroundColor,
-        borderColor: backgroundColor,
-        textColor
-      };
-    });
-
-    setAllEvents(newEvents);
-    setIsFetching(false);
-  };
-
-  // イベントの背景の明るさを計算する関数
-  function getTextColorForBackground(bgColor: string): string {
-    const hex = bgColor.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness < 128 ? '#ffffff' : '#000000';
-  }
-
-  useEffect(() => {
-    let draggableEl = document.getElementById('draggable-el')
-    if (draggableEl) {
-      new Draggable(draggableEl, {
-        itemSelector: ".fc-event",
-        eventData: function (eventEl) {
-          let title = eventEl.getAttribute("title")
-          let id = eventEl.getAttribute("data")
-          let start = eventEl.getAttribute("start")
-          return { title, id, start }
-        }
-      })
-    }
-    fetchReservesData()
-  }, [])
 
   const handleDetailModal = (data: { event: { id: string } }) => {
     const event = allEvents.find(event => event.id === Number(data.event.id));
@@ -201,24 +46,6 @@ export default function CommonCalendar() {
 
   function handleCloseModal() {
     setShowDetailModal(false)
-  }
-
-  // イベントをクリックした時の処理
-  const handleDetailInfo = (data: { event: { id: string } }) => {
-    const event = allEvents.find(event => event.id === Number(data.event.id));
-    router.push(`/ems/reserve/${event?.list_id}`)
-  }
-
-  // 週表示ボタンを押した時の処理
-  const handleDisplayWeekly = () => {
-    setDisplayMonthly(false);
-    setDisplayWeekly(true);
-  }
-
-  // 月表示ボタンを押した時の処理
-  const handleDisplayMonthly = () => {
-    setDisplayWeekly(false);
-    setDisplayMonthly(true);
   }
 
   // カスタムイベントコンテンツ
@@ -275,7 +102,7 @@ export default function CommonCalendar() {
     .fc .fc-button {
       font-size: 0.8rem;
     }
-    
+
     /* "イベント"に対するCSS */
     .fc-event {
       padding-left: 2px !important;
@@ -318,7 +145,7 @@ export default function CommonCalendar() {
                   <Button
                     className='items-center justify-center ml-auto text-white bg-[#2C3E50] hover:text-white hover:bg-slate-800'
                     variant={'outline'}
-                    onClick={handleDisplayWeekly}
+                    onClick={showWeekly}
                   >
                     週表示
                   </Button>
@@ -338,7 +165,7 @@ export default function CommonCalendar() {
                     nowIndicator={true}
                     droppable={true}
                     selectMirror={true}
-                    eventClick={(data) => handleDetailInfo(data)}
+                    eventClick={(data) => navigateToDetail(data)}
                     displayEventTime={false}
                     headerToolbar={{
                       left: 'title',
@@ -373,7 +200,7 @@ export default function CommonCalendar() {
                   <Button
                     className='items-center justify-center ml-auto text-white bg-[#2C3E50] hover:text-white hover:bg-slate-800'
                     variant={'outline'}
-                    onClick={handleDisplayMonthly}
+                    onClick={showMonthly}
                   >
                     月表示
                   </Button>
@@ -389,7 +216,7 @@ export default function CommonCalendar() {
                     nowIndicator={true}
                     droppable={true}
                     selectMirror={true}
-                    eventClick={(data) => handleDetailInfo(data)}
+                    eventClick={(data) => navigateToDetail(data)}
                     eventContent={renderEventContent} // カスタムレンダリングを設定
                     locales={[jaLocale]}
                     locale='ja'
