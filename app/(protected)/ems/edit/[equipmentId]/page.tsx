@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import axios from 'axios';
 import InputImage from "@/components/InputImage";
-import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
-import type { PutBlobResult } from '@vercel/blob';
 
 import { Button } from '@chakra-ui/react';
 import Header from '@/app/(protected)/_components/Header';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Tag as Tags } from "@/types/domain";
+
+import { useEquipmentDetails } from './hooks/use-equipment-details';
+import { useTagsList } from './hooks/use-tags-list';
+import { useTagCreation } from './hooks/use-tag-creation';
+import { useEquipmentUpdate } from './hooks/use-equipment-update';
 
 const FIELD_SIZE = 210;
 
@@ -19,73 +20,36 @@ const EditPage = () => {
   const router = useRouter();
   const equipmentId = params.equipmentId;
 
-  const [equipmentName, setEquipmentName] = useState('');
-  const [equipmentDetail, setEquipmentDetail] = useState('');
-  const [equipmentImg, setEquipmentImg] = useState(''); // 現在の画像URL
-  const [imageFile, setImageFile] = useState<File | null>(null); // 新しい画像ファイル
-  const [equipmentTag, setEquipmentTag] = useState();
+  const {
+    equipmentName,
+    setEquipmentName,
+    equipmentDetail,
+    setEquipmentDetail,
+    equipmentImg,
+    equipmentTag,
+  } = useEquipmentDetails({ equipmentId });
 
-  const [tags, setTags] = useState<Tags[]>([]); // タグを保持する変数
-  const [addTagName, setAddTagName] = useState<string>(''); // 追加するタグを保持する変数
-
-  const [editTagColor, setEditTagColor] = useState<string>('');
+  const { tags, refetch: refetchTags } = useTagsList();
 
   const [selectedTag, setSelectedTag] = useState("");
+
+  const tagCreation = useTagCreation({ existingTags: tags, refetchTags });
+  const update = useEquipmentUpdate({
+    equipmentId,
+    equipmentName,
+    equipmentDetail,
+    currentImageUrl: equipmentImg,
+    selectedTagName: selectedTag,
+    tags,
+    onSuccess: () => router.push('/ems/manager'),
+  });
 
   const [isPending_1, startTransition_1] = useTransition();
   const [isPending_2, startTransition_2] = useTransition();
   const [isPending_3, startTransition_3] = useTransition();
   const [isPending_4, startTransition_4] = useTransition();
 
-  const inputFileRef = useRef<HTMLInputElement>(null);
-
-  const setTagsFunc = async () => {
-    const response = await fetch("/api/tags");
-    const data: Tags[] = await response.json();
-    setTags(data);
-  }
-
-  const handleAddTag = async () => {
-    if (addTagName === "") {
-      alert("カテゴリ名は1文字以上入力してください.")
-      setAddTagName("");
-      return;
-    }
-
-    const isDuplicate = tags.some((tag) => tag.name === addTagName.trim());
-    if (isDuplicate) {
-      alert("このカテゴリは既に存在しています.");
-      setAddTagName("");
-      return;
-    }
-
-    await axios.post("/api/tags", {
-      name: addTagName,
-      color: editTagColor
-    });
-    setEditTagColor("");
-    setAddTagName("");
-    setTagsFunc();
-  }
-
-  useEffect(() => {
-    fetchEquipmentData();
-    setTagsFunc();
-  }, []);
-
-  const fetchEquipmentData = async () => {
-    try {
-      const equipmentData = await fetch(`/api/lists/${equipmentId}`).then(res => res.json());
-      setEquipmentName(equipmentData.name);
-      setEquipmentDetail(equipmentData.detail);
-      setEquipmentImg(equipmentData.image);
-      setEquipmentTag(equipmentData.tag_id);
-    } catch (err) {
-      console.error('機材データの取得に失敗しました:', err);
-    }
-  };
-
-  // ここにuseEffectを追加
+  // tags がロードされた後に equipmentTag に紐づく tag 名を selectedTag に同期
   useEffect(() => {
     if (tags.length > 0 && equipmentTag) {
       const tag = tags.find(tag => tag.id === equipmentTag);
@@ -94,72 +58,6 @@ const EditPage = () => {
       }
     }
   }, [tags, equipmentTag]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.currentTarget?.files && e.currentTarget.files[0]) {
-      const targetFile = e.currentTarget.files[0];
-      setImageFile(targetFile);
-    }
-  };
-
-  const { imageUrl } = useGetImageUrl({ file: imageFile });
-
-  const handleUpdateEquipment = async () => {
-    try {
-      let blobUrl = equipmentImg; // デフォルトは現在の画像URL
-
-      // 新しい画像が選択された場合
-      if (imageFile) {
-        try {
-          const responseVaecel = await fetch(
-            `/api/upload?filename=${imageFile.name}`,
-            {
-              method: 'POST',
-              body: imageFile,
-            },
-          );
-          const responseText = await responseVaecel.text();
-          console.log('Image upload response:', responseText);
-
-          const blob = JSON.parse(responseText) as PutBlobResult;
-          blobUrl = blob.url;
-        } catch (error) {
-          console.error('Image upload failed:', error);
-          alert('画像のアップロードに失敗しました');
-          return;
-        }
-      }
-
-      try {
-        const response = await axios.put(
-          `/api/lists/${equipmentId}`,
-          {
-            name: equipmentName,
-            detail: equipmentDetail,
-            image: blobUrl,
-            tag_id: tags.find((tag) => tag.name === selectedTag)?.id
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-        console.log('Update response:', response.data);
-        alert('機材情報が更新されました');
-        router.push('/ems/manager');
-      } catch (error) {
-        console.error('Failed to update equipment:', error);
-        if (axios.isAxiosError(error)) {
-          console.error('Response data:', error.response?.data);
-        }
-        alert('機材情報の更新に失敗しました');
-      }
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      alert('予期せぬエラーが発生しました');
-    }
-  };
 
   const handleClickCancelButton = () => {
     router.push('/ems/manager'); // キャンセル時にリダイレクト
@@ -186,9 +84,9 @@ const EditPage = () => {
             cursor: "pointer",
           }}
         >
-          {(imageUrl && imageFile) ? (
+          {(update.imageUrl && update.imageFile) ? (
             <img
-              src={imageUrl}
+              src={update.imageUrl}
               alt="アップロード画像"
               style={{ objectFit: "cover", width: "100%", height: "100%" }}
             />
@@ -202,9 +100,9 @@ const EditPage = () => {
             "+ 画像をアップロード"
           )}
           <InputImage
-            ref={inputFileRef}
+            ref={update.inputFileRef}
             id="imageInput"
-            onChange={handleFileChange}
+            onChange={update.onFileChange}
           />
         </label>
         <div className="mb-2 flex">
@@ -240,16 +138,16 @@ const EditPage = () => {
                   <input
                     className='w-8 h-8 border rounded-md'
                     type="color"
-                    onChange={(e) => setEditTagColor(e.target.value)}
-                    value={editTagColor} />
+                    onChange={(e) => tagCreation.setEditTagColor(e.target.value)}
+                    value={tagCreation.editTagColor} />
                 </div>
                 <input
                   className="rounded-md px-1"
                   type="text"
                   placeholder="カテゴリの追加"
                   style={{ border: "1px solid black", width: "180px" }}
-                  onChange={(e) => setAddTagName(e.target.value)}
-                  value={addTagName}
+                  onChange={(e) => tagCreation.setAddTagName(e.target.value)}
+                  value={tagCreation.addTagName}
                   onKeyDown={(e) => {
                     e.stopPropagation();
                   }}
@@ -267,7 +165,7 @@ const EditPage = () => {
                       size={"sm"}
                       colorScheme="blue"
                       onClick={() => startTransition_3(() => {
-                        handleAddTag().catch(console.error);
+                        tagCreation.submit().catch(console.error);
                       })}
                     >
                       追加
@@ -329,7 +227,7 @@ const EditPage = () => {
             <Button
               disabled={isPending_1}
               onClick={() => startTransition_1(() => {
-                handleUpdateEquipment().catch(console.error);
+                update.submit().catch(console.error);
               })}
               colorScheme='blue'
             >
