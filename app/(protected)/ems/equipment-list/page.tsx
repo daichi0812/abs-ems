@@ -9,22 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, Transition } from '@headlessui/react';
 import { CheckIcon } from '@heroicons/react/20/solid';
 import moment from 'moment-timezone';
-
-interface Equipment {
-    id: number;
-    name: string;
-    detail: string;
-    image: string;
-    tag_id: string;
-}
-
-interface Reserve {
-    id: number;
-    user_id: string;
-    start: string;
-    end: string;
-    list_id: number;
-}
+import type { Equipment, Reserve } from "@/types/domain";
 
 interface BulkReservation {
     start: string;
