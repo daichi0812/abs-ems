@@ -9,7 +9,7 @@ vi.mock("@/app/(protected)/_components/Header", () => ({
   default: () => null,
 }));
 
-vi.mock("./hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
+vi.mock("../_hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
 vi.mock("./hooks/use-categories", () => ({ useCategories: vi.fn() }));
 vi.mock("./hooks/use-reserves", () => ({ useReserves: vi.fn() }));
 vi.mock("./hooks/use-reservation-navigation", () => ({
@@ -19,7 +19,7 @@ vi.mock("./hooks/use-bulk-reservation", () => ({
   useBulkReservation: vi.fn(),
 }));
 
-import { useEquipments } from "./hooks/use-equipments";
+import { useEquipments } from "../_hooks/use-equipments";
 import { useCategories } from "./hooks/use-categories";
 import { useReserves } from "./hooks/use-reserves";
 import { useReservationNavigation } from "./hooks/use-reservation-navigation";
