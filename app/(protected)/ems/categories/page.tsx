@@ -4,14 +4,14 @@ import React from 'react';
 import { Button, Center, Spinner, Input } from '@chakra-ui/react';
 import Header from '@/app/(protected)/_components/Header';
 import { useTransition } from 'react';
-import { useTagsList } from './hooks/use-tags-list';
+import { useTagsList } from '../_hooks/use-tags-list';
 import { useTagEditing } from './hooks/use-tag-editing';
 import { useTagDeletion } from './hooks/use-tag-deletion';
 
 const EditCategories = () => {
     const [isPending, startTransition] = useTransition();
 
-    const { tags, isLoading, refetch } = useTagsList();
+    const { tags, isLoading, refetch } = useTagsList({ sortById: true });
     const editing = useTagEditing({ refetchTags: refetch });
     const { deleteTag } = useTagDeletion({ refetchTags: refetch });
 

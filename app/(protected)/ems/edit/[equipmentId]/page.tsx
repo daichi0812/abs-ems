@@ -9,8 +9,8 @@ import Header from '@/app/(protected)/_components/Header';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useEquipmentDetails } from './hooks/use-equipment-details';
-import { useTagsList } from './hooks/use-tags-list';
-import { useTagCreation } from './hooks/use-tag-creation';
+import { useTagsList } from '../../_hooks/use-tags-list';
+import { useTagCreation } from '../../_hooks/use-tag-creation';
 import { useEquipmentUpdate } from './hooks/use-equipment-update';
 
 const FIELD_SIZE = 210;

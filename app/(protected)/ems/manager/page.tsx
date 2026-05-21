@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { useEquipments } from "../_hooks/use-equipments";
 import { useTags } from "./hooks/use-tags";
 import { useImageUpload } from "./hooks/use-image-upload";
-import { useTagCreation } from "./hooks/use-tag-creation";
+import { useTagCreation } from "../_hooks/use-tag-creation";
 import { useEquipmentRegistration } from "./hooks/use-equipment-registration";
 import { useEquipmentActions } from "./hooks/use-equipment-actions";
 

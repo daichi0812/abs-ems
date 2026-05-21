@@ -11,14 +11,14 @@ vi.mock("@/components/InputImage", () => ({ default: () => null }));
 vi.mock("../_hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
 vi.mock("./hooks/use-tags", () => ({ useTags: vi.fn() }));
 vi.mock("./hooks/use-image-upload", () => ({ useImageUpload: vi.fn() }));
-vi.mock("./hooks/use-tag-creation", () => ({ useTagCreation: vi.fn() }));
+vi.mock("../_hooks/use-tag-creation", () => ({ useTagCreation: vi.fn() }));
 vi.mock("./hooks/use-equipment-registration", () => ({ useEquipmentRegistration: vi.fn() }));
 vi.mock("./hooks/use-equipment-actions", () => ({ useEquipmentActions: vi.fn() }));
 
 import { useEquipments } from "../_hooks/use-equipments";
 import { useTags } from "./hooks/use-tags";
 import { useImageUpload } from "./hooks/use-image-upload";
-import { useTagCreation } from "./hooks/use-tag-creation";
+import { useTagCreation } from "../_hooks/use-tag-creation";
 import { useEquipmentRegistration } from "./hooks/use-equipment-registration";
 import { useEquipmentActions } from "./hooks/use-equipment-actions";
 import App from "./page";
