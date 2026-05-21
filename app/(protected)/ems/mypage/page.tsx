@@ -1,37 +1,22 @@
 "use client"
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import MypageCalendar from '../../_components/calendar/MypageCalendar';
-import { useParams, useRouter } from 'next/navigation';
-import axios from 'axios';
+import { useRouter } from 'next/navigation';
 import Header from '@/app/(protected)/_components/Header';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@chakra-ui/react';
-
-type Reserves = {
-    id: number,
-    user_id: string,
-    start: Date,
-    end: Date,
-    list_id: number,
-    isRenting: number // 貸し出し状態の管理変数（0:貸し出し前（予約中）,1:貸し出し中,2:返却済み,3:滞納）
-}
-
-type Lists = {
-    id: number,
-    name: string,
-    detail: string,
-    image: string,
-    usable: boolean
-}
+import { useMyReserves } from './hooks/use-my-reserves';
 
 const Mypage = () => {
     const [manager, setManager] = useState(false);
     const [password, setPassword] = useState('');
-    const [filteredData, setFilteredData] = useState<Reserves[]>([]); // ログイン中のユーザーの予約を保存
-    const [idToNameMap, setIdToNameMap] = useState<{ [key: number]: string }>({});
 
     const router = useRouter();
     const user = useCurrentUser();
+
+    const { filteredData, idToNameMap, refetch: mypageFetchReservesData } = useMyReserves({
+        userId: user?.id,
+    });
 
     const [isPending_1, startTransition_1] = useTransition();
     const [isPending_2, startTransition_2] = useTransition();
@@ -47,32 +32,6 @@ const Mypage = () => {
             alert('Incorrect password');
         }
     };
-
-    const mypageFetchReservesData = async () => {
-        const responseLists = await fetch('/api/lists');
-        const reservesListsData: Lists[] = await responseLists.json();
-
-        const idToNameMap: { [key: number]: string } = reservesListsData.reduce((map, item) => {
-            map[item.id] = item.name;
-            return map;
-        }, {} as { [key: number]: string });
-
-        setIdToNameMap(idToNameMap);
-
-        const response = await fetch('/api/reserves');
-        const reservesData: Reserves[] = await response.json();
-        setFilteredData(reservesData.filter((item: Reserves) => item.user_id == user?.id));
-    }
-
-    const fetchEquipmentState = async (equipmentId: number) => {
-        const response = await fetch(`/api/lists/${equipmentId}`);
-        const equipmentData: Lists = await response.json();
-        return equipmentData.usable;
-    }
-
-    useEffect(() => {
-        mypageFetchReservesData();
-    }, []);
 
     const handleBorrow = async (id: number, EquipId: number) => {
         setLoadingId_1(id);
