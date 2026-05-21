@@ -2,19 +2,19 @@
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import jaLocale from '@fullcalendar/core/locales/ja'
-import interactionPlugin, { Draggable, DropArg } from '@fullcalendar/interaction'
+import interactionPlugin, { Draggable } from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { Box, Spinner } from '@chakra-ui/react'
-import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid'
+import { CheckIcon } from '@heroicons/react/20/solid'
 import { EventSourceInput } from '@fullcalendar/core/index.js'
 
 import styled from 'styled-components';
 
-import axios from 'axios'
-import moment from 'moment-timezone';
-
+import { useReservationData } from './hooks/reservation/use-reservation-data'
+import { useReservationForm } from './hooks/reservation/use-reservation-form'
+import { useReservationDeleteFlow } from './hooks/reservation/use-reservation-delete-flow'
 
 function formatDate(date: Date | string): string {
   const d = new Date(date);
@@ -24,114 +24,22 @@ function formatDate(date: Date | string): string {
   return `${year}-${month}-${day}`;
 }
 
-interface Event {
-  title: string | undefined;
-  start: Date | string;
-  end: Date | string; // Added end date
-  allDay: boolean;
-  id: number;
-}
-
-interface Users {
-  name: string;
-  user_id: string;
-}
-
-type Reserves = {
-  id: number;
-  user_id: string;
-  start: string;  // Use string if API returns date in string format
-  end: string;    // Use string if API returns date in string format
-  list_id: number;
-};
-
 type Props = {
   userId: string | undefined;
   listId: number;
 }
 
 export default function ReservationCalendar({ userId, listId }: Props) {
-  const [allEvents, setAllEvents] = useState<Event[]>([])
-  const [showModal, setShowModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [idToDelete, setIdToDelete] = useState<number | null>(null)
-  const [newEvent, setNewEvent] = useState<Event>({
-    title: userId,
-    start: '',
-    end: '', // Added end date
-    allDay: true,
-    id: 0
-  })
-
-  const [filteredData, setFilteredData] = useState<Reserves[]>([])
-
-  const [isFetching, setIsFetching] = useState(true);
-
-  useEffect(() => {
-    setNewEvent({
-      title: userId,
-      start: '',
-      end: '',
-      allDay: false,
-      id: 0
-    })
-  }, [userId])
-
-  const postReservesData = async () => {
-    const startDate = new Date(newEvent.start);
-    startDate.setDate(startDate.getDate() + 1); // 1日プラス
-
-    const response = await axios.post('/api/reserves', {
-      user_id: userId,
-      start: startDate,
-      end: newEvent.end,
-      list_id: listId
-    });
-    console.log(response);
-  };
-
-  const fetchReservesData = async () => {
-    const key = process.env.NEXT_PUBLIC_API_KEY as string
-
-    const usersResponse = await fetch(`/api/users?key=${encodeURIComponent(key)}`)
-    if (!usersResponse.ok) {
-      console.error('Failed to fetch users: ', usersResponse.status)
-      return
-    }
-
-    const reservesListsData = await usersResponse.json();
-
-    // ユーザーIDをキーにして名前をマッピング
-    const idToNameMap: { [key: string]: string } = reservesListsData.reduce((map: { [x: string]: string }, item: { id: string | number; name: string }) => {
-      map[item.id] = item.name as string; // idをキーにして名前をマッピング
-      return map;
-    }, {} as { [key: string]: string });
-
-
-    const response = await fetch('/api/reserves');
-    const reservesData: Reserves[] = await response.json();
-    const filteredData = reservesData.filter((item: Reserves) => item.list_id == listId);
-
-    setFilteredData(filteredData);
-    // 新しいイベントの一時配列を作成
-    const newEvents = filteredData.map(item => {
-      const endDate = new Date(item.end);
-      endDate.setDate(endDate.getDate() + 1); // 1日プラス
-
-      return {
-        title: idToNameMap[item.user_id],
-        start: item.start,
-        end: endDate,
-        allDay: true,
-        id: item.id
-      };
-    });
-
-    // 全イベントを更新
-    setAllEvents(newEvents);
-
-    setIsFetching(false);
-  };
+  const { allEvents, setAllEvents, filteredData, isFetching, refetch } = useReservationData({ listId });
+  const form = useReservationForm({
+    userId,
+    listId,
+    filteredData,
+    allEvents,
+    setAllEvents,
+    refetchReserves: refetch,
+  });
+  const deleteFlow = useReservationDeleteFlow({ allEvents, setAllEvents });
 
   useEffect(() => {
     let draggableEl = document.getElementById('draggable-el')
@@ -146,58 +54,7 @@ export default function ReservationCalendar({ userId, listId }: Props) {
         }
       })
     }
-    fetchReservesData()
   }, [])
-
-  function handleDateClick(arg: { date: Date, allDay: boolean }) {
-    setNewEvent({ ...newEvent, start: arg.date, allDay: arg.allDay, id: new Date().getTime() })
-    setShowModal(true)
-  }
-
-  function addEvent(data: DropArg) {
-    const event = { ...newEvent, start: data.date.toISOString(), title: data.draggedEl.innerText, allDay: data.allDay, id: new Date().getTime() }
-    setAllEvents([...allEvents, event])
-  }
-
-  function handleDeleteModal(data: { event: { id: string } }) {
-    setShowDeleteModal(true)
-    setIdToDelete(Number(data.event.id))
-  }
-
-  function handleDelete() {
-    setAllEvents(allEvents.filter(event => Number(event.id) !== Number(idToDelete)))
-    setShowDeleteModal(false)
-    setIdToDelete(null)
-  }
-
-  function handleCloseModal() {
-    setShowModal(false)
-    setNewEvent({
-      title: userId,
-      start: '',
-      end: '',
-      allDay: true,
-      id: 0
-    })
-    setShowDeleteModal(false)
-    setIdToDelete(null)
-  }
-
-  const isOverlapping = (newEvent: Event, filteredData: Reserves[]) => {
-    const newEventStart = new Date(newEvent.start).getTime();
-    const newEventEnd = new Date(newEvent.end).getTime();
-
-    return filteredData.some(event => {
-      const existingEventStart = new Date(event.start).getTime();
-      const existingEventEnd = new Date(event.end).getTime();
-
-      return (
-        (newEventStart >= existingEventStart && newEventStart <= existingEventEnd) ||
-        (newEventEnd >= existingEventStart && newEventEnd <= existingEventEnd) ||
-        (newEventStart <= existingEventStart && newEventEnd >= existingEventEnd)
-      );
-    });
-  };
 
   const StyleWrapper = styled.div`
     .fc {
@@ -258,51 +115,6 @@ export default function ReservationCalendar({ userId, listId }: Props) {
     }
   `
 
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-
-    if (newEvent.start === "" || newEvent.end === "") {
-      window.alert('日付を選択してください。');
-      return;
-    }
-
-    const hasOverlap = isOverlapping(newEvent, filteredData);
-
-    if (hasOverlap) {
-      window.alert('この期間にはすでに予約が入っています。別の期間を選択してください。');
-      setShowModal(false);
-      return;
-    }
-
-    const today = moment().tz('Asia/Tokyo').format('YYYY-MM-DD');
-    const start = moment(newEvent.start).tz('Asia/Tokyo').format('YYYY-MM-DD');
-    const end = moment(newEvent.end).tz('Asia/Tokyo').format('YYYY-MM-DD');
-
-    if (start < today || end < today || end < start) {
-
-      window.alert('無効な予約日です。');
-      setShowModal(false);
-      return;
-    }
-
-    setAllEvents(prevEvents => [...prevEvents, newEvent]);
-    postReservesData(); // データをAPIに送信
-
-    // 新しいイベントオブジェクトをリセット
-    setNewEvent({
-      title: userId, // 初期値に戻す
-      start: '',
-      end: '',
-      allDay: true,
-      id: 0
-    });
-
-    window.alert('予約が正常に完了しました。');
-    fetchReservesData();
-    setShowModal(false); // モーダルを閉じる
-  }
-
   return (
     <>
       {isFetching ? (
@@ -343,9 +155,9 @@ export default function ReservationCalendar({ userId, listId }: Props) {
                 nowIndicator={true}
                 droppable={true}
                 selectMirror={true}
-                dateClick={handleDateClick}
-                drop={(data) => addEvent(data)}
-                eventClick={(data) => handleDeleteModal(data)}
+                dateClick={form.handleDateClick}
+                drop={(data) => form.addEvent(data)}
+                eventClick={(data) => deleteFlow.openDelete(data)}
                 displayEventTime={false}
                 locales={[jaLocale]}
                 locale='ja'
@@ -354,8 +166,8 @@ export default function ReservationCalendar({ userId, listId }: Props) {
             </StyleWrapper>
           </div >
 
-          <Transition.Root show={showModal} as={Fragment}>
-            <Dialog as="div" className="relative z-10" onClose={setShowModal}>
+          <Transition.Root show={form.showModal} as={Fragment}>
+            <Dialog as="div" className="relative z-10" onClose={form.setShowModal}>
               <Transition.Child
                 as={Fragment}
                 enter="ease-out duration-300"
@@ -388,18 +200,18 @@ export default function ReservationCalendar({ userId, listId }: Props) {
                           <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
                             機材を借りる期間を選択してください
                           </Dialog.Title>
-                          <form action="submit" onSubmit={handleSubmit}>
+                          <form action="submit" onSubmit={form.submit}>
                             <div className="mt-2">
                               <input type="date" name="start" // Changed to datetime-local
-                                value={formatDate(newEvent.start)}
-                                onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })}
+                                value={formatDate(form.newEvent.start)}
+                                onChange={(e) => form.updateStart(e.target.value)}
                                 className="block w-full rounded-md border-0 py-1.5 text-gray-900"
                                 placeholder="Start Date" />
                             </div>
                             <div className="mt-2">
                               <input type="date" name="end" // Added end date input
-                                value={formatDate(newEvent.end)}
-                                onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })}
+                                value={formatDate(form.newEvent.end)}
+                                onChange={(e) => form.updateEnd(e.target.value)}
                                 className="block w-full rounded-md border-0 py-1.5 text-gray-900"
                                 placeholder="End Date" />
                             </div>
@@ -407,14 +219,17 @@ export default function ReservationCalendar({ userId, listId }: Props) {
                               <button
                                 type="submit"
                                 className="inline-flex w-full justify-center rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 sm:col-start-2 disabled:opacity-25"
-                                disabled={newEvent.title === ''}
+                                disabled={form.newEvent.title === ''}
                               >
                                 予約確定
                               </button>
                               <button
                                 type="button"
                                 className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
-                                onClick={handleCloseModal}
+                                onClick={() => {
+                                  form.closeModal();
+                                  deleteFlow.closeDelete();
+                                }}
 
                               >
                                 戻る
