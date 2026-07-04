@@ -185,7 +185,7 @@ const Header = () => {
                     <li>
                       <a
                         className="hover:text-gray-500"
-                        href="https://docs.google.com/forms/d/e/1FAIpQLSdimBCnWkoJlV-2hsX4M8qeJMEolw1zX589cNveFN4pO8LR1A/viewform"
+                        href="https://forms.gle/PXWDC8aqz6Km48wW8"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
