@@ -2,12 +2,12 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 interface Params {
-    params: { reserveId: string };
+    params: Promise<{ reserveId: string }>;
 }
 
 export async function GET(request: Request, { params }: Params) {
     try {
-        const reserveId = parseInt(params.reserveId, 10);
+        const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {
             return NextResponse.json({ error: 'Invalid equipment ID.' }, { status: 400 });
         }
@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: Params) {
 
 export async function DELETE(request: Request, { params }: Params) {
     try {
-        const reserveId = parseInt(params.reserveId, 10);
+        const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {
             return NextResponse.json({ error: 'Invalid equipment ID.' }, { status: 400 });
         }

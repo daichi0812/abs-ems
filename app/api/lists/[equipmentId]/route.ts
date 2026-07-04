@@ -2,15 +2,15 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
 interface Params {
-    params: {
+    params: Promise<{
         equipmentId: string;
-    };
+    }>;
 }
 
 // 特定のIDのデータを取得する
 export async function GET(request: Request, { params }: Params) {
     try {
-        const equipmentId = parseInt(params.equipmentId, 10);
+        const equipmentId = parseInt((await params).equipmentId, 10);
 
         if (isNaN(equipmentId)) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
@@ -36,7 +36,7 @@ export async function PUT(request: Request, { params }: Params) {
     const { name, detail, image, tag_id } = data;
 
     try {
-        const equipmentId = parseInt(params.equipmentId, 10);
+        const equipmentId = parseInt((await params).equipmentId, 10);
 
         if (isNaN(equipmentId)) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
@@ -70,7 +70,7 @@ export async function PUT(request: Request, { params }: Params) {
 
 export async function DELETE(request: Request, { params }: Params) {
     try {
-        const equipmentId = parseInt(params.equipmentId, 10);
+        const equipmentId = parseInt((await params).equipmentId, 10);
 
         if (isNaN(equipmentId)) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
