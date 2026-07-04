@@ -38,9 +38,11 @@ export const useMyReserves = ({ userId }: UseMyReservesParams) => {
 
     setIdToNameMap(nameMap);
 
-    const response = await fetch("/api/reserves");
+    // サーバー側で user_id 絞り込み（従来はクライアントで .filter していた）。
+    // userId 未確定時は ?user_id= となりサーバーは該当0件を返す（従来と同じ空表示）。
+    const response = await fetch(`/api/reserves?user_id=${encodeURIComponent(userId ?? "")}`);
     const reservesData: Reserve[] = await response.json();
-    setFilteredData(reservesData.filter((item) => item.user_id == userId));
+    setFilteredData(Array.isArray(reservesData) ? reservesData : []);
   };
 
   useEffect(() => {

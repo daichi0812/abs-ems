@@ -2,9 +2,28 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import moment from 'moment-timezone';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const reserves = await db.reserve.findMany();
+        // ?user_id= / ?list_id= の完全一致フィルタ（日付演算はしないのでタイムゾーン安全）。
+        // クエリ無し = 空 where = 全件 で従来の挙動を維持する（後方互換）。
+        const { searchParams } = new URL(request.url);
+        const userId = searchParams.get('user_id');
+        const listIdParam = searchParams.get('list_id');
+
+        const where: { user_id?: string; list_id?: number } = {};
+        // 存在判定は !== null。?user_id= (空文字) は該当0件として扱い、全件漏洩を防ぐ。
+        if (userId !== null) {
+            where.user_id = userId;
+        }
+        if (listIdParam !== null) {
+            const listId = Number(listIdParam);
+            if (!Number.isInteger(listId)) {
+                return NextResponse.json({ error: 'list_id が不正です。' }, { status: 400 });
+            }
+            where.list_id = listId;
+        }
+
+        const reserves = await db.reserve.findMany({ where });
         return NextResponse.json(reserves, { status: 200 });
     } catch (error) {
         console.error('Error fetching reserves:', error);
