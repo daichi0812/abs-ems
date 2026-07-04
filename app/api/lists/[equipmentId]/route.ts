@@ -1,4 +1,6 @@
 import { db } from '@/lib/db';
+import { currentRole } from '@/lib/auth';
+import { UserRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 interface Params {
@@ -32,6 +34,11 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
+    const role = await currentRole();
+    if (role !== UserRole.ADMIN) {
+        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
+    }
+
     const data = await request.json();
     const { name, detail, image, tag_id } = data;
 
@@ -69,6 +76,11 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
+    const role = await currentRole();
+    if (role !== UserRole.ADMIN) {
+        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
+    }
+
     try {
         const equipmentId = parseInt((await params).equipmentId, 10);
 

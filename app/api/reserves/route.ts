@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import moment from 'moment-timezone';
 
 export async function GET() {
     try {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
         const { user_id, list_id, start, end, isRenting } = data;
 
         if (!user_id || !list_id || !start || !end) {
-            throw new Error('Missing required fields');
+            return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
         }
 
         // 日付を処理
@@ -58,17 +59,50 @@ export async function POST(request: Request) {
             ));
         }
 
-        const reserve = await db.reserve.create({
-            data: {
-                user_id,
-                list_id: Number(list_id),
-                start: startDateTime,
-                end: endDateTime,
-                isRenting: isRenting || 0,
-            },
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+            return NextResponse.json({ error: '日付の形式が不正です。' }, { status: 400 });
+        }
+
+        if (endDateTime < startDateTime) {
+            return NextResponse.json({ error: '終了日は開始日以降にしてください。' }, { status: 400 });
+        }
+
+        // 保存値は「JST日付のUTC 00:00」なので、今日(JST)も同じ座標系に変換して比較する
+        const todayJst = new Date(moment().tz('Asia/Tokyo').format('YYYY-MM-DD') + 'T00:00:00Z');
+        if (startDateTime < todayJst) {
+            return NextResponse.json({ error: '予約開始日は今日以降にしてください。' }, { status: 400 });
+        }
+
+        // 同じ機材で期間が重なる予約（inclusive）を拒否する。
+        // read committed では同時 INSERT のレースを完全には防げないベストエフォートのチェック。
+        const result = await db.$transaction(async (tx) => {
+            const conflict = await tx.reserve.findFirst({
+                where: {
+                    list_id: Number(list_id),
+                    start: { lte: endDateTime },
+                    end: { gte: startDateTime },
+                },
+            });
+            if (conflict) {
+                return { conflict: true as const };
+            }
+            const reserve = await tx.reserve.create({
+                data: {
+                    user_id,
+                    list_id: Number(list_id),
+                    start: startDateTime,
+                    end: endDateTime,
+                    isRenting: isRenting || 0,
+                },
+            });
+            return { conflict: false as const, reserve };
         });
 
-        return NextResponse.json(reserve, { status: 201 });
+        if (result.conflict) {
+            return NextResponse.json({ error: 'この期間にはすでに予約が入っています。' }, { status: 409 });
+        }
+
+        return NextResponse.json(result.reserve, { status: 201 });
     } catch (error) {
         console.error('Error creating reserve:', error);
         return NextResponse.json({ error: 'Failed to create reserves' }, { status: 500 });

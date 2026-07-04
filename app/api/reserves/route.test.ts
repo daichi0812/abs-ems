@@ -1,0 +1,137 @@
+// @vitest-environment node
+import moment from "moment-timezone";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const findFirstMock = vi.fn();
+const createMock = vi.fn();
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    reserve: { findMany: vi.fn() },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ reserve: { findFirst: findFirstMock, create: createMock } }),
+    ),
+  },
+}));
+
+import { POST } from "./route";
+
+const postRequest = (body: Record<string, unknown>) =>
+  new Request("http://localhost/api/reserves", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+// バリデーションはJSTの「今日」を基準にするため、期待値も同じ式で計算してTZ非依存にする
+const jstDate = (offsetDays: number) =>
+  moment().tz("Asia/Tokyo").add(offsetDays, "days").format("YYYY-MM-DD");
+
+const validBody = () => ({
+  user_id: "u1",
+  list_id: 1,
+  start: jstDate(1),
+  end: jstDate(3),
+});
+
+beforeEach(() => {
+  findFirstMock.mockReset();
+  createMock.mockReset();
+});
+
+describe("POST /api/reserves", () => {
+  it("returns 400 when required fields are missing", async () => {
+    const res = await POST(postRequest({ user_id: "u1", list_id: 1 }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("必須項目が不足しています。");
+  });
+
+  it("returns 400 for malformed dates", async () => {
+    const res = await POST(
+      postRequest({ ...validBody(), start: "not-a-date", end: "also-bad" }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("日付の形式が不正です。");
+  });
+
+  it("returns 400 when end is before start", async () => {
+    const res = await POST(
+      postRequest({ ...validBody(), start: jstDate(3), end: jstDate(1) }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("終了日は開始日以降にしてください。");
+  });
+
+  it("returns 400 when start is in the past (JST)", async () => {
+    const res = await POST(
+      postRequest({ ...validBody(), start: jstDate(-1), end: jstDate(1) }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("予約開始日は今日以降にしてください。");
+  });
+
+  it("returns 409 when the period overlaps an existing reserve", async () => {
+    findFirstMock.mockResolvedValue({ id: 99 });
+
+    const res = await POST(postRequest(validBody()));
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("この期間にはすでに予約が入っています。");
+    expect(createMock).not.toHaveBeenCalled();
+    // 重複判定は inclusive（start <= 既存end AND end >= 既存start）
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: {
+        list_id: 1,
+        start: { lte: new Date(jstDate(3) + "T00:00:00Z") },
+        end: { gte: new Date(jstDate(1) + "T00:00:00Z") },
+      },
+    });
+  });
+
+  it("creates the reserve and returns 201 when the period is free", async () => {
+    findFirstMock.mockResolvedValue(null);
+    const created = { id: 1, ...validBody(), isRenting: 0 };
+    createMock.mockResolvedValue(created);
+
+    const res = await POST(postRequest(validBody()));
+
+    expect(res.status).toBe(201);
+    // "YYYY-MM-DD" 文字列は UTC 00:00 として保存される
+    expect(createMock).toHaveBeenCalledWith({
+      data: {
+        user_id: "u1",
+        list_id: 1,
+        start: new Date(jstDate(1) + "T00:00:00Z"),
+        end: new Date(jstDate(3) + "T00:00:00Z"),
+        isRenting: 0,
+      },
+    });
+  });
+
+  it("extracts the JST date when an ISO datetime string is sent", async () => {
+    findFirstMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: 1 });
+
+    // JST の (今日+1) 00:00 は UTC では前日 15:00
+    const startJstDay = jstDate(1);
+    const endJstDay = jstDate(2);
+    const startIso = moment.tz(startJstDay, "Asia/Tokyo").toISOString();
+
+    const res = await POST(
+      postRequest({ user_id: "u1", list_id: 1, start: startIso, end: endJstDay }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        start: new Date(startJstDay + "T00:00:00Z"),
+        end: new Date(endJstDay + "T00:00:00Z"),
+      }),
+    });
+  });
+});
