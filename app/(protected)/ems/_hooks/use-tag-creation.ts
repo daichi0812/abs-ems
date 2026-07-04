@@ -2,10 +2,17 @@
 
 import axios from "axios";
 import { useState } from "react";
-import type { Tag } from "./use-tags";
+
+/**
+ * 重複チェックに必要な最小フィールドだけを要求する構造的型。
+ * manager (id: string) と edit (id: number) の両方の Tag 型を受け入れる。
+ */
+interface TagLike {
+  name: string;
+}
 
 export interface UseTagCreationParams {
-  existingTags: Tag[];
+  existingTags: readonly TagLike[];
   refetchTags: () => Promise<void>;
 }
 
