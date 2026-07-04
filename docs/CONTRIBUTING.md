@@ -8,8 +8,12 @@ abs-ems の開発フロー・ブランチ運用・タグ運用ルールをまと
 
 - `main` は常に「他人に見せられる安定状態」だけを置く
 - `develop` で日常開発を統合し、`main` への一括反映で履歴を綺麗に保つ
+- **PR を使うのは `main` に入れるときだけ**（`develop` → `main` のリリースと `hotfix/` → `main`。`main` は branch protection で直 push 不可）
+- **`feat/` / `fix/` → `develop` は PR 不要**。ローカルで merge して push する
 - 機能改修 (`feat/`) と実験 (`experiment/`) を明確に分離する
 - 失敗 `experiment/` ブランチは削除前に **archive tag を打って永続化** する
+
+> GitHub の default branch は `main`（2026-07-05 に `develop` から変更）。
 
 ## ブランチ構成
 
@@ -166,28 +170,34 @@ git for-each-ref refs/tags \
 
 ## 典型ワークフロー
 
-### 新機能を追加する
+### 新機能を追加する（PR 不要・ローカルマージ）
 
 ```bash
 git switch develop
 git pull
 git switch -c feat/new-feature
 # ... 作業 & コミット ...
-git push -u origin feat/new-feature
-gh pr create --base develop --title "feat: new feature"
-# PR がマージされたら
-git switch develop && git pull
+git switch develop
+git merge --no-ff feat/new-feature
+git push
 git branch -d feat/new-feature
+# リモートにも push していた場合は
+git push origin --delete feat/new-feature
 ```
 
 ### `main` へリリースする
 
+`main` への直 push は branch protection で拒否されるため、必ず PR を作る。
+
 ```bash
+git switch develop
+git pull
+gh pr create --base main --head develop --title "release: v1.2"
+# PR をマージしたら（履歴を残すため「Create a merge commit」でマージ）
 git switch main
 git pull
-git merge --no-ff develop
 git tag -a release/v1.2 -m "Release v1.2: feature X added"
-git push origin main --tags
+git push origin --tags
 ```
 
 ### `main` の緊急修正（hotfix）
