@@ -2,56 +2,21 @@
 
 import ReservationCalendar from "@/app/(protected)/_components/calendar/ReservationCalendar";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import Header from "@/app/(protected)/_components/Header";
 import { useParams } from "next/navigation";
-import { SlArrowDown, SlArrowUp } from "react-icons/sl";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Center, Spinner } from "@chakra-ui/react";
-
-type Reserves = {
-    id: number,
-    user_id: string,
-    start: Date,
-    end: Date,
-    list_id: number
-}
+import { useEquipmentPageData } from "./hooks/use-equipment-page-data";
 
 const ProductDetails = () => {
-    const [equipmentName, setEquipmentName] = useState('');
-    const [equipmentDetail, setEquipmentDetail] = useState('');
-    const [equipmentImg, setEquipmentImg] = useState('');
-    const [reservesData, setReservesData] = useState('');
-
-    const [isFetching, setIsFetching] = useState(true);
-
     const user = useCurrentUser();
 
     const params = useParams();
     const { equipmentId } = params;
 
-    // const { userId, setUserId } = useAppContext();
-
-    const fetchEquipmentData = async () => {
-        const equipmentData = await fetch(`/api/lists/${params.equipmentId}`).then(res => res.json());
-        console.log(equipmentData.detail);
-        setEquipmentName(equipmentData.name);
-        setEquipmentDetail(equipmentData.detail);
-        setEquipmentImg(equipmentData.image)
-    };
-
-    const fetchReservesData = async () => {
-        const reservesData = await fetch(`/api/reserves`).then(res => res.json());
-        const filteredData = reservesData.filter((item: Reserves) => item.list_id === Number(equipmentId));
-        setReservesData(filteredData);
-
-        setIsFetching(false);
-    };
-
-    useEffect(() => {
-        fetchEquipmentData();
-        fetchReservesData();
-    }, []);
+    const { equipmentName, equipmentDetail, equipmentImg, isFetching } = useEquipmentPageData({
+        equipmentId,
+    });
 
     return (
         <div className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]

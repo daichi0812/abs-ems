@@ -1,4 +1,4 @@
-import { MenuOutline, CloseOutline } from "react-ionicons";
+import { IoMenuOutline, IoCloseOutline } from "react-icons/io5";
 
 import {
   Dialog,
@@ -185,7 +185,7 @@ const Header = () => {
                     <li>
                       <a
                         className="hover:text-gray-500"
-                        href="https://docs.google.com/forms/d/e/1FAIpQLSdimBCnWkoJlV-2hsX4M8qeJMEolw1zX589cNveFN4pO8LR1A/viewform"
+                        href="https://forms.gle/PXWDC8aqz6Km48wW8"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -246,21 +246,17 @@ const Header = () => {
             <div className="flex items-center gap-6">
               <div className="text-3xl cursor-pointer md:hidden">
                 {isOpen ? (
-                  <CloseOutline
+                  <IoCloseOutline
                     onClick={handleToggleMenu}
-                    color={'#00000'}
-                    title={""}
-                    height="40px"
-                    width="40px"
+                    color="#000000"
+                    size={40}
                   />
                 ) : (
                   <div className="flex items-center gap-x-3">
-                    <MenuOutline
+                    <IoMenuOutline
                       onClick={handleToggleMenu}
-                      color={'#00000'}
-                      title={""}
-                      height="40px"
-                      width="40px"
+                      color="#000000"
+                      size={40}
                     />
                     <UserButton isAdmin={manager} />
                   </div>

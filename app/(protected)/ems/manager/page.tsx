@@ -1,185 +1,45 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import React from "react";
-import axios from "axios";
 import InputImage from "@/components/InputImage";
 import Header from "@/app/(protected)/_components/Header";
-import { useGetImageUrl } from "./useGetImageUrl";
 import { useRouter } from "next/navigation";
 import { Button, Center, Spinner } from "@chakra-ui/react";
-import type { PutBlobResult } from "@vercel/blob";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEquipments } from "../_hooks/use-equipments";
+import { useTags } from "./hooks/use-tags";
+import { useImageUpload } from "./hooks/use-image-upload";
+import { useTagCreation } from "../_hooks/use-tag-creation";
+import { useEquipmentRegistration } from "./hooks/use-equipment-registration";
+import { useEquipmentActions } from "./hooks/use-equipment-actions";
 
 const IMAGE_ID = "imageId";
 const FIELD_SIZE = 210;
 
-interface Equipment {
-    id: number;
-    name: string;
-    detail: string;
-    image: string;
-    tag_id: string;
-}
-
-interface Tags {
-    id: string;
-    name: string;
-    color: string;
-}
-
 function App() {
-    const inputFileRef = useRef<HTMLInputElement>(null);
-    const [isPending_1, startTransition_1] = useTransition();
-    const [isPending_2, startTransition_2] = useTransition();
+    const router = useRouter();
     const [isPending_3, startTransition_3] = useTransition();
     const [isPending_4, startTransition_4] = useTransition();
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const router = useRouter();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const { imageUrl } = useGetImageUrl({ file: imageFile });
-    const [equipmentName, setEquipmentName] = useState("");
-    const [equipmentDetail, setEquipmentDetail] = useState("");
-    const [equipments, setEquipments] = useState<Equipment[]>([]);
 
-    const [tags, setTags] = useState<Tags[]>([]); // タグを保持する変数
-    const [addTagName, setAddTagName] = useState<string>(''); // 追加するタグを保持する変数
+    const { equipments, isLoading, refetch: refetchEquipments } = useEquipments();
+    const { tags, categories, isLoading: categoriesLoading, refetch: refetchTags } = useTags();
+    const imageUpload = useImageUpload();
+    const tagCreation = useTagCreation({ existingTags: tags, refetchTags });
+    const registration = useEquipmentRegistration({
+        tags,
+        inputFileRef: imageUpload.inputFileRef,
+        resetImage: imageUpload.reset,
+        refetchEquipments,
+    });
+    const actions = useEquipmentActions({ refetchEquipments });
 
-    const [editTagColor, setEditTagColor] = useState<string>('');
-
-    // 選択されたカテゴリーを管理する状態
-    const [selectedTag, setSelectedTag] = useState("all"); // 機材登録用
-    const [selectedCategory, setSelectedCategory] = useState<string>('all'); // 編集・削除のソート用
-
-    // 取得したカテゴリーを保存する状態変数
-    const [categories, setCategories] = useState<Tags[]>([]);
-    const [categoriesLoading, setCategoriesLoading] = useState<boolean>(true);
-
-    const [loadingId, setLoadingId] = useState<number | null>(null);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.currentTarget?.files && e.currentTarget.files[0]) {
-            setImageFile(e.currentTarget.files[0]);
-        }
-    };
-
-    const handleClickCancelButton = () => {
-        setImageFile(null);
-        setEquipmentName("");
-        setEquipmentDetail("");
-        setSelectedTag("");
-        if (inputFileRef.current) {
-            inputFileRef.current.value = "";
-        }
-    };
-
-    const sendEquipmentData = async () => {
-        try {
-            let blob = null;
-
-            if (inputFileRef.current?.files && inputFileRef.current.files.length > 0) {
-                const file = inputFileRef.current.files[0];
-                const responseVaecel = await fetch(`/api/upload?filename=${file.name}`, {
-                    method: "POST",
-                    body: file,
-                });
-                blob = (await responseVaecel.json()) as PutBlobResult;
-            }
-
-            await axios.post("/api/lists", {
-                name: equipmentName,
-                detail: equipmentDetail,
-                image: blob?.url || "",
-                tag_id: tags.find((tag) => tag.name === selectedTag)?.id
-            });
-            alert("機材登録が完了しました");
-            setSelectedTag("");
-            fetchEquipmentData();
-            handleClickCancelButton(); // Reset inputs after successful registration
-        } catch (err) {
-            alert("機材登録ができません");
-        }
-    };
-
-    // カテゴリデータを取得
-    const fetchTags = async () => {
-        setCategoriesLoading(true)
-        try {
-            const response = await fetch("/api/tags");
-            const data = await response.json();
-            setTags(data);
-            setCategories(data);
-        } catch (error) {
-            console.error("Error fetching categories: ", error);
-        } finally {
-            setCategoriesLoading(false)
-        }
-    }
-
-    // 機材データを取得する
-    const fetchEquipmentData = async () => {
-        const response = await fetch("/api/lists");
-        const data: Equipment[] = await response.json();
-
-        // 名前順（昇順）にソート
-        const sortedData = data.sort((a, b) => a.name.localeCompare(b.name));
-        setEquipments(sortedData);
-        setIsLoading(false);
-    };
+    // 編集・削除リストのカテゴリフィルタ
+    const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
     // 選択されたカテゴリーに基づいて機材をフィルタリング
-    const filteredEquipments = selectedCategory === 'all'
+    const filteredEquipments = selectedCategory === "all"
         ? equipments
         : equipments.filter(equipment => equipment.tag_id === selectedCategory);
-
-    const deleteEquipmentData = async (equipmentId: number) => {
-        await fetch(`/api/lists/${equipmentId}`, {
-            method: "DELETE",
-        });
-    };
-
-    const handleEditEquipment = (equipmentId: number) => {
-        setLoadingId(equipmentId);
-        startTransition_2(() => {
-            router.push(`/ems/edit/${equipmentId}`);
-        });
-    };
-
-    const handleDeleteEquipment = async (equipmentId: number) => {
-        const confirmed = window.confirm("本当に削除しますか？");
-        if (confirmed) {
-            await deleteEquipmentData(equipmentId);
-            fetchEquipmentData();
-        }
-    };
-
-    const handleAddTag = async () => {
-        if (addTagName === "") {
-            alert("カテゴリ名は1文字以上入力してください.")
-            setAddTagName("");
-            return;
-        }
-
-        const isDuplicate = tags.some((tag) => tag.name === addTagName.trim());
-        if (isDuplicate) {
-            alert("このカテゴリは既に存在しています.");
-            setAddTagName("");
-            return;
-        }
-
-        await axios.post("/api/tags", {
-            name: addTagName,
-            color: editTagColor
-        });
-        setAddTagName("");
-        setEditTagColor("");
-        fetchTags();
-    }
-
-    useEffect(() => {
-        fetchTags();
-        fetchEquipmentData();
-    }, []);
 
     return (
         <div
@@ -204,22 +64,22 @@ function App() {
                         cursor: "pointer",
                     }}
                 >
-                    {imageUrl && imageFile ? (
+                    {imageUpload.imageUrl && imageUpload.imageFile ? (
                         <img
-                            src={imageUrl}
+                            src={imageUpload.imageUrl}
                             alt="アップロード画像"
                             style={{ objectFit: "cover", width: "100%", height: "100%" }}
                         />
                     ) : (
                         "+ 画像をアップロード"
                     )}
-                    <InputImage ref={inputFileRef} id={IMAGE_ID} onChange={handleFileChange} />
+                    <InputImage ref={imageUpload.inputFileRef} id={IMAGE_ID} onChange={imageUpload.onFileChange} />
                 </label>
                 <div className="mb-2 flex">
                     <Select
-                        value={selectedTag}
+                        value={registration.selectedTag}
                         onValueChange={(value) => {
-                            setSelectedTag(value);
+                            registration.setSelectedTag(value);
                         }}
                     >
                         <SelectTrigger className="w-[180px]">
@@ -248,16 +108,16 @@ function App() {
                                     <input
                                         className='w-8 h-8 border rounded-md'
                                         type="color"
-                                        onChange={(e) => setEditTagColor(e.target.value)}
-                                        value={editTagColor} />
+                                        onChange={(e) => tagCreation.setEditTagColor(e.target.value)}
+                                        value={tagCreation.editTagColor} />
                                 </div>
                                 <input
                                     className="rounded-md px-1"
                                     type="text"
                                     placeholder="カテゴリの追加"
                                     style={{ border: "1px solid black", width: "180px" }}
-                                    onChange={(e) => setAddTagName(e.target.value)}
-                                    value={addTagName}
+                                    onChange={(e) => tagCreation.setAddTagName(e.target.value)}
+                                    value={tagCreation.addTagName}
                                     onKeyDown={(e) => {
                                         e.stopPropagation();
                                     }}
@@ -271,10 +131,11 @@ function App() {
                                     </div>
                                 ) : (
                                     <div className="flex justify-center items-center ml-1">
+                                        {/* FIXME: existing bug — submit is referenced but not invoked, so this click does nothing. Preserved during refactor. */}
                                         <Button
                                             size={"sm"}
                                             colorScheme="blue"
-                                            onClick={() => startTransition_3(() => {handleAddTag})}
+                                            onClick={() => startTransition_3(() => {tagCreation.submit})}
                                         >
                                             追加
                                         </Button>
@@ -311,33 +172,21 @@ function App() {
                     type="text"
                     placeholder="機材名を入力してください"
                     style={{ border: "1px solid black" }}
-                    value={equipmentName}
-                    onChange={(e) => setEquipmentName(e.target.value)}
+                    value={registration.equipmentName}
+                    onChange={(e) => registration.setEquipmentName(e.target.value)}
                 />
                 <textarea
                     className="rounded-md px-1"
                     placeholder="説明文を入力してください"
                     style={{ width: "100%", height: "100px", border: "1px solid black" }}
-                    value={equipmentDetail}
-                    onChange={(e) => setEquipmentDetail(e.target.value)}
+                    value={registration.equipmentDetail}
+                    onChange={(e) => registration.setEquipmentDetail(e.target.value)}
                 />
                 <div className="flex gap-2">
-                    {isPending_1 ? (
-                        <Button isLoading colorScheme="blue">
-                            登録
-                        </Button>
-                    ) : (
-                        <Button
-                            disabled={isPending_1}
-                            onClick={() => startTransition_1(() => {sendEquipmentData().catch(console.error)})}
-                            colorScheme="blue"
-                        >
-                            登録
-                        </Button>
-                    )}
+                    <RegistrationSubmitButton submit={registration.submit} />
 
-                    {(imageFile || equipmentName || equipmentDetail) && (
-                        <Button onClick={handleClickCancelButton} colorScheme="yellow">
+                    {(imageUpload.imageFile || registration.equipmentName || registration.equipmentDetail) && (
+                        <Button onClick={registration.cancel} colorScheme="yellow">
                             キャンセル
                         </Button>
                     )}
@@ -377,10 +226,10 @@ function App() {
                                         <p>{equipment.name}</p>
                                     </div>
                                     <div className="ml-auto items-center flex gap-x-1">
-                                        {isPending_2 && loadingId === equipment.id ? (
+                                        {actions.isPending && actions.loadingId === equipment.id ? (
                                             <Button
                                                 isLoading
-                                                disabled={isPending_2 && loadingId === equipment.id}
+                                                disabled={actions.isPending && actions.loadingId === equipment.id}
                                                 size={'md'}
                                                 me={1}
                                                 colorScheme="yellow"
@@ -389,8 +238,8 @@ function App() {
                                             </Button>
                                         ) : (
                                             <Button
-                                                disabled={isPending_2 && loadingId === equipment.id}
-                                                onClick={() => handleEditEquipment(equipment.id)}
+                                                disabled={actions.isPending && actions.loadingId === equipment.id}
+                                                onClick={() => actions.editEquipment(equipment.id)}
                                                 size={'md'}
                                                 me={1}
                                                 colorScheme="yellow"
@@ -399,7 +248,7 @@ function App() {
                                             </Button>
                                         )}
                                         <Button
-                                            onClick={() => handleDeleteEquipment(equipment.id)}
+                                            onClick={() => actions.deleteEquipment(equipment.id)}
                                             size={'md'}
                                             colorScheme="red">
                                             削除
@@ -422,5 +271,23 @@ function App() {
         </div >
     );
 }
+
+// 「登録」ボタン: 元コードと挙動を揃えるため startTransition を内蔵
+const RegistrationSubmitButton = ({ submit }: { submit: () => Promise<void> }) => {
+    const [isPending, startTransition] = useTransition();
+    return isPending ? (
+        <Button isLoading colorScheme="blue">
+            登録
+        </Button>
+    ) : (
+        <Button
+            disabled={isPending}
+            onClick={() => startTransition(() => { submit().catch(console.error); })}
+            colorScheme="blue"
+        >
+            登録
+        </Button>
+    );
+};
 
 export default App;

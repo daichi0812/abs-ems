@@ -8,8 +8,12 @@ abs-ems の開発フロー・ブランチ運用・タグ運用ルールをまと
 
 - `main` は常に「他人に見せられる安定状態」だけを置く
 - `develop` で日常開発を統合し、`main` への一括反映で履歴を綺麗に保つ
+- **PR を使うのは `main` に入れるときだけ**（`develop` → `main` のリリースと `hotfix/` → `main`。`main` は branch protection で直 push 不可）
+- **`feat/` / `fix/` → `develop` は PR 不要**。ローカルで merge して push する
 - 機能改修 (`feat/`) と実験 (`experiment/`) を明確に分離する
 - 失敗 `experiment/` ブランチは削除前に **archive tag を打って永続化** する
+
+> GitHub の default branch は `main`（2026-07-05 に `develop` から変更）。
 
 ## ブランチ構成
 
@@ -166,28 +170,34 @@ git for-each-ref refs/tags \
 
 ## 典型ワークフロー
 
-### 新機能を追加する
+### 新機能を追加する（PR 不要・ローカルマージ）
 
 ```bash
 git switch develop
 git pull
 git switch -c feat/new-feature
 # ... 作業 & コミット ...
-git push -u origin feat/new-feature
-gh pr create --base develop --title "feat: new feature"
-# PR がマージされたら
-git switch develop && git pull
+git switch develop
+git merge --no-ff feat/new-feature
+git push
 git branch -d feat/new-feature
+# リモートにも push していた場合は
+git push origin --delete feat/new-feature
 ```
 
 ### `main` へリリースする
 
+`main` への直 push は branch protection で拒否されるため、必ず PR を作る。
+
 ```bash
+git switch develop
+git pull
+gh pr create --base main --head develop --title "release: v1.2"
+# PR をマージしたら（履歴を残すため「Create a merge commit」でマージ）
 git switch main
 git pull
-git merge --no-ff develop
 git tag -a release/v1.2 -m "Release v1.2: feature X added"
-git push origin main --tags
+git push origin --tags
 ```
 
 ### `main` の緊急修正（hotfix）
@@ -209,6 +219,42 @@ git push
 git branch -d hotfix/critical-bug
 git push origin --delete hotfix/critical-bug
 ```
+
+## テスト
+
+`schemas/`, `lib/`, `data/`, `actions/`, `hooks/` のピュアロジック層は Vitest でユニットテストを書く方針。
+
+### 実行コマンド
+
+```bash
+npm test            # 一度だけ実行（CI 用途）
+npm run test:watch  # ファイル変更を監視して再実行
+npm run test:ui     # ブラウザ UI で結果を確認
+```
+
+### 配置規約
+
+テストはソースの隣にコロケーションで置く（`*.test.ts`）。例:
+```
+schemas/index.ts
+schemas/index.test.ts
+actions/login.ts
+actions/login.test.ts
+```
+
+### モック方針
+
+- Prisma (`@/lib/db`): 各テストファイル先頭で `vi.mock` してメソッドを個別に stub
+- NextAuth (`@/auth`, `next-auth`): `signIn` や `AuthError` はモックで提供（実体を読み込むと `next/server` の解決に失敗する）
+- メール (`@/lib/mail`): `vi.fn()` で送信を no-op に
+- `next-auth/react` の `useSession`: hooks テストで `vi.mock` + `renderHook`
+
+詳細な例は [actions/login.test.ts](../actions/login.test.ts) を参照。
+
+### 何を書くか / 書かないか
+
+- ✅ **書く**: Zod スキーマのバリデーション分岐、Server Action の各エラーパス、Prisma を呼ぶ data 層、純粋関数
+- ⚠️ **後回し**: UI コンポーネント（Phase 2 以降で snapshot / interaction テストを追加予定）
 
 ## 補足
 
