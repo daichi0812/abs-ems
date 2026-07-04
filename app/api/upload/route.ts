@@ -14,8 +14,11 @@ export async function POST(req: NextRequest) {
   try {
     const fileData = await req.blob();
 
+    // @vercel/blob 1.0 以降は addRandomSuffix がデフォルト false になり、
+    // 同名ファイルの上書きはエラーになるため、従来どおりサフィックスを付与する
     const blob = await put(filename, fileData, {
       access: 'public',
+      addRandomSuffix: true,
     });
 
     return NextResponse.json(blob);

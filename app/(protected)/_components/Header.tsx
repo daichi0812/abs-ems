@@ -1,4 +1,4 @@
-import { MenuOutline, CloseOutline } from "react-ionicons";
+import { IoMenuOutline, IoCloseOutline } from "react-icons/io5";
 
 import {
   Dialog,
@@ -246,21 +246,17 @@ const Header = () => {
             <div className="flex items-center gap-6">
               <div className="text-3xl cursor-pointer md:hidden">
                 {isOpen ? (
-                  <CloseOutline
+                  <IoCloseOutline
                     onClick={handleToggleMenu}
-                    color={'#00000'}
-                    title={""}
-                    height="40px"
-                    width="40px"
+                    color="#000000"
+                    size={40}
                   />
                 ) : (
                   <div className="flex items-center gap-x-3">
-                    <MenuOutline
+                    <IoMenuOutline
                       onClick={handleToggleMenu}
-                      color={'#00000'}
-                      title={""}
-                      height="40px"
-                      width="40px"
+                      color="#000000"
+                      size={40}
                     />
                     <UserButton isAdmin={manager} />
                   </div>
