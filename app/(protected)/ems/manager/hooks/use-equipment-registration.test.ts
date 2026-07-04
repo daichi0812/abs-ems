@@ -6,6 +6,7 @@ vi.mock("axios", () => ({
 }));
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentRegistration } from "./use-equipment-registration";
 
 const refetchEquipments = vi.fn(async () => {});
@@ -103,12 +104,16 @@ describe("useEquipmentRegistration - submit", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(axios.post).toHaveBeenCalledWith("/api/lists", {
-      name: "Camera",
-      detail: "DSLR",
-      image: "",
-      tag_id: "2", // "Video" tag id
-    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/api/lists",
+      {
+        name: "Camera",
+        detail: "DSLR",
+        image: "",
+        tag_id: "2", // "Video" tag id
+      },
+      { headers: managerAuthHeaders() },
+    );
     expect(alertMock).toHaveBeenCalledWith("機材登録が完了しました");
     expect(refetchEquipments).toHaveBeenCalledOnce();
     expect(resetImage).toHaveBeenCalled();
@@ -136,12 +141,16 @@ describe("useEquipmentRegistration - submit", () => {
       method: "POST",
       body: file,
     });
-    expect(axios.post).toHaveBeenCalledWith("/api/lists", {
-      name: "Camera",
-      detail: "",
-      image: "https://blob.example/test.png",
-      tag_id: "1", // "Audio" tag id
-    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/api/lists",
+      {
+        name: "Camera",
+        detail: "",
+        image: "https://blob.example/test.png",
+        tag_id: "1", // "Audio" tag id
+      },
+      { headers: managerAuthHeaders() },
+    );
   });
 
   it("alerts on failure", async () => {

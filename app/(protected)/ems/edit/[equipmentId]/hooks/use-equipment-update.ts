@@ -4,6 +4,7 @@ import axios from "axios";
 import type { PutBlobResult } from "@vercel/blob";
 import { useRef, useState } from "react";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import type { Tag as Tags } from "@/types/domain";
 
 export interface UseEquipmentUpdateParams {
@@ -67,7 +68,7 @@ export const useEquipmentUpdate = ({
             tag_id: tags.find((tag) => tag.name === selectedTagName)?.id,
           },
           {
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
           },
         );
         console.log("Update response:", response.data);

@@ -3,6 +3,7 @@
 import axios from "axios";
 import type { PutBlobResult } from "@vercel/blob";
 import { useState } from "react";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import type { Tag } from "./use-tags";
 
 export interface UseEquipmentRegistrationParams {
@@ -42,12 +43,16 @@ export const useEquipmentRegistration = ({
         blob = (await responseVercel.json()) as PutBlobResult;
       }
 
-      await axios.post("/api/lists", {
-        name: equipmentName,
-        detail: equipmentDetail,
-        image: blob?.url || "",
-        tag_id: tags.find((tag) => tag.name === selectedTag)?.id,
-      });
+      await axios.post(
+        "/api/lists",
+        {
+          name: equipmentName,
+          detail: equipmentDetail,
+          image: blob?.url || "",
+          tag_id: tags.find((tag) => tag.name === selectedTag)?.id,
+        },
+        { headers: managerAuthHeaders() },
+      );
       alert("機材登録が完了しました");
       setSelectedTag("");
       await refetchEquipments();

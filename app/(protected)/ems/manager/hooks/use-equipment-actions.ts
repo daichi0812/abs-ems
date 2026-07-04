@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 
 export interface UseEquipmentActionsParams {
   refetchEquipments: () => Promise<void>;
@@ -22,7 +23,10 @@ export const useEquipmentActions = ({ refetchEquipments }: UseEquipmentActionsPa
   const deleteEquipment = async (equipmentId: number) => {
     const confirmed = window.confirm("本当に削除しますか？");
     if (confirmed) {
-      const res = await fetch(`/api/lists/${equipmentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/lists/${equipmentId}`, {
+        method: "DELETE",
+        headers: managerAuthHeaders(),
+      });
       if (!res.ok) {
         window.alert("機材の削除に失敗しました。");
         return;

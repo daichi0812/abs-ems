@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import { useState } from "react";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 
 /**
  * 重複チェックに必要な最小フィールドだけを要求する構造的型。
@@ -35,10 +36,14 @@ export const useTagCreation = ({ existingTags, refetchTags }: UseTagCreationPara
     }
 
     try {
-      await axios.post("/api/tags", {
-        name: addTagName,
-        color: editTagColor,
-      });
+      await axios.post(
+        "/api/tags",
+        {
+          name: addTagName,
+          color: editTagColor,
+        },
+        { headers: managerAuthHeaders() },
+      );
     } catch (error) {
       console.error("Error creating tag:", error);
       alert("カテゴリの作成に失敗しました.");

@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 
 export interface UseTagEditingParams {
   refetchTags: () => Promise<void>;
@@ -35,10 +36,14 @@ export const useTagEditing = ({ refetchTags }: UseTagEditingParams) => {
       return;
     }
     try {
-      await axios.put(`/api/tags/${id}`, {
-        name: editTagName,
-        color: editTagColor,
-      });
+      await axios.put(
+        `/api/tags/${id}`,
+        {
+          name: editTagName,
+          color: editTagColor,
+        },
+        { headers: managerAuthHeaders() },
+      );
       alert("カテゴリが更新されました.");
       setEditTagId(null);
       await refetchTags();

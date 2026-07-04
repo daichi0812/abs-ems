@@ -6,6 +6,7 @@ vi.mock("axios", () => ({
 }));
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagCreation } from "./use-tag-creation";
 
 const refetchTags = vi.fn(async () => {});
@@ -73,10 +74,14 @@ describe("useTagCreation", () => {
       await result.current.submit();
     });
 
-    expect(axios.post).toHaveBeenCalledWith("/api/tags", {
-      name: "Lights",
-      color: "#0000ff",
-    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/api/tags",
+      {
+        name: "Lights",
+        color: "#0000ff",
+      },
+      { headers: managerAuthHeaders() },
+    );
     expect(refetchTags).toHaveBeenCalledOnce();
     expect(result.current.addTagName).toBe("");
     expect(result.current.editTagColor).toBe("");

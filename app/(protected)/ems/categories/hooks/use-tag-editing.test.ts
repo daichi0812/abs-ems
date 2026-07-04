@@ -6,6 +6,7 @@ vi.mock("axios", () => ({
 }));
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagEditing } from "./use-tag-editing";
 
 const refetchTags = vi.fn(async () => {});
@@ -85,10 +86,14 @@ describe("useTagEditing - saveEdit", () => {
       await result.current.saveEdit(5);
     });
 
-    expect(axios.put).toHaveBeenCalledWith("/api/tags/5", {
-      name: "Audio",
-      color: "#ff0000",
-    });
+    expect(axios.put).toHaveBeenCalledWith(
+      "/api/tags/5",
+      {
+        name: "Audio",
+        color: "#ff0000",
+      },
+      { headers: managerAuthHeaders() },
+    );
     expect(alertMock).toHaveBeenCalledWith("カテゴリが更新されました.");
     expect(refetchTags).toHaveBeenCalledOnce();
     expect(result.current.editTagId).toBeNull();

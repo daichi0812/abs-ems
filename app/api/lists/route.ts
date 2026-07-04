@@ -1,11 +1,9 @@
 import { db } from '@/lib/db';
-import { currentRole } from '@/lib/auth';
-import { UserRole } from '@prisma/client';
+import { hasManagerAccess } from '@/lib/api-auth';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-    const role = await currentRole();
-    if (role !== UserRole.ADMIN) {
+    if (!(await hasManagerAccess(request))) {
         return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
     }
 
