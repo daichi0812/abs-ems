@@ -9,6 +9,15 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig = withSerwist({
+  experimental: {
+    // 重量級パッケージのバレルインポートをツリーシェイクし、クライアントバンドルを削減する
+    optimizePackageImports: [
+      '@chakra-ui/react',
+      'react-icons',
+      '@heroicons/react',
+      '@radix-ui/react-icons',
+    ],
+  },
   images: {
     domains: ['a9imy1jqjrudia3w.public.blob.vercel-storage.com', 'www.paypalobjects.com'],
   }
