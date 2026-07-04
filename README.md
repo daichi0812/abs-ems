@@ -89,3 +89,17 @@
 ## 開発フロー
 ブランチ運用・タグ運用・コミット規約は [CONTRIBUTING.md](./docs/CONTRIBUTING.md) を参照してください。
 
+## ドキュメント管理（3層モデル）
+
+このリポジトリは **3層モデル（Notion / GitHub / Drive）** で運用しています（`my-project-template` 準拠）。
+
+| 層 | 何を置くか |
+|---|---|
+| **Notion** | タスク（☑️ ToDo）・検討中の考え・振り返り・再利用ナレッジ |
+| **GitHub repo（ここ）** | コード・設定、ADR・開発フロー（コードに同期する文書だけ）、branches/tags |
+| **Google Drive** | 大容量バイナリ・資料（このプロジェクトでは現在ほぼ未使用） |
+
+- どの文書をどこに置くかの判断基準 → [`docs/README.md`](./docs/README.md)
+- Notion 各ハブの URL・プロジェクトページ → [`agents/sources-of-truth.md`](./agents/sources-of-truth.md)
+- AI エージェント向けルールの入口 → [`AGENTS.md`](./AGENTS.md)
+
