@@ -70,4 +70,37 @@ describe("useMyReserves", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/lists");
     expect(fetchMock).toHaveBeenCalledWith("/api/reserves?user_id=u1");
   });
+
+  it("sends an empty ?user_id= (server zero-match) when userId is undefined, never a bare /api/reserves", async () => {
+    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // /api/lists
+    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // /api/reserves?user_id= (サーバーが0件)
+
+    renderHook(() => useMyReserves({ userId: undefined }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    // 全ユーザー予約の漏洩を防ぐため、userId 未確定でも必ず絞り込みクエリを送る
+    expect(fetchMock).toHaveBeenCalledWith("/api/reserves?user_id=");
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/reserves");
+  });
+
+  it("does not crash and stays empty when the reserves response is not an array (5xx body)", async () => {
+    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // /api/lists
+    fetchMock.mockResolvedValueOnce({ json: async () => ({ error: "boom" }) }); // 非配列
+
+    const { result } = renderHook(() => useMyReserves({ userId: "u1" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(result.current.filteredData).toEqual([]);
+  });
+
+  it("does not crash when the lists response is not an array (5xx body)", async () => {
+    fetchMock.mockResolvedValueOnce({ json: async () => ({ error: "boom" }) }); // /api/lists 非配列
+    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // /api/reserves
+
+    const { result } = renderHook(() => useMyReserves({ userId: "u1" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(result.current.idToNameMap).toEqual({});
+    expect(result.current.filteredData).toEqual([]);
+  });
 });

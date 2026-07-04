@@ -175,4 +175,21 @@ describe("GET /api/reserves", () => {
     expect(res.status).toBe(400);
     expect(findManyMock).not.toHaveBeenCalled();
   });
+
+  // 境界の現挙動を固定する（将来の呼び出し元向けドキュメント）
+  it("treats an empty ?list_id= as list_id:0 (Number('') === 0)", async () => {
+    await GET(getRequest("?list_id="));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: 0 } });
+  });
+
+  it("accepts a negative integer list_id", async () => {
+    await GET(getRequest("?list_id=-5"));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: -5 } });
+  });
+
+  it("returns 400 for a decimal list_id and does not query", async () => {
+    const res = await GET(getRequest("?list_id=2.5"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
 });

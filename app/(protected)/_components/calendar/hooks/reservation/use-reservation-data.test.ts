@@ -86,4 +86,15 @@ describe("useReservationData", () => {
     expect(result.current.allEvents).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("does not crash and stays empty when the reserves response is not an array (5xx body)", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [{ id: "u1", name: "Taro" }] }); // users
+    fetchMock.mockResolvedValueOnce({ json: async () => ({ error: "boom" }) }); // reserves 非配列
+
+    const { result } = renderHook(() => useReservationData({ listId: 10 }));
+
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+    expect(result.current.filteredData).toEqual([]);
+    expect(result.current.allEvents).toEqual([]);
+  });
 });

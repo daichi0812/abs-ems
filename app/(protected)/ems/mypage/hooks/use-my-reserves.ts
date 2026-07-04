@@ -29,7 +29,9 @@ export const useMyReserves = ({ userId }: UseMyReservesParams) => {
 
   const refetch = async () => {
     const responseLists = await fetch("/api/lists");
-    const reservesListsData: List[] = await responseLists.json();
+    const listsJson = await responseLists.json();
+    // 予約側(:下)と防御水準を揃える。5xx時に {error} を .reduce してクラッシュするのを防ぐ。
+    const reservesListsData: List[] = Array.isArray(listsJson) ? listsJson : [];
 
     const nameMap: { [key: number]: string } = reservesListsData.reduce((map, item) => {
       map[item.id] = item.name;
