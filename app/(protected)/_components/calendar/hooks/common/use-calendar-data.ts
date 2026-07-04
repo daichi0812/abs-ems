@@ -18,8 +18,8 @@ export interface CalendarEvent {
 }
 
 interface User {
+  id: string;
   name: string;
-  user_id: string;
 }
 
 interface List {
@@ -57,7 +57,7 @@ export const useCalendarData = () => {
 
     // ユーザーIDをキーにして名前をマッピング
     const idToNameMap1: { [key: string]: string } = reservesListsData1.reduce((map, item) => {
-      map[item.user_id] = item.name;
+      map[item.id] = item.name;
       return map;
     }, {} as { [key: string]: string });
 
@@ -93,7 +93,6 @@ export const useCalendarData = () => {
       endDate.setDate(endDate.getDate() + 1);
 
       const backgroundColor = idToColorMap[idTolistId[item.list_id]] || "#3788D8";
-      console.log(backgroundColor);
       const textColor = getTextColorForBackground(backgroundColor);
 
       return {

@@ -16,10 +16,17 @@ afterEach(() => {
 });
 
 describe("useListColorMap", () => {
-  it("starts with an empty map", () => {
+  it("starts with an empty map and isLoading=true", () => {
     fetchMock.mockResolvedValue({ json: async () => [] });
     const { result } = renderHook(() => useListColorMap());
     expect(result.current.listColorMap).toEqual({});
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it("sets isLoading=false after a successful fetch", async () => {
+    fetchMock.mockResolvedValue({ json: async () => [] });
+    const { result } = renderHook(() => useListColorMap());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
   it("fetches /api/lists and maps listId → tag color", async () => {
@@ -61,11 +68,14 @@ describe("useListColorMap", () => {
     });
   });
 
-  it("logs and continues when fetch fails", async () => {
+  it("logs and finishes loading when fetch fails", async () => {
     fetchMock.mockRejectedValue(new Error("network"));
 
-    renderHook(() => useListColorMap());
+    const { result } = renderHook(() => useListColorMap());
 
     await waitFor(() => expect(consoleErrorSpy).toHaveBeenCalled());
+    // 失敗してもローディングは終了する（マイページの無限スピナー防止）
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.listColorMap).toEqual({});
   });
 });

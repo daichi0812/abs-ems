@@ -27,6 +27,15 @@ describe("formatDate2", () => {
   it("handles single-digit months", () => {
     expect(formatDate2(new Date(2026, 5, 10))).toBe("06月09日");
   });
+
+  it("borrows from the previous month at month boundaries", () => {
+    // 8/1 の排他end → 表示は 7/31（「08月00日」にならないこと）
+    expect(formatDate2(new Date(2026, 7, 1))).toBe("07月31日");
+  });
+
+  it("borrows from the previous year at year boundaries", () => {
+    expect(formatDate2(new Date(2026, 0, 1))).toBe("12月31日");
+  });
 });
 
 describe("getTextColorForBackground", () => {
