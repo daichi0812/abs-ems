@@ -7,7 +7,7 @@ import type { Tag } from "./use-tags";
 
 export interface UseEquipmentRegistrationParams {
   tags: Tag[];
-  inputFileRef: React.RefObject<HTMLInputElement>;
+  inputFileRef: React.RefObject<HTMLInputElement | null>;
   resetImage: () => void;
   refetchEquipments: () => Promise<void>;
 }
