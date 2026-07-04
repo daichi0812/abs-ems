@@ -22,7 +22,11 @@ export const useEquipmentActions = ({ refetchEquipments }: UseEquipmentActionsPa
   const deleteEquipment = async (equipmentId: number) => {
     const confirmed = window.confirm("本当に削除しますか？");
     if (confirmed) {
-      await fetch(`/api/lists/${equipmentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/lists/${equipmentId}`, { method: "DELETE" });
+      if (!res.ok) {
+        window.alert("機材の削除に失敗しました。");
+        return;
+      }
       await refetchEquipments();
     }
   };

@@ -53,7 +53,16 @@ export const useDeleteFlow = ({
       return;
     }
 
-    await axios.delete(`/api/reserves/${Number(idToDelete)}`);
+    try {
+      await axios.delete(`/api/reserves/${Number(idToDelete)}`);
+    } catch (error) {
+      console.error("Error deleting reserve:", error);
+      window.alert("予約の削除に失敗しました。");
+      setShowDeleteModal(false);
+      setIdToDelete(null);
+      return;
+    }
+
     await refetchReserves();
 
     setAllEvents(allEvents.filter((event) => Number(event.id) !== Number(idToDelete)));

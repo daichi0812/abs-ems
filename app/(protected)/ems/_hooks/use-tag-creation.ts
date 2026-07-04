@@ -34,10 +34,16 @@ export const useTagCreation = ({ existingTags, refetchTags }: UseTagCreationPara
       return;
     }
 
-    await axios.post("/api/tags", {
-      name: addTagName,
-      color: editTagColor,
-    });
+    try {
+      await axios.post("/api/tags", {
+        name: addTagName,
+        color: editTagColor,
+      });
+    } catch (error) {
+      console.error("Error creating tag:", error);
+      alert("カテゴリの作成に失敗しました.");
+      return;
+    }
     setAddTagName("");
     setEditTagColor("");
     await refetchTags();

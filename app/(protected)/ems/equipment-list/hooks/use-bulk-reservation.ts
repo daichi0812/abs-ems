@@ -121,7 +121,13 @@ export const useBulkReservation = ({
       setIsBulkMode(false);
     } catch (error) {
       console.error("Error creating bulk reservations:", error);
-      alert("予約の作成中にエラーが発生しました。");
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        alert("選択した期間にすでに予約が入っている機材があります。別の期間を選択してください。");
+      } else {
+        alert("予約の作成中にエラーが発生しました。");
+      }
+      // Promise.all の部分成功があり得るため、成功した分を画面に反映する
+      await refetchReserves();
     } finally {
       setIsSubmitting(false);
     }
