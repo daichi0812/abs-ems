@@ -2,6 +2,7 @@
 
 import * as z from "zod";
 import bcrypt from "bcryptjs"
+import { UserRole } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { SettingsSchema } from "@/schemas";
@@ -69,10 +70,16 @@ export const settings = async (
         values.newPassword = undefined;
     }
 
+    // role は ADMIN 本人（DB上のrole）以外変更不可。
+    // フォームは常に role を送ってくるため、一般ユーザーが値を細工して
+    // 自分を ADMIN に昇格できてしまうのを防ぐ
+    const { role, ...rest } = values;
+
     await db.user.update({
         where: { id: dbUser.id },
         data: {
-            ...values,
+            ...rest,
+            ...(dbUser.role === UserRole.ADMIN ? { role } : {}),
         }
     });
 
