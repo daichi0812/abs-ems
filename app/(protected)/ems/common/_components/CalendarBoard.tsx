@@ -28,11 +28,11 @@ function eventInterval(ev: CalendarEvent) {
   return { startIdx: toJstDayIndex(ev.start), endIdx: toJstDayIndex(ev.end) };
 }
 
-export function CalendarBoard() {
+export function CalendarBoard({ initialView = "month" }: { initialView?: View }) {
   const { allEvents, isFetching } = useCalendarData();
   const todayIdx = todayJstDayIndex();
 
-  const [view, setView] = useState<View>("month");
+  const [view, setView] = useState<View>(initialView);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
 

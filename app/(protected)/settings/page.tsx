@@ -1,273 +1,224 @@
-"use client"
+"use client";
 
-import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransition, useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
-
-import { Switch } from "@/components/ui/switch";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { SettingsSchema } from "@/schemas";
-import {
-    Card,
-    CardHeader,
-    CardContent,
-} from "@/components/ui/card"
-import { settings } from "@/actions/settings"
-import {
-    Form,
-    FormField,
-    FormControl,
-    FormItem,
-    FormLabel,
-    FormDescription,
-    FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input";
-import { useCurrentUser } from "@/hooks/use-current-user";
-import { FormError } from "@/components/form-error";
-import { FormSuccess } from "@/components/form-success";
+import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
+import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 import { UserRole } from "@prisma/client";
-import { useRouter } from "next/navigation";
-import { Button } from "@chakra-ui/react";
 
-const SettingsPage = () => {
-    const user = useCurrentUser();
-    const router = useRouter();
+import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentRole } from "@/hooks/use-current-role";
+import { settings as saveAccount } from "@/actions/settings";
+import { useUserSettings } from "./hooks/use-user-settings";
+import { AccountSection } from "./_components/AccountSection";
 
-    const [error, setError] = useState<string | undefined>();
-    const [success, setSuccess] = useState<string | undefined>();
-    const { update } = useSession();
-    const [isPending, startTransition] = useTransition();
-
-    const form = useForm<z.infer<typeof SettingsSchema>>({
-        resolver: zodResolver(SettingsSchema),
-        defaultValues: {
-            password: undefined,
-            newPassword: undefined,
-            name: user?.name || undefined,
-            email: user?.email || undefined,
-            role: user?.role || undefined,
-            isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
-        }
-    });
-
-    // console.log(user?.isOAuth)
-
-    useEffect(() => {
-        if (user) {
-            form.reset({
-                name: user.name || "",
-                email: user.email || "",
-                role: user.role || "",
-                isTwoFactorEnabled: user.isTwoFactorEnabled || false,
-            });
-        }
-    }, [user, form]);
-
-    const onSubmit = (values: z.infer<typeof SettingsSchema>) => {
-        startTransition(() => {
-            settings(values)
-                .then((data) => {
-                    if (data.error) {
-                        setError(data.error);
-                    }
-                    if (data.success) {
-                        update();
-                        setSuccess(data.success);
-                        router.push("/ems/mypage")
-                    }
-                })
-                .catch(() => setError("Something went wrong!"))
-        });
-    }
-
-    return (
-        <div className="h-screen w-full flex flex-col gap-y-10 items-center justify-center 
-            bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800"
-        >
-            <Card className="w-[370px] md:w-[450px] lg:w-[600px]">
-                <CardHeader>
-                    <p className="text-2xl font-semibold text-center">
-                        ⚙️ 設定
-                    </p>
-                </CardHeader>
-                <CardContent>
-                    <Form {...form}>
-                        <form
-                            className="space-y-6"
-                            onSubmit={form.handleSubmit(onSubmit)}
-                        >
-                            <div className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="name"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>名前</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    {...field}
-                                                    className="text-[16px]"
-                                                    placeholder="青山 太郎"
-                                                    disabled={isPending}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                {user?.isOAuth !== true && (
-                                    <>
-                                        <FormField
-                                            control={form.control}
-                                            name="email"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>メールアドレス</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            {...field}
-                                                            className="text-[16px]"
-                                                            placeholder="daichi@example.com"
-                                                            type="email"
-                                                            disabled={isPending}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="password"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>パスワード</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            {...field}
-                                                            className="text-[16px]"
-                                                            placeholder="*****"
-                                                            type="password"
-                                                            disabled={isPending}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="newPassword"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>新しいパスワード</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            {...field}
-                                                            className="text-[16px]"
-                                                            placeholder="*****"
-                                                            type="password"
-                                                            disabled={isPending}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </>
-                                )}
-                                {/* <FormField
-                                    control={form.control}
-                                    name="role"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>ユーザー・管理者</FormLabel>
-                                            <Select
-                                                disabled={isPending}
-                                                onValueChange={field.onChange}
-                                                defaultValue={field.value}
-                                            >
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="どちらか選んでください" />
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value={UserRole.ADMIN}>
-                                                        管理者
-                                                    </SelectItem>
-                                                    <SelectItem value={UserRole.USER}>
-                                                        ユーザー
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                /> */}
-                                {user?.isOAuth !== true && (
-                                    <FormField
-                                        control={form.control}
-                                        name="isTwoFactorEnabled"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-row items-center
-                                    justify-between rounded-lg border p-3 shadow-sm">
-                                                <div className="space-y-0.5">
-                                                    <FormLabel>2段階認証</FormLabel>
-                                                    <FormDescription>
-                                                        アカウントに2段階認証を有効にしてください
-                                                    </FormDescription>
-                                                </div>
-                                                <FormControl>
-                                                    <Switch
-                                                        disabled={isPending}
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                            <FormError message={error} />
-                            <FormSuccess message={success} />
-                            {isPending ? (
-                                <Button
-                                    isLoading
-                                    disabled={isPending}
-                                    type="submit"
-                                    colorScheme='blue'
-                                >
-                                    変更
-                                </Button>
-
-
-                            ) : (
-                                <Button
-                                    disabled={isPending}
-                                    type="submit"
-                                    colorScheme='blue'
-                                >
-                                    変更
-                                </Button>
-                            )
-                            }
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
-        </div>
-    )
+function initialOf(name?: string | null) {
+  return name?.trim()?.[0]?.toUpperCase() ?? "?";
 }
 
-export default SettingsPage
+export default function SettingsPage() {
+  const user = useCurrentUser();
+  const role = useCurrentRole();
+  const { settings, isLoading, patch } = useUserSettings();
+
+  const [name, setName] = useState("");
+  const [savingName, startNameSave] = useTransition();
+
+  useEffect(() => {
+    if (user?.name) setName(user.name);
+  }, [user?.name]);
+
+  const onSaveProfile = () => {
+    startNameSave(async () => {
+      const result = await saveAccount({
+        name: name.trim(),
+        role: (user?.role as UserRole) || UserRole.USER,
+      });
+      if (result.error) toast.error(result.error);
+      if (result.success) toast.success("プロフィールを保存しました");
+    });
+  };
+
+  const roleLabel = role === UserRole.ADMIN ? "放送部・管理者" : "放送部・部員";
+
+  return (
+    <div className="min-h-screen bg-surface">
+      {/* ネイビーヘッダー */}
+      <div className="bg-navy px-4 pb-4 pt-5">
+        <div className="mx-auto flex max-w-xl items-center gap-2.5">
+          <Link href="/ems/mypage" aria-label="戻る" className="text-white/90 hover:text-white">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+          </Link>
+          <span className="text-lg font-black tracking-wide text-white">設定</span>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-xl px-4 pb-16 pt-4">
+        {/* プロフィール */}
+        <section className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-16 w-16 flex-none items-center justify-center rounded-full bg-brand text-2xl font-black text-white">
+              {initialOf(user?.name)}
+            </div>
+            <div className="min-w-0">
+              <p className="m-0 truncate text-[17px] font-black text-ink">{user?.name ?? "ゲスト"}</p>
+              <p className="m-0 mt-0.5 text-xs text-ink-muted">{roleLabel}</p>
+            </div>
+          </div>
+          <p className="m-0 mb-2 mt-4 text-xs font-bold text-ink-muted">表示名</p>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-[46px] w-full rounded-xl border-[1.5px] border-line bg-[#F9FAFB] px-3.5 text-[15px] outline-none focus:border-brand focus:bg-white"
+          />
+          <button
+            type="button"
+            onClick={onSaveProfile}
+            disabled={savingName || name.trim() === ""}
+            className="mt-3.5 h-[46px] w-full rounded-xl bg-brand text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+          >
+            {savingName ? "保存中…" : "プロフィールを保存"}
+          </button>
+        </section>
+
+        {/* 通知 */}
+        <SectionLabel>通知</SectionLabel>
+        <div className="rounded-2xl bg-white px-4 shadow-sm">
+          <ToggleRow
+            title="返却期限のリマインド"
+            desc="期限の前日と当日にお知らせ"
+            checked={settings.notifyReturnReminder}
+            disabled={isLoading}
+            onChange={(v) => patch({ notifyReturnReminder: v })}
+            divider
+          />
+          <ToggleRow
+            title="予約の承認・変更"
+            desc="自分の予約が更新されたとき"
+            checked={settings.notifyReservationEvents}
+            disabled={isLoading}
+            onChange={(v) => patch({ notifyReservationEvents: v })}
+            divider
+          />
+          <ToggleRow
+            title="新しい機材の追加"
+            desc="部の機材が増えたとき"
+            checked={settings.notifyNewEquipment}
+            disabled={isLoading}
+            onChange={(v) => patch({ notifyNewEquipment: v })}
+          />
+        </div>
+
+        {/* 連携 */}
+        <SectionLabel>連携</SectionLabel>
+        <div className="rounded-2xl bg-white px-4 shadow-sm">
+          <div className="flex items-center gap-3 py-3.5">
+            <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px] bg-[#06C755] text-[15px] font-black text-white">
+              L
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="m-0 text-sm font-bold text-ink">LINE通知</p>
+              <p className="m-0 mt-0.5 text-[11.5px] leading-snug text-ink-faint">
+                {settings.lineNotifyEnabled ? "有効（友だち追加は後日ご案内）" : "友だち追加で受け取れます（準備中）"}
+              </p>
+            </div>
+            <Switch
+              disabled={isLoading}
+              checked={settings.lineNotifyEnabled}
+              onCheckedChange={(v) => patch({ lineNotifyEnabled: v })}
+            />
+          </div>
+        </div>
+
+        {/* 表示 */}
+        <SectionLabel>表示</SectionLabel>
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <p className="m-0 mb-2.5 text-sm font-bold text-ink">カレンダーの初期表示</p>
+          <div className="flex gap-1 rounded-xl bg-line-soft p-[3px]">
+            {(
+              [
+                ["MONTH", "月表示"],
+                ["GANTT", "ガント"],
+              ] as const
+            ).map(([value, label]) => {
+              const on = settings.calendarDefaultView === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => patch({ calendarDefaultView: value })}
+                  className={cn(
+                    "h-[38px] flex-1 rounded-[9px] text-[13px] font-bold transition-colors",
+                    on ? "bg-white text-ink shadow-sm" : "text-ink-muted"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* アカウント */}
+        <SectionLabel>アカウント</SectionLabel>
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <AccountSection />
+        </div>
+
+        {/* ログアウト */}
+        <button
+          type="button"
+          onClick={() => signOut({ redirectTo: "/auth/login" })}
+          className="mt-6 flex h-[50px] w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-[#FEE4E2] bg-white text-sm font-bold text-danger transition-colors hover:bg-[#FFF5F4]"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+          ログアウト
+        </button>
+        <p className="mt-4 text-center text-[11px] text-line-strong">ABS EMS v2.0</p>
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 ml-1 mt-5 text-[11.5px] font-extrabold tracking-wider text-ink-faint">
+      {children}
+    </p>
+  );
+}
+
+function ToggleRow({
+  title,
+  desc,
+  checked,
+  disabled,
+  onChange,
+  divider,
+}: {
+  title: string;
+  desc: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  divider?: boolean;
+}) {
+  return (
+    <div className={cn("flex items-center gap-3 py-3.5", divider && "border-b border-line-soft")}>
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-sm font-bold text-ink">{title}</p>
+        <p className="m-0 mt-0.5 text-[11.5px] leading-snug text-ink-faint">{desc}</p>
+      </div>
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
+    </div>
+  );
+}
