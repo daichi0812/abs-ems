@@ -124,11 +124,6 @@ export const {
   },
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
+  // trustHost: true は auth.config.ts に集約（ハンドラ用と middleware 用の両インスタンスに効かせるため）。
   ...authConfig,
-  // Cloudflare Workers(OpenNext) では Vercel が自動注入する VERCEL 環境変数が無く、
-  // 本番ビルドは NODE_ENV=production のため Auth.js の trustHost 既定が false に落ち、
-  // 全 sign-in/callback/session が UntrustedHost で失敗する（＝これまで Vercel が暗黙に
-  // trustHost=true にしてくれていた隠れた Vercel 依存）。AUTH_TRUST_HOST 環境変数だけに
-  // 頼ると本番 env 投入を1つ落とすだけで認証全断するため、コードで明示的に true にして堅牢化する。
-  trustHost: true,
 })

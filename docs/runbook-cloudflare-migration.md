@@ -314,7 +314,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 - [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施
 - [ ] Google ログイン
-- [ ] **サインアウト（🔴 現状 workerd で不具合。付録D 参照）** — `signOut()` Server Action の Set-Cookie が伝播せず cookie が残る。カットオーバー前に要修正
+- [ ] **サインアウト（🔴 現状 workerd で不具合・原因未確定。付録D 参照）** — `signOut()` 後もセッション cookie が残る。原因候補は next-auth の cookie chunk 削除漏れ（ホスト非依存）か OpenNext の Server Action Set-Cookie 非伝播（Workers 固有）。**先に現行 Vercel でログアウトが効くかを確認して切り分け**。カットオーバー前に要修正
 - [ ] GitHub ログイン（`@auth/prisma-adapter` の linkAccount 経路）
 - [x] middleware で保護されたルートのリダイレクト挙動 — **検証済み**（未ログインで `/api/upload`・`/ems/*` が 302→`/auth/login`、ログイン後は保護ページ表示）
 - [ ] 予約 CRUD（`lib/reservation-overlap.ts` の重複チェック含む）
@@ -330,8 +330,13 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## 付録D: 既知の落とし穴（敵対的検証で確認済み）
 
-- **`trustHost: true` をコードで明示する（重大・Phase 3 検証で判明）**。Auth.js v5 の `trustHost` 既定は `!!(AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? CF_PAGES ?? NODE_ENV!=='production')`。**Vercel はプラットフォームが `VERCEL` env を自動注入するため暗黙で true** になっていた（隠れた Vercel 依存）。Workers(OpenNext) では `VERCEL` 無し・`CF_PAGES` 無し（Pages 専用）・本番ビルドは `NODE_ENV=production`（OpenNext が define で焼き込む）で **trustHost が false に落ち、全 sign-in/callback/session が `UntrustedHost` で失敗＝本番認証が全断**。`AUTH_TRUST_HOST=true` の env だけに頼ると本番 env 投入を1つ落とすだけで全断するため、**`auth.ts` の設定に静的に `trustHost: true`** を置いた（`.env.vercel-export` にもこの env は無いので一括インポートでは補完されない）。**✅ 検証済み（2026-07-05）**: `.dev.vars` から `AUTH_TRUST_HOST` を外し `trustHost:true`（コード）のみで再ビルドし、`/api/auth/session`→200・`/api/auth/csrf`→200 を確認（trustHost false なら `UntrustedHost` で失敗するはずのエンドポイントが正常応答）。
-- **サインアウトが効かない（未解決・要調査。Phase 3 検証で判明）**。next-auth の `signOut()`（`actions/logout.ts` の Server Action）は **303 リダイレクトは返すがセッション削除の Set-Cookie が反映されず**、JWE セッション cookie が残ってユーザーがログインしたままになる（`/auth/login` へ行っても middleware が「ログイン中」と判定し `/ems/mypage` へ 302 で戻す）。**ログイン（Route Handler `/api/auth/callback/credentials`）は Set-Cookie が効くので成功する**＝**OpenNext/Workers が Server Action レスポンスの Set-Cookie を伝播していない**のが原因像。対策候補: OpenNext のバージョン更新で解消するか確認、または signout を Route Handler 化する回避策、あるいは cookie 分割(chunk)時の全 chunk 削除漏れの確認。**カットオーバー前に必ず解決すること**（ログアウト不能はセキュリティ課題）。
+- **`trustHost: true` をコードで明示する（重大・Phase 3 検証で判明）**。Auth.js v5 の `trustHost` 既定は `!!(AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? CF_PAGES ?? NODE_ENV!=='production')`。**Vercel はプラットフォームが `VERCEL` env を自動注入するため暗黙で true** になっていた（隠れた Vercel 依存）。Workers(OpenNext) では `VERCEL` 無し・`CF_PAGES` 無し（Pages 専用）・本番ビルドは `NODE_ENV=production`（OpenNext が define で焼き込む）で **trustHost が false に落ち、全 sign-in/callback/session が `UntrustedHost` で失敗＝本番認証が全断**。`AUTH_TRUST_HOST=true` の env だけに頼ると本番 env 投入を1つ落とすだけで全断するため、**`auth.config.ts` の設定に静的に `trustHost: true`** を置いた（`.env.vercel-export` にもこの env は無いので一括インポートでは補完されない）。**配置場所が重要**: このアプリは NextAuth を2つ生成する — `auth.ts`（ハンドラ用。`...authConfig` 展開）と `middleware.ts`（`NextAuth(authConfig)` を直接）。`auth.ts` 側にだけ置くと **middleware インスタンスは env 依存のまま**（env を落とすと middleware の認証判定が UntrustedHost 化しうる）。共有の `auth.config.ts` に置けば両インスタンスに効く。**✅ 検証済み（2026-07-05）**: `.dev.vars` から `AUTH_TRUST_HOST` を外し `trustHost:true`（コード）のみで再ビルドし、`/api/auth/session`→200・`/api/auth/csrf`→200 を確認（trustHost false なら `UntrustedHost` で失敗するはずのエンドポイントが正常応答）。
+- **サインアウトが効かない（未解決・原因未確定。Phase 3 検証で判明）**。next-auth の `signOut()`（`actions/logout.ts` の Server Action）は **303 リダイレクトは返すがセッション削除の Set-Cookie が反映されず**、JWE セッション cookie が残ってユーザーがログインしたままになる（`/auth/login` へ行っても middleware が「ログイン中」と判定し `/ems/mypage` へ 302 で戻す）。
+  - **⚠️ 原因は未確定**（症状のみ workerd/preview で観測）。有力候補は2つで、対策の方向がまったく異なる:
+    - **(a) next-auth v5 の cookie 分割(chunk)削除漏れ（ホスト非依存）**。このアプリは JWE に `role`/`isTwoFactorEnabled`/`isOAuth`/`name`/`email` を詰めており cookie が 4KB を超えて `authjs.session-token.0/.1/...` に分割されやすい。`signOut()` が全 chunk を消し切れないと古い chunk が残る。これは **Workers 固有ではなく Vercel でも再現するはず**＝移行のブロッカーではなく既存アプリ/next-auth のバグ。
+    - **(b) OpenNext/Workers が Server Action レスポンスの Set-Cookie を伝播していない（Workers 固有）**。ログイン（Route Handler `/api/auth/callback/credentials`）は Set-Cookie が効くのに Server Action だけ効かない、という観測から。こちらなら OpenNext のバージョン更新や signout の Route Handler 化が対策。
+  - **判別テスト（これを先に）**: **現行 Vercel 本番でログアウトが効くか**を確認する。Vercel でも効かない→(a) 既存バグ（移行と無関係）。Vercel では効く→(b) Workers 固有。**このテスト前に OpenNext のバージョン更新に着手しない**（(a) だった場合は空振り）。
+  - **カットオーバー前に必ず解決すること**（ログアウト不能はセキュリティ課題）。
 - **AUTH_SECRET を変えない**。変更＝全ユーザー強制ログアウト。
 - **Prisma は 6.19.x 固定**。7.0.0 は Workers で `Wasm code generation disallowed by embedder`（#28657、2026-07 時点 未解決）。6.16.x も CF 固有バグがあり避ける。
 - **R2 `put()` は上書きされる**。キー一意化（`crypto.randomUUID()`）必須。
