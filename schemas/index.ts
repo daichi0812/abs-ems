@@ -34,6 +34,14 @@ export const SettingsSchema = z.object({
         path: ["password"]
     })
 
+export const UserSettingsSchema = z.object({
+    notifyReturnReminder: z.boolean(),
+    notifyReservationEvents: z.boolean(),
+    notifyNewEquipment: z.boolean(),
+    lineNotifyEnabled: z.boolean(),
+    calendarDefaultView: z.enum(["MONTH", "GANTT"]),
+})
+
 export const NewPasswordSchema = z.object({
     password: z.string().min(10, {
         message: "10文字以上のパスワードにしてください"
