@@ -37,6 +37,17 @@
       "bucket_name": "abs-ems-images"
     }
   ],
+  // トランザクションメール送信（2FA コード・パスワードリセット・確認メール）。
+  // 送信ドメイン abs-ems.forgeonics.com は `wrangler email sending enable` でオンボード済み
+  // （SPF/DKIM/DMARC は zone に自動追加済み）。allowed_sender_addresses で送信元を固定し、
+  // 万一コードが侵害されても任意アドレスからの送信を防ぐ。
+  // ローカル wrangler dev では実送信されない（実送信テストは一時的に "remote": true を付ける）。
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["noreply@abs-ems.forgeonics.com"]
+    }
+  ],
   "observability": {
     "enabled": true
   }
