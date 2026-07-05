@@ -33,6 +33,15 @@ export const useReservationData = ({ listId }: UseReservationDataParams) => {
   const [isFetching, setIsFetching] = useState<boolean>(true);
 
   const fetchReservesData = async () => {
+    // listId が非数値（不正な equipmentId 経由）なら、従来同様「空カレンダー」で無害に終える。
+    // サーバーの ?list_id= は不正値に 400 を返すため、無効な listId では fetch しない（クラッシュ防止）。
+    if (!Number.isInteger(listId)) {
+      setFilteredData([]);
+      setAllEvents([]);
+      setIsFetching(false);
+      return;
+    }
+
     const key = process.env.NEXT_PUBLIC_API_KEY as string;
 
     const usersResponse = await fetch(`/api/users?key=${encodeURIComponent(key)}`);
@@ -51,9 +60,10 @@ export const useReservationData = ({ listId }: UseReservationDataParams) => {
       {} as { [key: string]: string },
     );
 
-    const response = await fetch("/api/reserves");
+    // サーバー側で list_id 絞り込み（従来はクライアントで .filter していた）。
+    const response = await fetch(`/api/reserves?list_id=${listId}`);
     const reservesData: Reserve[] = await response.json();
-    const filtered = reservesData.filter((item) => item.list_id == listId);
+    const filtered = Array.isArray(reservesData) ? reservesData : [];
 
     setFilteredData(filtered);
 

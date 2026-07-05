@@ -4,17 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
 const createMock = vi.fn();
+// findMany はファクトリ内で即時参照されるため vi.hoisted で初期化する
+// （findFirst/create は $transaction 内の遅延参照なので通常の const で足りる）。
+const { findManyMock } = vi.hoisted(() => ({ findManyMock: vi.fn() }));
 
 vi.mock("@/lib/db", () => ({
   db: {
-    reserve: { findMany: vi.fn() },
+    reserve: { findMany: findManyMock },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({ reserve: { findFirst: findFirstMock, create: createMock } }),
     ),
   },
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const postRequest = (body: Record<string, unknown>) =>
   new Request("http://localhost/api/reserves", {
@@ -37,6 +40,8 @@ const validBody = () => ({
 beforeEach(() => {
   findFirstMock.mockReset();
   createMock.mockReset();
+  findManyMock.mockReset();
+  findManyMock.mockResolvedValue([]);
 });
 
 describe("POST /api/reserves", () => {
@@ -133,5 +138,58 @@ describe("POST /api/reserves", () => {
         end: new Date(endJstDay + "T00:00:00Z"),
       }),
     });
+  });
+});
+
+const getRequest = (qs = "") => new Request(`http://localhost/api/reserves${qs}`);
+
+describe("GET /api/reserves", () => {
+  it("returns all reserves (empty where) when no query params", async () => {
+    const res = await GET(getRequest());
+    expect(res.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith({ where: {} });
+  });
+
+  it("filters by user_id", async () => {
+    await GET(getRequest("?user_id=u1"));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { user_id: "u1" } });
+  });
+
+  it("filters by list_id (number)", async () => {
+    await GET(getRequest("?list_id=2"));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: 2 } });
+  });
+
+  it("combines user_id and list_id", async () => {
+    await GET(getRequest("?user_id=u1&list_id=2"));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { user_id: "u1", list_id: 2 } });
+  });
+
+  it("treats an empty user_id as a zero-match filter, not all", async () => {
+    await GET(getRequest("?user_id="));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { user_id: "" } });
+  });
+
+  it("returns 400 for a malformed list_id and does not query", async () => {
+    const res = await GET(getRequest("?list_id=abc"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  // 境界の現挙動を固定する（将来の呼び出し元向けドキュメント）
+  it("treats an empty ?list_id= as list_id:0 (Number('') === 0)", async () => {
+    await GET(getRequest("?list_id="));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: 0 } });
+  });
+
+  it("accepts a negative integer list_id", async () => {
+    await GET(getRequest("?list_id=-5"));
+    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: -5 } });
+  });
+
+  it("returns 400 for a decimal list_id and does not query", async () => {
+    const res = await GET(getRequest("?list_id=2.5"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
   });
 });
