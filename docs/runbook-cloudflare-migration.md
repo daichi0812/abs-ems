@@ -254,7 +254,8 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## Phase 4 — カットオーバー＆検証＆ロールバック
 
-1. **本番 secret 投入**: `AUTH_SECRET` は**現行本番と同一値**（変えると既存の暗号化 JWE セッションが全て失効し全ユーザー強制ログアウト）。`AUTH_TRUST_HOST=true`。DB は プール URL（`DATABASE_URL`）＋直結（`DIRECT_URL`）。
+0. **🔴 認証2点セットの確認（両方必須・片方だけだと壊れる）**: **`AUTH_URL=https://www.abs-ems.logicode.tech`（真因A対策）** ＊かつ＊ **`middleware.ts` の `/api/auth` matcher 除外（真因B対策・付録A/D）** が両方入っていること。`AUTH_URL` だけ→ログアウト不能が再発（真因B）、matcher だけ→session=null（真因A）。付録D 参照。
+1. **本番 secret 投入**: `AUTH_SECRET` は**現行本番と同一値**（変えると既存の暗号化 JWE セッションが全て失効し全ユーザー強制ログアウト）。`AUTH_TRUST_HOST=true`。`AUTH_URL`（上記）。DB は プール URL（`DATABASE_URL`）＋直結（`DIRECT_URL`）。
 2. **OAuth コールバック URL 追加**: Google Cloud / GitHub の OAuth 設定に `https://<新ドメイン>/api/auth/callback/google` と `.../github` を追加。
 3. **デプロイ**: `npm run deploy`（`--keep-vars`）。まず Workers の `*.workers.dev` かプレビュードメインで [付録C](#付録c-検証チェックリスト) を通す。
 4. **ドメイン切替（可逆点）**: 独自ドメインの向き先を Cloudflare Workers へ。問題があれば **Vercel に戻すのがロールバック**（Vercel 側は残してある）。`AUTH_SECRET` 同値なのでセッションは往復しても維持される。
@@ -278,7 +279,10 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 | `app/layout.tsx` | `<SpeedInsights/>` と import 削除 |
 | `use-equipment-registration.ts` / `use-equipment-update.ts` | `PutBlobResult` 型 import 削除、応答型を `{ url }` に |
 | `lib/mail.ts` | `RESEND_API_KEY` を実行時 secret として供給（必要なら関数内読みへ） |
-| `middleware.ts` | 現状維持（任意で auth.config から bcrypt/Prisma を分離しバンドル削減） |
+| `middleware.ts` | **matcher から `/api/auth` を除外**（`'/((?!api/auth\|.+\\.[\\w]+$\|_next).*)'`＋`'/(api(?!/auth)\|trpc)(.*)'`）。middleware の `auth()` が `/api/auth/signout` で Auth.js を二重実行し signout の削除 cookie を打ち消す**ログアウト不能の真因B**の対策（付録D）。ページ/その他 API の保護は不変 |
+| `auth.config.ts` | `trustHost: true` を静的に明示（ハンドラ用＋middleware 用の両 NextAuth インスタンスに効かせる。付録D） |
+| `components/auth/logout-button.tsx` | Server Action `logout()` → **クライアント `signOut`（`next-auth/react`, `/api/auth/signout` へ POST）**。Server Action 版はページ経路 POST で真因B に潰されるため（付録D） |
+| `actions/logout.ts` | **削除**（Server Action signout はページ経路に POST → middleware にマッチ → 削除 cookie が打ち消され使えない） |
 | OAuth コンソール | Google / GitHub にコールバック URL 追加 |
 
 ---
@@ -289,7 +293,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 |---|---|---|
 | `AUTH_SECRET` | 実行時 secret | wrangler secret（**現行本番と同一値**） |
 | `AUTH_TRUST_HOST` | 実行時 var | `true`（新規。Workers は Auth.js 自動信頼対象外） |
-| `AUTH_URL` | 実行時 var（**新規・重大**） | **本番 `https://www.abs-ems.logicode.tech`／ローカル preview `http://localhost:8787`**。未設定だと workerd の edge/node ランタイムでベース URL 推定が割れ、`useSecureCookies`＝cookie 名/JWE salt が middleware/route handler/ログインで食い違い session=null 化・ログアウト不能になる（付録D 参照）。**必ず環境ごとに明示**。 |
+| `AUTH_URL` | 実行時 var（**新規・重大**） | **本番 `https://www.abs-ems.logicode.tech`／workers.dev 検証 `https://abs-ems.<sub>.workers.dev`／ローカル preview `http://localhost:8787`**。未設定だと workerd の edge/node ランタイムでベース URL 推定が割れ、`useSecureCookies`＝cookie 名/JWE salt が middleware/route handler/ログインで食い違い **session=null 化**（付録D 真因A）。**必ず環境ごとに明示**。※ログアウト不能は別要因（middleware matcher・付録D 真因B）で、そちらは `middleware.ts` 側で対策済み。 |
 | `DATABASE_URL` | 実行時 secret | wrangler secret（**プール URL**、`-pooler`） |
 | `DIRECT_URL` | 実行時 secret | wrangler secret（**直結 URL**、migrate 用。新規） |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
@@ -313,9 +317,9 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## 付録C: 検証チェックリスト（プレビュー→本番）
 
-- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。⚠️ ただしログイン成立後の **session 一貫性（middleware/route handler が同じ session を見るか）は http preview では保証できない**（付録D の cookie 名不整合）。**https 環境で再検証必須**
+- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。**✅ session 一貫性は workers.dev https で再検証済み（2026-07-05）**: ログイン後 middleware（保護ルート遷移）・ページ描画・`/api/auth/session` の3者が一致（付録D 参照）。2FA/OAuth 経路は引き続き未検証。
 - [ ] Google ログイン
-- [ ] **サインアウト＋セッション cookie 名の一貫性（🔴 重大・未解決。付録D 参照）** — 真因は `AUTH_URL` 未設定による cookie-secure 判定の割れ（middleware/route handler/ログインで cookie 名が食い違い session=null 化）。サインアウト不能はその一症状。**対策: `AUTH_URL` を環境ごとに設定＋必要なら `auth.config.ts` で cookie 名を明示ピン。検証は必ず https 環境（`workers.dev`）で**（http preview では構造上検証不能）
+- [x] **サインアウト＋セッション一貫性 — 解決済み ✅（workers.dev https で e2e 検証済み・2026-07-05。付録D 参照）** — 真因は2つ（A: `AUTH_URL` 未設定の cookie-secure 名割れ、B: middleware matcher が `/api/auth` を含む二重実行で signout の削除 cookie を打ち消す）。対策は **① `middleware.ts` の matcher から `/api/auth` 除外 ② `AUTH_URL` を環境ごとに設定 ③ クライアント `signOut`（`/api/auth/signout`）**。検証: ログアウト→`session=null`＋`/auth/login` 遷移、`GET /api/auth/csrf` の Set-Cookie が単一 `__Host-authjs.csrf-token`、未ログイン保護ルートは login へリダイレクト。**本番カットオーバー時に `AUTH_URL=https://www.abs-ems.logicode.tech` の投入を忘れないこと**（真因A が再発する）。
 - [ ] GitHub ログイン（`@auth/prisma-adapter` の linkAccount 経路）
 - [x] middleware で保護されたルートのリダイレクト挙動 — **検証済み**（未ログインで `/api/upload`・`/ems/*` が 302→`/auth/login`、ログイン後は保護ページ表示）
 - [ ] 予約 CRUD（`lib/reservation-overlap.ts` の重複チェック含む）
@@ -332,21 +336,21 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 ## 付録D: 既知の落とし穴（敵対的検証で確認済み）
 
 - **`trustHost: true` をコードで明示する（重大・Phase 3 検証で判明）**。Auth.js v5 の `trustHost` 既定は `!!(AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? CF_PAGES ?? NODE_ENV!=='production')`。**Vercel はプラットフォームが `VERCEL` env を自動注入するため暗黙で true** になっていた（隠れた Vercel 依存）。Workers(OpenNext) では `VERCEL` 無し・`CF_PAGES` 無し（Pages 専用）・本番ビルドは `NODE_ENV=production`（OpenNext が define で焼き込む）で **trustHost が false に落ち、全 sign-in/callback/session が `UntrustedHost` で失敗＝本番認証が全断**。`AUTH_TRUST_HOST=true` の env だけに頼ると本番 env 投入を1つ落とすだけで全断するため、**`auth.config.ts` の設定に静的に `trustHost: true`** を置いた（`.env.vercel-export` にもこの env は無いので一括インポートでは補完されない）。**配置場所が重要**: このアプリは NextAuth を2つ生成する — `auth.ts`（ハンドラ用。`...authConfig` 展開）と `middleware.ts`（`NextAuth(authConfig)` を直接）。`auth.ts` 側にだけ置くと **middleware インスタンスは env 依存のまま**（env を落とすと middleware の認証判定が UntrustedHost 化しうる）。共有の `auth.config.ts` に置けば両インスタンスに効く。**✅ 検証済み（2026-07-05）**: `.dev.vars` から `AUTH_TRUST_HOST` を外し `trustHost:true`（コード）のみで再ビルドし、`/api/auth/session`→200・`/api/auth/csrf`→200 を確認（trustHost false なら `UntrustedHost` で失敗するはずのエンドポイントが正常応答）。
-- **【重大・未解決】セッション cookie の名前が middleware / route handler / ログイン書込で食い違う（cookie-secure 判定の割れ）**。サインアウト不具合はこの症状の一つに過ぎなかった。カットオーバー前に必ず解決すること。
-  - **切り分けの経緯**: サインアウト後もセッションが残る症状を Phase 3 で観測 → **現行 Vercel 本番ではログアウトが正常**と確認（＝Workers 固有、next-auth の cookie chunk 削除漏れ等ホスト非依存バグは棄却）→ workerd/preview で実測したところ、より深い不整合が判明。
-  - **観測した矛盾（http preview, Neon ブランチ）**:
-    - `GET /api/auth/csrf` が **secure 名 `__Host-authjs.csrf-token` と 非secure 名 `authjs.csrf-token` の両方**を、別々の値で1リクエスト内にセット（＝`useSecureCookies` 判定が1リクエスト内で割れている決定的証拠）。
-    - route handler にログイン（curl）→ `/api/auth/session` はユーザーを返すが、`/ems/mypage` は middleware が「未ログイン」判定で 302。
-    - Server Action にログイン（ブラウザ実操作）→ ページは「ログイン中」表示・middleware も通すが、`/api/auth/session` は **null**。
-    - ＝ **書き手（ログイン）・middleware・route handler が各々別の cookie 名を見ている**。
-  - **機構**: Auth.js v5 は**セッション JWE を cookie 名で salt する**ため、書き手と読み手が secure/非secure 名で食い違うと**復号が失敗して `null`** になる（「cookie が無い」ではなく「復号不能」）。だから「cookie は在るのに session=null」という一見矛盾した症状になる。
-  - **根本原因**: **`AUTH_URL`/`NEXTAUTH_URL` 未設定 ＋ `trustHost:true`**。ベース URL をリクエストヘッダから推定するが、workerd/OpenNext は **edge ランタイム（middleware）と node ランタイム（route handler）でヘッダの入り方が異なる**ため各々別のベース URL → 別の `useSecureCookies` → 別の cookie 名/salt。https の `NEXT_PUBLIC_APP_URL` を http で配信している点も割れを助長。127.0.0.1 でアクセスしても middleware が `localhost` へリダイレクトしたのも、ベース URL 推定が固定されていない同根。
-  - **確認できた対策の効き**: `.dev.vars` に **`AUTH_URL=http://localhost:8787`** を追加したら、二重だった csrf cookie が**単一（`authjs.csrf-token`）に収束**＝ベース URL 固定で判定の割れが解消する方向が確認できた（ただし後述の理由で http preview では最終確認まで到達できない）。
-  - **対策（環境ごとに設定）**:
-    1. **`AUTH_URL` を環境ごとに明示**（第一の手当て・本番設定として必須）: 本番 `AUTH_URL=https://www.abs-ems.logicode.tech`、ローカル preview `AUTH_URL=http://localhost:8787`。
-    2. **フォールバック（AUTH_URL だけで一貫しない場合）**: `auth.config.ts`（共有インスタンス）で **`useSecureCookies` と `cookies` の名前を明示ピン**し、書き手と読み手が絶対に食い違わないよう固定する（`useSecureCookies` を `AUTH_URL` のプロトコルから決定する等）。
-    3. サインアウト自体は Server Action（`actions/logout.ts`）から **Route Handler `/api/auth/signout` 経由のクライアント `signOut`（`next-auth/react`）** に変更する修正を候補として用意済み（`components/auth/logout-button.tsx`）。route handler 経路は curl で「一致名・Max-Age=0 での削除」を確認済みだが、上記 cookie 名不整合が解けるまで **e2e 検証は保留**。
-  - **⚠️ 検証は https 環境で行うこと**: http preview は **構造上 cookie-secure 依存の認証を検証できない**（http では非secure 名、本番 https では `__Secure-`/`__Host-` 名に切り替わり、ローカルとは cookie 名自体が異なる）。**`workers.dev`（https）へ一度デプロイし、ログイン→session→保護ルート→ログアウトの一貫性を本番同等の https で確認**してからカットオーバーすること。
+- **【重大・解決済み ✅（2026-07-05, workers.dev https で e2e 検証済み）】Workers 上でログアウトしてもセッションが消えない**。真因は**独立した2つのバグ**で、両方に手当てが要った。
+  - **切り分けの経緯**: サインアウト後もセッションが残る症状を Phase 3 で観測 → **現行 Vercel 本番ではログアウトが正常**と確認（＝Workers 固有、next-auth の cookie chunk 削除漏れ等ホスト非依存バグは棄却）→ http preview で「cookie 名の割れ」を発見 → `AUTH_URL` 設定で名前は統一されたが**別のバグが残存** → `workers.dev`(https) 実測で真因を確定。
+  - **真因A: `AUTH_URL`/`NEXTAUTH_URL` 未設定による cookie-secure 名の割れ（→ AUTH_URL 設定で解消）**。ベース URL をリクエストヘッダから推定するが、workerd/OpenNext は edge（middleware）と node（route handler）でヘッダの入り方が異なり、各々別のベース URL → 別の `useSecureCookies` → 別の cookie 名/salt。Auth.js v5 は**セッション JWE を cookie 名で salt する**ため、書き手と読み手で secure/非secure 名が食い違うと**復号失敗で `null`**（「cookie が無い」ではなく「復号不能」）。http preview では `GET /api/auth/csrf` が `__Host-authjs.csrf-token` と `authjs.csrf-token` を1リクエストで両方セットしていた。→ **`AUTH_URL` を環境ごとに明示**（付録B）で解消。https workers.dev では csrf 名が `__Host-` に統一されることを確認。
+  - **真因B: middleware の matcher が `/api/auth` を含み、Auth.js が二重実行される（→ matcher 除外で解消・ログアウト不能の直接原因）**。`middleware.ts` は `auth((req)=>{…})` でラップしており、**matcher にマッチした全リクエストで Auth.js を走らせ jwt セッション cookie を再発行（Set-Cookie）する**。旧 matcher `'/(api|trpc)(.*)'` は `/api/auth/signout` にもマッチするため、**route handler が出すセッション削除 Set-Cookie を middleware 側の再発行が打ち消す**。Vercel は cookie マージ順で削除が勝つため顕在化しないが、Workers/OpenNext では再発行が勝ってセッションが残る。**ログインが正常でログアウトだけ壊れる非対称**は、ログイン時は「まだセッションが無い」ため middleware の再発行と衝突しない（handler の SET が勝つ）のに対し、ログアウト時は既存セッションを middleware が再発行して handler の DELETE を潰すため。csrf が二重（別値）で出ていたのも同じ二重実行の副作用。
+  - **確定した対策（実装済み・検証済み）**:
+    1. **`middleware.ts` の matcher から `/api/auth` を除外**（真因B）: `'/((?!api/auth|.+\\.[\\w]+$|_next).*)'` と `'/(api(?!/auth)|trpc)(.*)'`。認証エンドポイントは route handler だけに cookie を触らせる。
+    2. **`AUTH_URL` を環境ごとに設定**（真因A・付録B）: 本番 `https://www.abs-ems.logicode.tech`、workers.dev 検証 `https://abs-ems.<sub>.workers.dev`、ローカル preview `http://localhost:8787`。
+    3. **ログアウトはクライアント `signOut`（`next-auth/react`, `/api/auth/signout` へ POST）**（`components/auth/logout-button.tsx`）。Server Action 版（`actions/logout.ts`, 削除済み）は**今いるページ経路に POST するため matcher にマッチ→真因B で潰される**ので使えない。matcher 除外後の `/api/auth/signout` のみが削除を確実に効かせられる。
+  - **e2e 検証結果（workers.dev https, Neon ブランチ, 使い捨て AUTH_SECRET, 2026-07-05）**:
+    - ログイン成功。middleware（`/ems/mypage` 遷移許可）・ページ描画・`/api/auth/session`（ユーザー返却）の**3者が一致**。
+    - 手動 signout fetch（`/api/auth/signout`, `X-Auth-Return-Redirect`）→ POST 200 `{url}` → `/api/auth/session` が **`null`**（修正前はユーザーが残存）。
+    - UI ボタン（アバター→ログアウト）→ `/auth/login` へ遷移し `session=null`。
+    - `GET /api/auth/csrf` の Set-Cookie が **単一 `__Host-authjs.csrf-token`**（修正前は別値で2回。middleware がもう `/api/auth` の cookie を触らない確証）。
+    - 未ログインで `/ems/mypage` → `/auth/login?callbackUrl=%2Fems%2Fmypage` へリダイレクト（**ページ保護は維持**）。
+  - **残る cleanliness 項目（実害は未確認・非ブロッカー）**: middleware は `/ems/*` 等の保護ページでも auth() を走らせるため、ページ遷移ごとに session cookie を再発行しうる。ログアウトは `/api/auth/signout` 経由なので影響しないが、気になるなら matcher をさらに絞る余地あり。なお「`/api/auth/session` の `expires` が毎回前進する」のは**cookie 再発行の証拠ではない**（session エンドポイントは応答 body で常に `expires=now+maxAge` を再計算するため）。誤診しないこと。
 - **AUTH_SECRET を変えない**。変更＝全ユーザー強制ログアウト。
 - **Prisma は 6.19.x 固定**。7.0.0 は Workers で `Wasm code generation disallowed by embedder`（#28657、2026-07 時点 未解決）。6.16.x も CF 固有バグがあり避ける。
 - **R2 `put()` は上書きされる**。キー一意化（`crypto.randomUUID()`）必須。
@@ -383,7 +387,5 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
    - `/api/auth/session` がユーザーを返す **かつ** 保護ルート `/ems/mypage` が 200（＝middleware と route handler が同じ session を見る）。
    - `GET /api/auth/csrf` の Set-Cookie が **単一**（https なので `__Host-authjs.csrf-token` 一本。二重で出ないこと＝割れ解消の確証）。
    - ログアウト → `/api/auth/session` が `null` **かつ** `/ems/mypage` が `/auth/login` へリダイレクトして留まる。
-6. **判定**:
-   - 全て一貫 → **`AUTH_URL` を環境ごとに設定するだけで対策完了**（本番は `AUTH_URL=https://www.abs-ems.logicode.tech`）。候補の signout 修正（`logout-button.tsx`）も本番相当で確定。
-   - まだ二重 cookie / session=null が残る → 付録D の**フォールバック**（`auth.config.ts` で `useSecureCookies`/`cookies` 名を明示ピン）を適用し再デプロイ・再検証。
+6. **判定（✅ 2026-07-05 実施・完了）**: 上記5項目すべて green を確認。**対策は `AUTH_URL` 環境別設定だけでは不十分**で、`middleware.ts` の matcher から `/api/auth` を除外（真因B）する必要があった。両方適用済み＝本番相当で確定（付録D の「確定した対策」参照）。当初想定した `auth.config.ts` での cookie 名明示ピン（フォールバック）は**不要だった**（真因A は `AUTH_URL` だけで解消）。
 7. **後片付け**: 検証用 worker は `wrangler delete`、使い捨て secret も破棄。Neon ブランチは検証完了後に `npx neonctl branches delete cloudflare-migration-test --project-id noisy-base-93247272`。
