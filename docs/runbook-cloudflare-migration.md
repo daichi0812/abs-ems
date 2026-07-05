@@ -319,8 +319,9 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 - [ ] サインアウト（JWE セッションの往復）
 - [ ] 予約 CRUD（`lib/reservation-overlap.ts` の重複チェック含む）
 - [ ] 機材／タグ CRUD（`hasManagerAccess` ゲート＝`NEXT_PUBLIC_MANAGER_KEY` 経路も）
-- [ ] 画像アップロード（新規、R2 に入る＋一意キー）
-- [ ] 既存画像が next/image で R2 から表示（remotePatterns 未登録だと `next-image-unconfigured-host`）
+- [x] 画像アップロード（新規、R2 に入る＋一意キー）— **workerd/preview で検証済み**（403→200、ローカル R2 に blob 永続化。2-1 参照）
+- [ ] **既存 Vercel Blob 画像が表示できる（移行期の回帰確認）**: `unoptimized:true` は最適化と同時にホスト allowlist も外すので、`domains` 撤去後も旧 Vercel Blob URL の `<img>` は表示されるはず。`/ems/store`・`/ems/reserve/[id]` をブラウザで開き実際に描画されるか確認（curl では src 出力までしか見えない）
+- [ ] **R2 配信での画像表示**（⏳ カスタムドメイン待ち）: `R2_PUBLIC_BASE_URL` を実カスタムドメインに向けて新規アップロード→当該 URL で表示されるか。**この表示パスはカスタムドメインが立つまで検証不能**（スモークは偽ホストのため保存までしか確認していない）
 - [ ] PWA: `/sw.js` 登録、precache が 200、オフライン遷移、SW 更新サイクル
 - [ ] メール送信（2FA / リセット / 確認）
 - [ ] Worker 圧縮サイズが上限内（Free 3 MiB / Paid 10 MiB）
