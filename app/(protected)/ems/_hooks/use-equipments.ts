@@ -8,11 +8,19 @@ export const useEquipments = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refetch = async () => {
-    const response = await fetch("/api/lists");
-    const data: Equipment[] = await response.json();
-    const sortedData = data.sort((a, b) => a.name.localeCompare(b.name));
-    setEquipments(sortedData);
-    setIsLoading(false);
+    try {
+      const response = await fetch("/api/lists");
+      const data = await response.json();
+      // 非配列ボディ(401/500)でも .sort が例外を投げて無限スピナーにならないよう空配列に。
+      const list: Equipment[] = Array.isArray(data) ? data : [];
+      const sortedData = [...list].sort((a, b) => a.name.localeCompare(b.name));
+      setEquipments(sortedData);
+    } catch (error) {
+      console.error("Error fetching equipments:", error);
+    } finally {
+      // fetch/json が例外でも必ずスピナーを解除する
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {

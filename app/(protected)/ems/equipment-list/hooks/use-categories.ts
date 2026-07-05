@@ -19,7 +19,8 @@ export const useCategories = () => {
     try {
       const response = await fetch("/api/tags");
       const data = await response.json();
-      setCategories(data);
+      // 401/500 の非配列ボディでも render の .map がクラッシュしないよう空配列にフォールバック
+      setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching categories: ", error);
     } finally {
