@@ -39,6 +39,7 @@ export const useEquipmentRegistration = ({
         const responseVercel = await fetch(`/api/upload?filename=${file.name}`, {
           method: "POST",
           body: file,
+          headers: managerAuthHeaders(),
         });
         blob = (await responseVercel.json()) as PutBlobResult;
       }

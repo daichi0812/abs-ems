@@ -45,6 +45,7 @@ export const useEquipmentUpdate = ({
           const responseVercel = await fetch(`/api/upload?filename=${imageFile.name}`, {
             method: "POST",
             body: imageFile,
+            headers: managerAuthHeaders(),
           });
           const responseText = await responseVercel.text();
           console.log("Image upload response:", responseText);

@@ -129,6 +129,7 @@ describe("useEquipmentUpdate - submit", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=test.png", {
       method: "POST",
       body: file,
+      headers: managerAuthHeaders(),
     });
     expect(axios.put).toHaveBeenCalledWith(
       "/api/lists/5",
