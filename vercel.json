@@ -1,0 +1,14 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://abs-ems.forgeonics.com/",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://abs-ems.forgeonics.com/:path*",
+      "permanent": false
+    }
+  ]
+}
