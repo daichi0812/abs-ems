@@ -17,9 +17,16 @@ export const getDb = cache((): PrismaClient => {
 // へ委譲する Proxy を `db` として公開する。モジュールロード時には接続を張らないため、
 // Workers の per-request 制約を満たしつつ呼び出し側は無改修で動く。
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
+  get(_target, prop) {
     const client = getDb();
-    const value = Reflect.get(client as object, prop, receiver);
+    // receiver は敢えて渡さない: Prisma のモデルアクセサ（db.user 等）が this 経由の
+    // getter だと receiver=Proxy で get トラップに再入し、再帰や別インスタンス化を招くため。
+    // client を直接参照し、メソッドは client に bind して返す。
+    const value = Reflect.get(client, prop);
     return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(client) : value;
+  },
+  // PrismaAdapter 等が `prop in db` を使うケースに備えて has も委譲する。
+  has(_target, prop) {
+    return prop in getDb();
   },
 });

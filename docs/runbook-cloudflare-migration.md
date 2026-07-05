@@ -105,13 +105,21 @@ export const getDb = cache((): PrismaClient => {
 // 後方互換: 既存の `import { db }` / `db.xxx.method()` を無改修で動かす Proxy。
 // プロパティアクセス毎に getDb()（memoize済み）へ委譲＝モジュールロード時に接続を張らない。
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
-  get(_t, prop, recv) {
+  get(_t, prop) {
     const c = getDb();
-    const v = Reflect.get(c as object, prop, recv);
-    return typeof v === "function" ? v.bind(c) : v;
+    // receiver は渡さない: Prisma のモデルアクセサが this 経由 getter だと
+    // receiver=Proxy で get トラップに再入し得るため、c を直接参照する。
+    const v = Reflect.get(c, prop);
+    return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(c) : v;
+  },
+  // PrismaAdapter 等が `prop in db` を使うケースに備えて has も委譲。
+  has(_t, prop) {
+    return prop in getDb();
   },
 });
 ```
+
+> **Proxy の堅牢化（要点）**: `get` トラップで `Reflect.get` に **receiver を渡さない**こと。渡すと Prisma のモデルアクセサ（`db.user` 等）が this 経由 getter の場合に receiver=Proxy でトラップへ再入し、再帰や別インスタンス生成を招く。`has` も委譲して `prop in db` に備える。この Proxy は**モックされないコード経路（`PrismaAdapter(db)` の実 create/update、per-request の接続数）を含め、workerd 実行時に必ず動作確認する**（下記「1-6 実行時検証」）。ビルド通過とモックテスト全通過は**必要条件であって十分条件ではない**。
 
 > **churn は最小（実証済み）**: 上記 Proxy により `import { db }` 系（`auth.ts` の `PrismaAdapter(db)` 含む約30ファイル）は無改修。import パスも `@prisma/client` のままなので型 import の差し替えも不要。**vitest 335 テストも無改修で全通過**。
 >
@@ -135,12 +143,24 @@ serverExternalPackages: ["@prisma/client", ".prisma/client"],
 - **secret / vars**（Phase 3・付録B で詳述）: `AUTH_SECRET` は**現行本番と同一値**、`AUTH_TRUST_HOST=true`、`GOOGLE_*`・`GITHUB_*`。
 - 任意（bundle 衛生）: middleware が共有する `auth.config` から bcrypt/Prisma を切り離すと edge 共有バンドルが軽くなる。まず動かしてサイズを見てから判断。
 
-### 1-6. ローカル/プレビューで動作確認
+### 1-6. 実行時検証（workerd 実行 — Phase 1 完了の必須ゲート）
 
-- `.dev.vars` に実行時 secret と `NEXTJS_ENV=development` を置く。
-- `npm run preview`（= `opennextjs-cloudflare build && ... preview`）で Workers ランタイム上でローカル検証。
+> **⚠️ ここが Phase 1 完了の判定条件**。`cf:build` 通過＋モックテスト全通過は**コンパイルと Node モック挙動しか保証しない**。DB クエリ 1 本・認証フロー 1 本すら **workerd 上で実行されていない**。以下の実行時スモークを通して初めて Phase 1 を「検証済み」と呼べる。特に `lib/db.ts` の Proxy と `PrismaNeon`（WebSocket）の workerd 接続は、モックされないため未検証。
 
-> **✅ Phase 1 scaffold 実測結果（2026-07-05）**: `npm run cf:build` 成功（`next build` 型検査通過＋OpenNext 変換完了、Prisma も workerd 向けに正常バンドル）。**vitest 335 テスト全通過**。`wrangler deploy --dry-run` の圧縮アップロードサイズ = **gzip 4.37 MiB**（生 ~18 MiB）。→ **Free の 3 MiB 上限は超過、Paid の 10 MiB には余裕で収まる**。コストは既に「Vercel Pro $20 vs CF $5」で決着済みなので、Paid $5 で確定。
+手順:
+
+- `.dev.vars` に実行時 secret（`AUTH_SECRET` / `DATABASE_URL` / OAuth secret / `RESEND_API_KEY`）と `NEXTJS_ENV=development` を置く（値は `.env.vercel-export` から。`.dev.vars` は gitignore 済み）。
+- `npm run preview`（= `opennextjs-cloudflare build && ... preview`）で Workers ランタイム(workerd)上でローカル起動。
+- 起動した Worker に対し**最低 2 系統**を実際に叩く:
+  1. **read パス**（例: 機材一覧ページ）— Proxy → `getDb()` → `PrismaNeon` の workerd 接続と DB 読取を通す。
+  2. **credentials サインイン** — `bcrypt.compare` ＋ JWE セッション発行 ＋ `PrismaAdapter(db)` の実書き込み系を通す。
+- あわせて **per-request の Neon 接続数**を確認（Proxy 経由で `db.x` アクセス毎に新クライアントが生成されていないか。cache() スコープが効いていれば 1 リクエスト 1 クライアント）。
+
+> **🛑 本番 DB 汚染ハザード**: `DATABASE_URL` は**本番 Neon 直結**（メモリ/ADR 参照）。認証フロー（登録・`linkAccount` の `emailVerified` 更新・2FA 確認削除・adapter のユーザー/セッション作成）は**書き込みを伴う**ため、サインインのスモークを本番 DB で流すと**本番データを変更する**。→ **Neon のブランチ機能**で本番のisolatedコピーを作り、`.dev.vars` の `DATABASE_URL` をそのブランチに向けてテストする。read パスだけなら本番でも可だが、書き込み系は必ずブランチで。
+>
+> **Proxy が実行時に失敗した場合のフォールバック**: 30ファイル無改修を狙った Proxy はあくまで「賭け」。もし delegate 再入・adapter の enumerate・接続過多が出たら、各呼び出し側を明示的な `getDb()` に置き換える（退屈だが安全）方式に切り替える。
+
+> **✅ Phase 1 scaffold 実測結果（2026-07-05・ビルド/テスト段階）**: `npm run cf:build` 成功（`next build` 型検査通過＋OpenNext 変換完了、Prisma も workerd 向けに正常バンドル）。**vitest 335 テスト全通過**、`tsc --noEmit` は `lib/db.ts` エラー無し（残る 1 件は既存のテストファイルの `RefObject` キャストで `next build` 対象外）。`wrangler deploy --dry-run` の圧縮アップロードサイズ = **gzip 4.37 MiB**（生 ~18 MiB）。→ **Free の 3 MiB 上限は超過、Paid の 10 MiB には余裕で収まる**。コストは既に「Vercel Pro $20 vs CF $5」で決着済みなので、Paid $5 で確定。**← ただし上記の workerd 実行時スモークは未実施＝Phase 1 は「ビルド検証済み・実行時未検証」の段階。**
 
 ---
 
