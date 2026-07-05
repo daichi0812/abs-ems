@@ -256,6 +256,20 @@ actions/login.test.ts
 - ✅ **書く**: Zod スキーマのバリデーション分岐、Server Action の各エラーパス、Prisma を呼ぶ data 層、純粋関数
 - ⚠️ **後回し**: UI コンポーネント（Phase 2 以降で snapshot / interaction テストを追加予定）
 
+## DB 運用（Prisma migration）
+
+2026-07-06 から dev / 本番を分離し、Prisma migration で管理する。
+
+- **dev DB**: Neon の `abs-ems` データベース。ローカル `.env` の `DATABASE_URL` はこちらを指す
+- **本番 DB**: Neon の `logicode-auth`。ローカル `.env` には置かない（`.env.production.local`＝gitignore 済みと、GitHub Actions Secret `DATABASE_URL` のみ）
+- **スキーマ変更の手順**:
+  1. `prisma/schema.prisma` を編集
+  2. `npm run db:migrate:dev -- --name <変更内容>` — dev DB に適用され `prisma/migrations/` に SQL が生成される
+  3. feat ブランチごと develop → main へマージすると、deploy.yml の `prisma migrate deploy` step が**デプロイ前に本番へ適用**する
+- **禁止**: ローカルから本番への `prisma db push` / `migrate dev`。本番へのスキーマ適用は CI 経由のみ
+- **シード**: `npm run db:seed`（dev 専用。本番 URL を検知すると中止する。テストユーザーは dev1〜dev4@example.com / devpass123）
+- baseline: `prisma/migrations/0_init/` が 2026-07-06 時点の本番スキーマ。本番には `migrate resolve --applied 0_init` で適用済み記録のみ行った（DDL 非実行）
+
 ## 補足
 
 - 詳細な背景・図解・研究向けケースは Notion の [Gitブランチ戦略ベストプラクティス](https://www.notion.so/d0c1aee52da245b1a33fb0b35e7a53f4) を参照
