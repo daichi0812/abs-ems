@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import type { Tag as Tags } from "@/types/domain";
@@ -35,7 +36,7 @@ export const useEquipmentUpdate = ({
     }
   };
 
-  const submit = async () => {
+  const submit = async (): Promise<boolean> => {
     try {
       let blobUrl = currentImageUrl;
 
@@ -54,8 +55,8 @@ export const useEquipmentUpdate = ({
           blobUrl = blob.url;
         } catch (error) {
           console.error("Image upload failed:", error);
-          alert("画像のアップロードに失敗しました");
-          return;
+          toast.error("画像のアップロードに失敗しました");
+          return false;
         }
       }
 
@@ -73,18 +74,21 @@ export const useEquipmentUpdate = ({
           },
         );
         console.log("Update response:", response.data);
-        alert("機材情報が更新されました");
+        toast.success("機材情報を更新しました");
         onSuccess();
+        return true;
       } catch (error) {
         console.error("Failed to update equipment:", error);
         if (axios.isAxiosError(error)) {
           console.error("Response data:", error.response?.data);
         }
-        alert("機材情報の更新に失敗しました");
+        toast.error("機材情報の更新に失敗しました");
+        return false;
       }
     } catch (err) {
       console.error("Unexpected error:", err);
-      alert("予期せぬエラーが発生しました");
+      toast.error("予期せぬエラーが発生しました");
+      return false;
     }
   };
 
