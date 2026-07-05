@@ -99,6 +99,15 @@ export function formatDayIndexShort(dayIndex: number): string {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 
+/** day index を API 送信用の "YYYY-MM-DD"（JST 暦日）に変換する。 */
+export function dayIndexToDateString(dayIndex: number): string {
+  const d = dayIndexToUtcDate(dayIndex);
+  const y = d.getUTCFullYear();
+  const m = `${d.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getUTCDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** 期間（inclusive）を「M/D」または「M/D〜M/D」にする。 */
 export function formatRange(startIdx: number, endIdx: number): string {
   return startIdx === endIdx
