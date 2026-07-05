@@ -124,5 +124,6 @@ export const {
   },
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
+  // trustHost: true は auth.config.ts に集約（ハンドラ用と middleware 用の両インスタンスに効かせるため）。
   ...authConfig,
 })

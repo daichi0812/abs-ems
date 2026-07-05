@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
 const { hasManagerAccessMock, putMock } = vi.hoisted(() => ({
@@ -10,22 +10,32 @@ const { hasManagerAccessMock, putMock } = vi.hoisted(() => ({
 vi.mock("@/lib/api-auth", () => ({
   hasManagerAccess: hasManagerAccessMock,
 }));
-vi.mock("@vercel/blob", () => ({
-  put: putMock,
+// R2 バインディングは OpenNext の getCloudflareContext().env 経由で取得する。
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({ env: { IMAGES_BUCKET: { put: putMock } } }),
 }));
 
 import { POST } from "./route";
 
-// ハンドラは req.url / req.blob() しか使わないため、素の Request を NextRequest として渡す
+const BASE = "https://img.example.test";
+
+// ハンドラは req.url / req.headers / req.arrayBuffer() しか使わないため、素の Request を NextRequest として渡す
 const uploadRequest = (qs = "?filename=test.png") =>
   new Request(`http://localhost/api/upload${qs}`, {
     method: "POST",
     body: "data",
+    headers: { "content-type": "image/png" },
   }) as unknown as NextRequest;
 
 beforeEach(() => {
   hasManagerAccessMock.mockReset();
   putMock.mockReset();
+  putMock.mockResolvedValue(undefined);
+  process.env.R2_PUBLIC_BASE_URL = BASE;
+});
+
+afterEach(() => {
+  delete process.env.R2_PUBLIC_BASE_URL;
 });
 
 describe("POST /api/upload", () => {
@@ -47,19 +57,32 @@ describe("POST /api/upload", () => {
     expect(putMock).not.toHaveBeenCalled();
   });
 
-  it("uploads and returns the blob for a manager", async () => {
+  it("returns 500 when R2_PUBLIC_BASE_URL is not configured", async () => {
     hasManagerAccessMock.mockResolvedValue(true);
-    putMock.mockResolvedValue({ url: "https://blob/test.png" });
+    delete process.env.R2_PUBLIC_BASE_URL;
+
+    const res = await POST(uploadRequest());
+
+    expect(res.status).toBe(500);
+    expect(putMock).not.toHaveBeenCalled();
+  });
+
+  it("uploads to R2 with a unique key and returns the public url for a manager", async () => {
+    hasManagerAccessMock.mockResolvedValue(true);
 
     const res = await POST(uploadRequest());
 
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.url).toBe("https://blob/test.png");
-    expect(putMock).toHaveBeenCalledWith(
-      "test.png",
-      expect.anything(),
-      expect.objectContaining({ access: "public", addRandomSuffix: true }),
-    );
+    expect(putMock).toHaveBeenCalledTimes(1);
+
+    // キーは `${uuid}-${filename}` 形式で一意化されている
+    const [key, body, opts] = putMock.mock.calls[0];
+    expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-test\.png$/);
+    expect(body).toBeInstanceOf(ArrayBuffer);
+    expect(opts).toMatchObject({ httpMetadata: { contentType: "image/png" } });
+
+    // 応答は後方互換の { url }。カスタムドメイン + キーの絶対 URL。
+    const responseBody = await res.json();
+    expect(responseBody.url).toBe(`${BASE}/${key}`);
   });
 });

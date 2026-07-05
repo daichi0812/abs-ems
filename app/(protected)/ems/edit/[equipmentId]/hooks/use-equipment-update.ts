@@ -1,7 +1,6 @@
 "use client";
 
 import axios from "axios";
-import type { PutBlobResult } from "@vercel/blob";
 import { useRef, useState } from "react";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
 import { managerAuthHeaders } from "@/lib/manager-auth";
@@ -50,7 +49,8 @@ export const useEquipmentUpdate = ({
           const responseText = await responseVercel.text();
           console.log("Image upload response:", responseText);
 
-          const blob = JSON.parse(responseText) as PutBlobResult;
+          // アップロード API（R2）の応答は { url } のみ（旧 Vercel Blob の PutBlobResult 依存を除去）
+          const blob = JSON.parse(responseText) as { url: string };
           blobUrl = blob.url;
         } catch (error) {
           console.error("Image upload failed:", error);
