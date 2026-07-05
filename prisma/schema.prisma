@@ -112,7 +112,8 @@ model Reserve {
 }
 
 model Tag {
-  id      Int  @id @default(autoincrement())
-  name    String?
-  color   String @default("#3788D8")
+  id        Int  @id @default(autoincrement())
+  name      String?
+  color     String @default("#3788D8")
+  sortOrder Int    @default(0) @map("sort_order")
 }
