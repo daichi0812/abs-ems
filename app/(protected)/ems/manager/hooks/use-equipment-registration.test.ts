@@ -140,6 +140,7 @@ describe("useEquipmentRegistration - submit", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=test.png", {
       method: "POST",
       body: file,
+      headers: managerAuthHeaders(),
     });
     expect(axios.post).toHaveBeenCalledWith(
       "/api/lists",

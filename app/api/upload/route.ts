@@ -2,8 +2,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
+import { hasManagerAccess } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
+  // 機材画像アップロードは管理操作。lists/tags の変更系と同じ hasManagerAccess で守り、
+  // 未認証の匿名アップロード（blob ストレージ悪用）を防ぐ。
+  if (!(await hasManagerAccess(req))) {
+    return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
+  }
+
   const { searchParams } = new URL(req.url);
   const filename = searchParams.get('filename');
 

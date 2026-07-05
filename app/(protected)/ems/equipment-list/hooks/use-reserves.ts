@@ -9,8 +9,9 @@ export const useReserves = () => {
   const refetch = async () => {
     try {
       const response = await fetch("/api/reserves");
-      const data: Reserve[] = await response.json();
-      setReserves(data);
+      const data = await response.json();
+      // 401/500 の非配列ボディでも競合判定/描画がクラッシュしないよう空配列にフォールバック
+      setReserves(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching reserves:", error);
     }
