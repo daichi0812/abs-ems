@@ -262,7 +262,7 @@ Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_r
 
 - **Speed Insights 削除**: `app/layout.tsx` の `<SpeedInsights />` と import を削除、`@vercel/speed-insights` を uninstall。代替が要れば Cloudflare Web Analytics（ただし**ルート別 Core Web Vitals は取れない**、サイト全体の指標のみ）。
 - **Vercel Blob 依存削除**: `@vercel/blob` を uninstall。機材フックの `import type { PutBlobResult } from "@vercel/blob"`（`use-equipment-registration.ts` / `use-equipment-update.ts`）も削除し、返り値型を新しいアップロード応答（`{ url: string }`）に合わせる。
-- **Resend**: SDK はそのまま Workers で動く。ただし `lib/mail.ts` は `const resend = new Resend(process.env.RESEND_API_KEY)` を**モジュール先頭で読む**。`RESEND_API_KEY` を**実行時 secret** として供給する（ビルド時 `NEXT_PUBLIC` にしない）。モジュール初期化時に凍結される懸念があれば、`resend` 生成を各関数内へ移す。
+- **Resend → Cloudflare Email Sending へ移行済み ✅（2026-07-06・カットオーバー翌日）**: `lib/mail.ts` を `EMAIL` バインディング（`env.EMAIL.send`）に書き換え、`resend` パッケージと `RESEND_API_KEY`（Worker secret・.dev.vars）を撤去。送信元は **`noreply@abs-ems.forgeonics.com`** に統一（`wrangler email sending enable abs-ems.forgeonics.com` でオンボード、SPF/DKIM/DMARC は zone に自動追加、`allowed_sender_addresses` で送信元を束縛）。`getCloudflareContext()` は**関数内で**呼ぶ（`next dev` で import 死しないため）。**本番実地検証済み**: パスワードリセットメールが `ABS EMS <noreply@abs-ems.forgeonics.com>` から Gmail の Inbox に到達（迷惑メール判定なし）。ローカル `wrangler dev` では実送信されない（実送信テストは一時的に binding へ `"remote": true`）。
 - **環境変数の移管**: [付録B](#付録b-環境変数マップ) の通り、実行時 secret を `wrangler secret put` / ダッシュボードへ。デプロイは `--keep-vars` でダッシュボード設定を消さない。
 
 ---
@@ -308,7 +308,8 @@ Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_r
 | `app/api/upload/route.ts` | `@vercel/blob put` → `getCloudflareContext().env.IMAGES_BUCKET.put`（`${uuid}-${safeName}` 一意キー＋contentType）、URL は `R2_PUBLIC_BASE_URL/<key>`、応答は `{ url }`。base 未設定は 500 |
 | `app/layout.tsx` | `<SpeedInsights/>` と import 削除 |
 | `use-equipment-registration.ts` / `use-equipment-update.ts` | `PutBlobResult` 型 import 削除、応答型を `{ url }` に |
-| `lib/mail.ts` | `RESEND_API_KEY` を実行時 secret として供給（必要なら関数内読みへ） |
+| `lib/mail.ts` | ~~Resend SDK~~ → **Cloudflare Email Sending（`EMAIL` バインディング）へ書き換え（2026-07-06）**。送信元 `noreply@abs-ems.forgeonics.com`・text 併記・`getCloudflareContext` は関数内呼び |
+| `.github/workflows/deploy.yml`（新規） | **CI/CD（2026-07-06）**: main push で `npm ci`→vitest(336)→OpenNext ビルド→deploy。Secrets: `CLOUDFLARE_API_TOKEN`/`NEXT_PUBLIC_API_KEY`/`NEXT_PUBLIC_MANAGER_KEY`。初回実走成功（15:27 UTC 自動デプロイ） |
 | `middleware.ts` | **matcher から `/api/auth` を除外**（`'/((?!api/auth\|.+\\.[\\w]+$\|_next).*)'`＋`'/(api(?!/auth)\|trpc)(.*)'`）。middleware の `auth()` が `/api/auth/signout` で Auth.js を二重実行し signout の削除 cookie を打ち消す**ログアウト不能の真因B**の対策（付録D）。ページ/その他 API の保護は不変 |
 | `auth.config.ts` | `trustHost: true` を静的に明示（ハンドラ用＋middleware 用の両 NextAuth インスタンスに効かせる。付録D） |
 | `components/auth/logout-button.tsx` | Server Action `logout()` → **クライアント `signOut`（`next-auth/react`, `/api/auth/signout` へ POST）**。Server Action 版はページ経路 POST で真因B に潰されるため（付録D） |
@@ -329,7 +330,7 @@ Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_r
 | `DIRECT_URL` | 実行時 secret | wrangler secret（**直結 URL**、migrate 用。新規） |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
 | `GITHUB_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
-| `RESEND_API_KEY` | 実行時 secret | wrangler secret（`lib/mail.ts` で使用） |
+| `RESEND_API_KEY` | ~~実行時 secret~~ **廃止（2026-07-06）** | Cloudflare Email Sending（`EMAIL` バインディング）へ移行済み。Worker secret・.dev.vars とも削除済み |
 | `R2_PUBLIC_BASE_URL` | 実行時 var（新規） | **`https://images.abs-ems.forgeonics.com`**（R2 バケット `abs-ems-images` に接続済みのカスタムドメイン。2026-07-05 接続）。`app/api/upload/route.ts` が組み立てる公開 URL の前半。secret でも `NEXT_PUBLIC` でもない。preview は `.dev.vars`、本番は wrangler var。データ移行 SQL の置換先ホストと**同一値**にする |
 | `SECRET_API_KEY` | — | **コード参照なし（2026-07 監査で確認）**。未使用なら移行不要。外部連携で使っていないか確認のうえ drop 検討 |
 | `NEXT_PUBLIC_API_KEY` | ビルド時インライン | ビルド環境（`use-reservation-data.ts`） |
@@ -360,7 +361,7 @@ Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_r
 - [x] **R2 配信での画像表示 — 配信パス検証済み ✅（2026-07-05）**: `abs-ems-images` にカスタムドメイン `images.abs-ems.forgeonics.com` を接続（`wrangler r2 bucket domain add`、ownership/ssl とも active）。テスト画像を `--remote` で put → `https://images.abs-ems.forgeonics.com/<key>` が **HTTP 200 / `content-type: image/png`** で配信されることを確認（検証後 object 削除）。`.dev.vars` の `R2_PUBLIC_BASE_URL` を実値に更新済み。**e2e 完了 ✅（2026-07-05 カットオーバー時）**: 本番で機材一覧・予約ページの既存41件（R2 URL 書き換え後）が全て描画、新規アップロード→登録→表示も目視確認。`R2_PUBLIC_BASE_URL` は wrangler var 投入済み。
 - [x] **既存画像のデータ移行（Blob→R2）— 全ステップ本番実施完了 ✅（2026-07-05 カットオーバー）**。確定版スクリプト4本（`scripts/migration/`）＋4観点敵対的レビュー（critical=0）を経て実施。**本番実績**: ②コピー **70/70（fail:0）** → ③到達性ゲート **41/41=200（非ASCII 1件・id139 含む）** → ④ Neon SQL Editor で step 個別実行（backup 41行 → 対象41・非https 0 確認 → プレビュー → UPDATE 40＋1）→ 検証 **new_host 41／old_host 0／with_quote 0／users残存 0／backup に blob URL 41行保持（切り戻し可）**。**id139 は移行前は引用符混入で表示不能だった画像が R2 URL で 200 image/jpeg を返すようになり復活**。実データ補足: id139 の引用符は「先頭のみ1個」だった（事前予想の先頭+末尾2個と異なるが、`REPLACE` は全除去のため結果は同一・③ゲートで除去後 URL の 200 も実証済み）。Vercel Blob の実体は削除していない（後片付けは安定稼働後）。
 - [~] **PWA — SW 登録＋precache 稼働まで検証済み（2026-07-05）**: workerd 配信の `/sw.js` が 200/304 で取得され、SW が登録・ページを制御し、serwist のキャッシュ群（`serwist-precache-v2` / `pages-rsc` / `pages-rsc-prefetch` / `apis` / `next-static-js-assets` 他 計7）が実際に生成されることを確認。**残り**: オフライン遷移・SW 更新サイクルは本番ドメインで確認。⚠️ 開発時の注意: SW が localhost を掌握しナビゲーションを吸うため、preview 検証で挙動が不可解になったら SW unregister＋キャッシュ削除（または別ポート）から始めること。
-- [x] **2FA ＋ メール送信（RESEND）— 検証済み ✅（workers.dev https, 2026-07-05）**。2FA 有効テストユーザーで Credentials ログイン → **`{twoFactor: true}` が返り 2FA コード入力画面へ**（＝`resend` SDK が workerd で例外なく動作＝`sendTwoFactorTokenEmail` の RESEND 呼び出しが Workers で成功。`login.ts` は try/catch 無しで await するため、失敗すれば login ごと落ちる＝ここが唯一の 2FA 固有 Workers リスクだった）→ DB の `TwoFactorToken` を読みコード投入 → `TwoFactorConfirmation` 作成 → セッション成立（`isTwoFactorEnabled:true`）まで一気通貫。送信元は `2factor-auth@servantleader-inc.com`（RESEND 検証済みドメイン・アプリのドメイン変更に非依存）。**リセット/確認メール**は同じ `resend` SDK 経由なので SDK 動作は共通で確認済み。ただしリンク本文は `NEXT_PUBLIC_APP_URL`（ビルド時インライン）を使うため、**本番ビルドで `NEXT_PUBLIC_APP_URL=https://abs-ems.forgeonics.com` にすること**（さもないとリセット/確認リンクが旧ドメインを指す）。実配信の到達性は RESEND アカウント側＝Vercel と同一。
+- [x] **2FA ＋ メール送信（RESEND）— 検証済み ✅（workers.dev https, 2026-07-05）**。2FA 有効テストユーザーで Credentials ログイン → **`{twoFactor: true}` が返り 2FA コード入力画面へ**（＝`resend` SDK が workerd で例外なく動作＝`sendTwoFactorTokenEmail` の RESEND 呼び出しが Workers で成功。`login.ts` は try/catch 無しで await するため、失敗すれば login ごと落ちる＝ここが唯一の 2FA 固有 Workers リスクだった）→ DB の `TwoFactorToken` を読みコード投入 → `TwoFactorConfirmation` 作成 → セッション成立（`isTwoFactorEnabled:true`）まで一気通貫。送信元は `2factor-auth@servantleader-inc.com`（RESEND 検証済みドメイン・アプリのドメイン変更に非依存）。**リセット/確認メール**は同じ `resend` SDK 経由なので SDK 動作は共通で確認済み。ただしリンク本文は `NEXT_PUBLIC_APP_URL`（ビルド時インライン）を使うため、**本番ビルドで `NEXT_PUBLIC_APP_URL=https://abs-ems.forgeonics.com` にすること**（さもないとリセット/確認リンクが旧ドメインを指す）。実配信の到達性は RESEND アカウント側＝Vercel と同一。**→ その後 2026-07-06 に Resend を廃止し Cloudflare Email Sending へ移行（Phase 3 の項参照。本番でリセットメールの Inbox 到達を実地確認済み）。**
 - [x] **Worker 圧縮サイズ — 実測 gzip 4.08 MiB（2026-07-05）**: Free 3 MiB は超過・**Workers Paid（$5/月）の 10 MiB 内**。移行の費用計画は元々 Workers Paid 前提で、workers.dev への deploy も既に成功済み（＝アカウントは受け付け済み）なので問題なし。今後バンドルが 10 MiB に迫ったら削減を検討。
 
 ---
