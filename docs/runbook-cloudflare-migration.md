@@ -317,10 +317,10 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## 付録C: 検証チェックリスト（プレビュー→本番）
 
-- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。**✅ session 一貫性は workers.dev https で再検証済み（2026-07-05）**: ログイン後 middleware（保護ルート遷移）・ページ描画・`/api/auth/session` の3者が一致（付録D 参照）。Google OAuth は下記で検証済み。**2FA 経路のみ未検証**（本番で `isTwoFactorEnabled=true` の利用者がいるかは要確認）。
+- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。**✅ session 一貫性は workers.dev https で再検証済み（2026-07-05）**: ログイン後 middleware（保護ルート遷移）・ページ描画・`/api/auth/session` の3者が一致（付録D 参照）。Google OAuth・**2FA も下記で検証済み**（本番の 2FA 利用者は 4人・全員 Credentials 主。GitHub 連携2件は捨てテストユーザーで対応不要）。
 - [x] **Google ログイン — 検証済み ✅（workers.dev https, 2026-07-05）**。新 OAuth クライアントで authorize（PKCE, `scope=openid profile email`）→ Google 同意 → コールバック（worker からの外部 fetch でコード交換）→ **PrismaAdapter が空 DB に User＋Account(`provider=google`, `id_token` 保存) を作成** → セッション成立（`isOAuth:true`）→ 保護ルート表示 → **ログアウトで `session=null`** まで一気通貫で成功。※`provider_account_id`＝Google の `sub` はクライアントを変えても不変なので、**OAuth クライアント作り直し後も既存 Google ユーザーは連携維持**（DB で Account 行を実確認）。検証は使い捨て空 DB（新規 Neon ブランチ＋空データベース `absems_oauth`）＋使い捨て `AUTH_SECRET` で実施し実 PII 非公開。
 - [x] **サインアウト＋セッション一貫性 — 解決済み ✅（workers.dev https で e2e 検証済み・2026-07-05。付録D 参照）** — 真因は2つ（A: `AUTH_URL` 未設定の cookie-secure 名割れ、B: middleware matcher が `/api/auth` を含む二重実行で signout の削除 cookie を打ち消す）。対策は **① `middleware.ts` の matcher から `/api/auth` 除外 ② `AUTH_URL` を環境ごとに設定 ③ クライアント `signOut`（`/api/auth/signout`）**。検証: ログアウト→`session=null`＋`/auth/login` 遷移、`GET /api/auth/csrf` の Set-Cookie が単一 `__Host-authjs.csrf-token`、未ログイン保護ルートは login へリダイレクト。**本番カットオーバー時に `AUTH_URL=https://abs-ems.forgeonics.com` の投入を忘れないこと**（真因A が再発する）。
-- [ ] GitHub ログイン（`@auth/prisma-adapter` の linkAccount 経路）
+- [~] **GitHub ログイン — 対応不要（スキップ）**。本番 DB 調査（2026-07-05）で GitHub 連携は **2件のみ・いずれも本人確認済みの捨てテストユーザー**（`github_only`=2 だが実ユーザーではない）。実ユーザーのロックアウトリスク無しのため、Workers での GitHub OAuth 検証・新ドメインの callback 設定は**カットオーバー要件から除外**。ログイン画面の GitHub ボタンは無害なので残置可（気になれば非表示に）。将来必要になったら Google と同手順で対応可能。
 - [x] middleware で保護されたルートのリダイレクト挙動 — **検証済み**（未ログインで `/api/upload`・`/ems/*` が 302→`/auth/login`、ログイン後は保護ページ表示）
 - [ ] 予約 CRUD（`lib/reservation-overlap.ts` の重複チェック含む）
 - [ ] 機材／タグ CRUD（`hasManagerAccess` ゲート＝`NEXT_PUBLIC_MANAGER_KEY` 経路も）
@@ -328,7 +328,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 - [ ] **既存 Vercel Blob 画像が表示できる（移行期の回帰確認）**: `unoptimized:true` は最適化と同時にホスト allowlist も外すので、`domains` 撤去後も旧 Vercel Blob URL の `<img>` は表示されるはず。`/ems/store`・`/ems/reserve/[id]` をブラウザで開き実際に描画されるか確認（curl では src 出力までしか見えない）
 - [x] **R2 配信での画像表示 — 配信パス検証済み ✅（2026-07-05）**: `abs-ems-images` にカスタムドメイン `images.abs-ems.forgeonics.com` を接続（`wrangler r2 bucket domain add`、ownership/ssl とも active）。テスト画像を `--remote` で put → `https://images.abs-ems.forgeonics.com/<key>` が **HTTP 200 / `content-type: image/png`** で配信されることを確認（検証後 object 削除）。`.dev.vars` の `R2_PUBLIC_BASE_URL` を実値に更新済み。**残り**: アプリからの新規アップロード→保存 URL→`<img>` 描画の e2e はデプロイ時に実確認（upload の `put` は 2-1 で workerd 検証済み・配信も本項で確認済みなので、両者を繋ぐ描画確認のみ）。本番は `R2_PUBLIC_BASE_URL` を wrangler var で投入。
 - [ ] PWA: `/sw.js` 登録、precache が 200、オフライン遷移、SW 更新サイクル
-- [ ] メール送信（2FA / リセット / 確認）
+- [x] **2FA ＋ メール送信（RESEND）— 検証済み ✅（workers.dev https, 2026-07-05）**。2FA 有効テストユーザーで Credentials ログイン → **`{twoFactor: true}` が返り 2FA コード入力画面へ**（＝`resend` SDK が workerd で例外なく動作＝`sendTwoFactorTokenEmail` の RESEND 呼び出しが Workers で成功。`login.ts` は try/catch 無しで await するため、失敗すれば login ごと落ちる＝ここが唯一の 2FA 固有 Workers リスクだった）→ DB の `TwoFactorToken` を読みコード投入 → `TwoFactorConfirmation` 作成 → セッション成立（`isTwoFactorEnabled:true`）まで一気通貫。送信元は `2factor-auth@servantleader-inc.com`（RESEND 検証済みドメイン・アプリのドメイン変更に非依存）。**リセット/確認メール**は同じ `resend` SDK 経由なので SDK 動作は共通で確認済み。ただしリンク本文は `NEXT_PUBLIC_APP_URL`（ビルド時インライン）を使うため、**本番ビルドで `NEXT_PUBLIC_APP_URL=https://abs-ems.forgeonics.com` にすること**（さもないとリセット/確認リンクが旧ドメインを指す）。実配信の到達性は RESEND アカウント側＝Vercel と同一。
 - [ ] Worker 圧縮サイズが上限内（Free 3 MiB / Paid 10 MiB）
 
 ---
