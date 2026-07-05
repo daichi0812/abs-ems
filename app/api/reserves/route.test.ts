@@ -4,9 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
 const createMock = vi.fn();
-// findMany はファクトリ内で即時参照されるため vi.hoisted で初期化する
+// findMany / currentUser はファクトリ内で即時参照されるため vi.hoisted で初期化する
 // （findFirst/create は $transaction 内の遅延参照なので通常の const で足りる）。
-const { findManyMock } = vi.hoisted(() => ({ findManyMock: vi.fn() }));
+const { findManyMock, currentUserMock } = vi.hoisted(() => ({
+  findManyMock: vi.fn(),
+  currentUserMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -15,6 +18,11 @@ vi.mock("@/lib/db", () => ({
       fn({ reserve: { findFirst: findFirstMock, create: createMock } }),
     ),
   },
+}));
+
+// GET はログイン必須。既定では認証済みユーザーを返し、未認証ケースは個別に上書きする。
+vi.mock("@/lib/auth", () => ({
+  currentUser: currentUserMock,
 }));
 
 import { GET, POST } from "./route";
@@ -42,6 +50,9 @@ beforeEach(() => {
   createMock.mockReset();
   findManyMock.mockReset();
   findManyMock.mockResolvedValue([]);
+  // 既定はログイン済み（GET テストの大半はこの前提）。未認証は各テストで上書き。
+  currentUserMock.mockReset();
+  currentUserMock.mockResolvedValue({ id: "tester", role: "USER" });
 });
 
 describe("POST /api/reserves", () => {
@@ -144,6 +155,13 @@ describe("POST /api/reserves", () => {
 const getRequest = (qs = "") => new Request(`http://localhost/api/reserves${qs}`);
 
 describe("GET /api/reserves", () => {
+  it("returns 401 and does not query the DB when unauthenticated", async () => {
+    currentUserMock.mockResolvedValueOnce(undefined);
+    const res = await GET(getRequest());
+    expect(res.status).toBe(401);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns all reserves (empty where) when no query params", async () => {
     const res = await GET(getRequest());
     expect(res.status).toBe(200);
