@@ -51,23 +51,19 @@ export const useCalendarData = () => {
   const [isFetching, setIsFetching] = useState<boolean>(true);
 
   const fetchReservesData = async () => {
-    // ユーザーリストを取得
-    const responseLists1 = await fetch("/api/users");
-    const reservesListsData1: User[] = await responseLists1.json();
+    // 4つのAPIは互いに独立なので並列取得する（従来は直列awaitでウォーターフォールになっていた）
+    const [reservesListsData1, reservesListsData2, tags, reservesData] = await Promise.all([
+      fetch("/api/users").then((res) => res.json() as Promise<User[]>),
+      fetch("/api/lists").then((res) => res.json() as Promise<List[]>),
+      fetch("/api/tags").then((res) => res.json() as Promise<Tag[]>),
+      fetch("/api/reserves").then((res) => res.json() as Promise<Reserve[]>),
+    ]);
 
     // ユーザーIDをキーにして名前をマッピング
     const idToNameMap1: { [key: string]: string } = reservesListsData1.reduce((map, item) => {
       map[item.id] = item.name;
       return map;
     }, {} as { [key: string]: string });
-
-    // 機材データを取得
-    const responseLists2 = await fetch("/api/lists");
-    const reservesListsData2: List[] = await responseLists2.json();
-
-    // タグデータを取得
-    const responseTags = await fetch("/api/tags");
-    const tags: Tag[] = await responseTags.json();
 
     // IDをキーにして機材名と色をマッピング
     const idToNameMap2: { [key: string]: string } = {};
@@ -82,10 +78,6 @@ export const useCalendarData = () => {
     tags.forEach((tag) => {
       idToColorMap[tag.id] = tag.color;
     });
-
-    // 予約データを取得
-    const response = await fetch("/api/reserves");
-    const reservesData: Reserve[] = await response.json();
 
     // 新しいイベントの一時配列を作成
     const newEvents: CalendarEvent[] = reservesData.map((item) => {
