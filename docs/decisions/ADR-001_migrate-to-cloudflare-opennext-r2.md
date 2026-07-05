@@ -44,7 +44,7 @@
 技術判断の要点（一次ソースで検証済み。詳細な手順は [`../runbook-cloudflare-migration.md`](../runbook-cloudflare-migration.md)）:
 
 - **アダプタは `@opennextjs/cloudflare`（Workers）**。旧 `@cloudflare/next-on-pages`（Pages）は非推奨・リポジトリはアーカイブ済み（2025-09-29）。App Router / Server Actions / Route Handlers / middleware / SSR ストリーミングはサポート対象。
-- **Prisma は 5.13 → 6.19.x へ上げる**。Workers ではドライバアダプタ `@prisma/adapter-neon` が必須。generator を `prisma-client-js` → `prisma-client`（`runtime = "cloudflare"`）へ。**Prisma 7.0.0 は Workers で未解決の WASM 不具合（#28657）があり避ける**。
+- **Prisma は 5.13 → 6.19.x へ上げる**。Workers ではドライバアダプタ `@prisma/adapter-neon` が必須（6.19 で driverAdapters は GA）。generator は `prisma-client-js` のままで可、`lib/db.ts` を per-request 化＋後方互換 Proxy にするだけで済む（**import 総差し替えは不要と Phase 1 で実証**）。**Prisma 7.0.0 は Workers で未解決の WASM 不具合（#28657）があり避ける**。
 - **認証は bcrypt を維持**（別方式へ替えると既存パスワードが全て無効化される）。ただし **bcryptjs は 2.4.3 → 3.x へ上げる**（2.4.3 は workerd 上で salt/hash 生成の乱数源が不安定。ハッシュ形式は不変なのでパスワード再設定は不要）。
 - **画像は R2 バケットバインディング**でアップロード。**R2 の `put()` は同一キーをエラー無しで上書きする**ため、`crypto.randomUUID()` でキーを一意化する（怠ると同名アップロードで既存画像が消える）。配信は r2.dev ではなく**カスタムドメイン**。
 
@@ -65,7 +65,7 @@
 
 - **依存**: `+@opennextjs/cloudflare` `+wrangler` `+@prisma/adapter-neon`、`prisma`/`@prisma/client` を `^6.19` へ、`bcryptjs` を `^3` へ。`-@vercel/blob` `-@vercel/speed-insights`。
 - **新規設定ファイル**: `wrangler.jsonc`（`nodejs_compat` ＋ `global_fetch_strictly_public`、`compatibility_date` は 2025-04-01 以降推奨、assets / r2_buckets バインディング）、`open-next.config.ts`。
-- **Prisma**: `prisma/schema.prisma` の generator を `prisma-client`＋`runtime="cloudflare"`＋明示 `output` へ。`lib/db.ts` を **グローバル・シングルトンから「リクエストごとに adapter＋client 生成」へ書き換え**（Workers は接続の使い回しが禁止）。`@prisma/client` からの import は全て生成先パスへ差し替え＝**アプリ全体の import 変更**（`@auth/prisma-adapter` 連携含む）。
+- **Prisma**: 5.13 → 6.19.x（generator は `prisma-client-js` のまま）。`lib/db.ts` を **per-request 生成＋後方互換 Proxy** へ書き換え（Workers は接続の使い回し禁止）。**呼び出し側・import は無改修**（約30ファイル、`@auth/prisma-adapter` 連携含む。当初想定の import 総差し替えは不要と Phase 1 で実証）。
 - **画像**: `app/api/upload/route.ts` を R2 バインディング＋一意キーへ。`next.config.mjs` の `images.domains` を `images.remotePatterns`（R2 ホスト）へ、開始時は `images.unoptimized: true`（利用は2箇所のみ）。
 - **Vercel 切り離し**: `app/layout.tsx` の `<SpeedInsights/>` 削除、機材フックの `import type { PutBlobResult }` 削除、`lib/mail.ts` は `RESEND_API_KEY` をモジュール先頭で読むため**実行時 Worker secret として供給**されるか要確認（必要なら関数内読みへ）。
 - **環境変数**: 実行時 secret（`AUTH_SECRET` / `DATABASE_URL` / OAuth secret / `RESEND_API_KEY`）は `wrangler secret` / ダッシュボードへ。`NEXT_PUBLIC_*` はビルド時インライン。**`NEXT_PUBLIC_MANAGER_KEY` はローカル `.env` に無く Vercel 側にしか無い可能性が高いので、移行時は「ローカル .env でなく Vercel の全環境変数」を棚卸しする**。デプロイは `--keep-vars`。

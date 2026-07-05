@@ -9,6 +9,8 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig = withSerwist({
+  // Prisma Client を workerd 向けにバンドルせず外部化する（OpenNext/Cloudflare 要件）
+  serverExternalPackages: ['@prisma/client', '.prisma/client'],
   experimental: {
     // 重量級パッケージのバレルインポートをツリーシェイクし、クライアントバンドルを削減する
     optimizePackageImports: [
