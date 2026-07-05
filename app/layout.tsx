@@ -5,7 +5,6 @@ import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { ChakraProvider } from '@chakra-ui/react'
 
 // UI刷新案の指定フォント。JP グリフを含むため subsets はプリロード対象の latin のみ、
 // 日本語のプリロードは無効化（ビルド警告と過剰なプリロードを避ける）。
@@ -42,7 +41,7 @@ export default async function RootLayout({
         </head>
         <body className={notoSansJP.className}>
           <Toaster />
-          <ChakraProvider>{children}</ChakraProvider>
+          {children}
           {/* Cloudflare Web Analytics（旧 Vercel Speed Insights の代替）。
               token は全訪問者に配る公開値（ダッシュボードのサイト設定と対応）。
               beacon は SPA のルート遷移も自動計測する。next dev では読み込まない。 */}
