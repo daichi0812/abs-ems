@@ -199,7 +199,7 @@ const url = `${baseUrl.replace(/\/$/, "")}/${key}`;
 return NextResponse.json({ url }); // 呼び出し側フックは .url しか使わない＝後方互換
 ```
 
-- **`R2_PUBLIC_BASE_URL`**: 配信カスタムドメインのベース URL（例 `https://img.abs-ems.example`）。実行時 var（secret でも `NEXT_PUBLIC` でもない。組み立てた絶対 URL を `List.image` に保存し、クライアントは DB 由来の URL を読むだけで env は参照しない）。preview では `.dev.vars` に置く。本番は wrangler の var/secret としてカットオーバー時に設定。
+- **`R2_PUBLIC_BASE_URL`**: 配信カスタムドメインのベース URL（**`https://images.abs-ems.forgeonics.com`**）。実行時 var（secret でも `NEXT_PUBLIC` でもない。組み立てた絶対 URL を `List.image` に保存し、クライアントは DB 由来の URL を読むだけで env は参照しない）。preview では `.dev.vars` に置く。本番は wrangler の var/secret としてカットオーバー時に設定。
 - **応答は `{ url }` に固定**。フック（`use-equipment-registration.ts` / `use-equipment-update.ts`）は `blob.url` のみ参照済みなので無改修。
 
 > **型の判断（重要・ハマりどころ）**: `getCloudflareContext().env.IMAGES_BUCKET` を型付けするのに **`wrangler types` のフル生成物（`worker-configuration.d.ts`）は使わない**。あれは Workers ランタイムのグローバル型一式を注入し、**DOM の `Response.json()` を `Promise<unknown>` に上書き**する。すると `fetch(...).then(res => res.json())` に依存するクライアント側フック（`use-equipment-page-data.ts` 等）が軒並み `'x' is of type 'unknown'` で **`next build` に失敗**する（Phase 1 で cf:build が通ったのはこの d.ts が無かったから）。
@@ -239,7 +239,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
    キー=pathname を保ったのでホスト差し替えだけで一致する。**この `UPDATE` は本番 Neon への不可逆な直接変更**（プロジェクト前提: ローカルの `DATABASE_URL` は本番 Neon を直に指す）。実行前に必ず、(a) `SELECT id, image FROM "List"` で**現在の `List.image` 値をスナップショット保存**、(b) `SELECT` で対象件数を確認、してから `UPDATE`。切り戻しはこのスナップショットからの復元で行う。
 
-> **キー方式の整合（重要）**: 上の SQL がホスト差し替えだけで済むのは、**移行する既存オブジェクトを「元の Vercel Blob pathname をそのまま R2 キー」にして投入する**からである（`rclone copy` でキー＝pathname を維持）。一方 **2-1 の新規アップロードは `${uuid}-${filename}` キー**を使う。両者は方式が違うが、`List.image` には常に**絶対 URL 全体**が入るので混在して問題ない（移行済み行＝旧 pathname 由来 URL、新規行＝uuid 由来 URL、いずれも同じ R2 カスタムドメイン配下）。SQL の置換先ホスト（`https://img.example.com/`）は **2-1 の `R2_PUBLIC_BASE_URL` と同一値**にすること。
+> **キー方式の整合（重要）**: 上の SQL がホスト差し替えだけで済むのは、**移行する既存オブジェクトを「元の Vercel Blob pathname をそのまま R2 キー」にして投入する**からである（`rclone copy` でキー＝pathname を維持）。一方 **2-1 の新規アップロードは `${uuid}-${filename}` キー**を使う。両者は方式が違うが、`List.image` には常に**絶対 URL 全体**が入るので混在して問題ない（移行済み行＝旧 pathname 由来 URL、新規行＝uuid 由来 URL、いずれも同じ R2 カスタムドメイン配下）。SQL の置換先ホスト（`https://images.abs-ems.forgeonics.com/`）は **2-1 の `R2_PUBLIC_BASE_URL` と同一値**にすること。
 
 ---
 
@@ -254,9 +254,9 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## Phase 4 — カットオーバー＆検証＆ロールバック
 
-0. **🔴 認証2点セットの確認（両方必須・片方だけだと壊れる）**: **`AUTH_URL=https://www.abs-ems.logicode.tech`（真因A対策）** ＊かつ＊ **`middleware.ts` の `/api/auth` matcher 除外（真因B対策・付録A/D）** が両方入っていること。`AUTH_URL` だけ→ログアウト不能が再発（真因B）、matcher だけ→session=null（真因A）。付録D 参照。
+0. **🔴 認証2点セットの確認（両方必須・片方だけだと壊れる）**: **`AUTH_URL=https://abs-ems.forgeonics.com`（真因A対策）** ＊かつ＊ **`middleware.ts` の `/api/auth` matcher 除外（真因B対策・付録A/D）** が両方入っていること。`AUTH_URL` だけ→ログアウト不能が再発（真因B）、matcher だけ→session=null（真因A）。付録D 参照。
 1. **本番 secret 投入**: `AUTH_SECRET` は**現行本番と同一値**（変えると既存の暗号化 JWE セッションが全て失効し全ユーザー強制ログアウト）。`AUTH_TRUST_HOST=true`。`AUTH_URL`（上記）。DB は プール URL（`DATABASE_URL`）＋直結（`DIRECT_URL`）。
-2. **OAuth コールバック URL 追加**: Google Cloud / GitHub の OAuth 設定に `https://<新ドメイン>/api/auth/callback/google` と `.../github` を追加。
+2. **OAuth コールバック URL 追加**: Google Cloud の OAuth クライアントに **`https://abs-ems.forgeonics.com/api/auth/callback/google`** を追加（新クライアントには workers.dev / logicode.tech / vercel.app は登録済みだが **forgeonics 本番ドメインは未登録**）。GitHub は現状未使用のため任意。
 3. **デプロイ**: `npm run deploy`（`--keep-vars`）。まず Workers の `*.workers.dev` かプレビュードメインで [付録C](#付録c-検証チェックリスト) を通す。
 4. **ドメイン切替（可逆点）**: 独自ドメインの向き先を Cloudflare Workers へ。問題があれば **Vercel に戻すのがロールバック**（Vercel 側は残してある）。`AUTH_SECRET` 同値なのでセッションは往復しても維持される。
 5. **後片付け**: 全件表示・全機能 OK 後、Vercel Blob ストア/トークンを廃止、`r2.dev` 公開を無効化しカスタムドメイン運用に。
@@ -293,13 +293,13 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 |---|---|---|
 | `AUTH_SECRET` | 実行時 secret | wrangler secret（**現行本番と同一値**） |
 | `AUTH_TRUST_HOST` | 実行時 var | `true`（新規。Workers は Auth.js 自動信頼対象外） |
-| `AUTH_URL` | 実行時 var（**新規・重大**） | **本番 `https://www.abs-ems.logicode.tech`／workers.dev 検証 `https://abs-ems.<sub>.workers.dev`／ローカル preview `http://localhost:8787`**。未設定だと workerd の edge/node ランタイムでベース URL 推定が割れ、`useSecureCookies`＝cookie 名/JWE salt が middleware/route handler/ログインで食い違い **session=null 化**（付録D 真因A）。**必ず環境ごとに明示**。※ログアウト不能は別要因（middleware matcher・付録D 真因B）で、そちらは `middleware.ts` 側で対策済み。 |
+| `AUTH_URL` | 実行時 var（**新規・重大**） | **本番 `https://abs-ems.forgeonics.com`／workers.dev 検証 `https://abs-ems.<sub>.workers.dev`／ローカル preview `http://localhost:8787`**。未設定だと workerd の edge/node ランタイムでベース URL 推定が割れ、`useSecureCookies`＝cookie 名/JWE salt が middleware/route handler/ログインで食い違い **session=null 化**（付録D 真因A）。**必ず環境ごとに明示**。※ログアウト不能は別要因（middleware matcher・付録D 真因B）で、そちらは `middleware.ts` 側で対策済み。 |
 | `DATABASE_URL` | 実行時 secret | wrangler secret（**プール URL**、`-pooler`） |
 | `DIRECT_URL` | 実行時 secret | wrangler secret（**直結 URL**、migrate 用。新規） |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
 | `GITHUB_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
 | `RESEND_API_KEY` | 実行時 secret | wrangler secret（`lib/mail.ts` で使用） |
-| `R2_PUBLIC_BASE_URL` | 実行時 var（新規） | R2 カスタムドメインのベース URL（例 `https://img.abs-ems.example`）。`app/api/upload/route.ts` が組み立てる公開 URL の前半。secret でも `NEXT_PUBLIC` でもない。preview は `.dev.vars`、本番は wrangler var。データ移行 SQL の置換先ホストと**同一値**にする |
+| `R2_PUBLIC_BASE_URL` | 実行時 var（新規） | **`https://images.abs-ems.forgeonics.com`**（R2 バケット `abs-ems-images` に接続済みのカスタムドメイン。2026-07-05 接続）。`app/api/upload/route.ts` が組み立てる公開 URL の前半。secret でも `NEXT_PUBLIC` でもない。preview は `.dev.vars`、本番は wrangler var。データ移行 SQL の置換先ホストと**同一値**にする |
 | `SECRET_API_KEY` | — | **コード参照なし（2026-07 監査で確認）**。未使用なら移行不要。外部連携で使っていないか確認のうえ drop 検討 |
 | `NEXT_PUBLIC_API_KEY` | ビルド時インライン | ビルド環境（`use-reservation-data.ts`） |
 | `NEXT_PUBLIC_APP_URL` | ビルド時インライン | ビルド環境（**新ドメインに更新**） |
@@ -319,7 +319,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 - [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。**✅ session 一貫性は workers.dev https で再検証済み（2026-07-05）**: ログイン後 middleware（保護ルート遷移）・ページ描画・`/api/auth/session` の3者が一致（付録D 参照）。Google OAuth は下記で検証済み。**2FA 経路のみ未検証**（本番で `isTwoFactorEnabled=true` の利用者がいるかは要確認）。
 - [x] **Google ログイン — 検証済み ✅（workers.dev https, 2026-07-05）**。新 OAuth クライアントで authorize（PKCE, `scope=openid profile email`）→ Google 同意 → コールバック（worker からの外部 fetch でコード交換）→ **PrismaAdapter が空 DB に User＋Account(`provider=google`, `id_token` 保存) を作成** → セッション成立（`isOAuth:true`）→ 保護ルート表示 → **ログアウトで `session=null`** まで一気通貫で成功。※`provider_account_id`＝Google の `sub` はクライアントを変えても不変なので、**OAuth クライアント作り直し後も既存 Google ユーザーは連携維持**（DB で Account 行を実確認）。検証は使い捨て空 DB（新規 Neon ブランチ＋空データベース `absems_oauth`）＋使い捨て `AUTH_SECRET` で実施し実 PII 非公開。
-- [x] **サインアウト＋セッション一貫性 — 解決済み ✅（workers.dev https で e2e 検証済み・2026-07-05。付録D 参照）** — 真因は2つ（A: `AUTH_URL` 未設定の cookie-secure 名割れ、B: middleware matcher が `/api/auth` を含む二重実行で signout の削除 cookie を打ち消す）。対策は **① `middleware.ts` の matcher から `/api/auth` 除外 ② `AUTH_URL` を環境ごとに設定 ③ クライアント `signOut`（`/api/auth/signout`）**。検証: ログアウト→`session=null`＋`/auth/login` 遷移、`GET /api/auth/csrf` の Set-Cookie が単一 `__Host-authjs.csrf-token`、未ログイン保護ルートは login へリダイレクト。**本番カットオーバー時に `AUTH_URL=https://www.abs-ems.logicode.tech` の投入を忘れないこと**（真因A が再発する）。
+- [x] **サインアウト＋セッション一貫性 — 解決済み ✅（workers.dev https で e2e 検証済み・2026-07-05。付録D 参照）** — 真因は2つ（A: `AUTH_URL` 未設定の cookie-secure 名割れ、B: middleware matcher が `/api/auth` を含む二重実行で signout の削除 cookie を打ち消す）。対策は **① `middleware.ts` の matcher から `/api/auth` 除外 ② `AUTH_URL` を環境ごとに設定 ③ クライアント `signOut`（`/api/auth/signout`）**。検証: ログアウト→`session=null`＋`/auth/login` 遷移、`GET /api/auth/csrf` の Set-Cookie が単一 `__Host-authjs.csrf-token`、未ログイン保護ルートは login へリダイレクト。**本番カットオーバー時に `AUTH_URL=https://abs-ems.forgeonics.com` の投入を忘れないこと**（真因A が再発する）。
 - [ ] GitHub ログイン（`@auth/prisma-adapter` の linkAccount 経路）
 - [x] middleware で保護されたルートのリダイレクト挙動 — **検証済み**（未ログインで `/api/upload`・`/ems/*` が 302→`/auth/login`、ログイン後は保護ページ表示）
 - [ ] 予約 CRUD（`lib/reservation-overlap.ts` の重複チェック含む）
@@ -342,7 +342,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
   - **真因B: middleware の matcher が `/api/auth` を含み、Auth.js が二重実行される（→ matcher 除外で解消・ログアウト不能の直接原因）**。`middleware.ts` は `auth((req)=>{…})` でラップしており、**matcher にマッチした全リクエストで Auth.js を走らせ jwt セッション cookie を再発行（Set-Cookie）する**。旧 matcher `'/(api|trpc)(.*)'` は `/api/auth/signout` にもマッチするため、**route handler が出すセッション削除 Set-Cookie を middleware 側の再発行が打ち消す**。Vercel は cookie マージ順で削除が勝つため顕在化しないが、Workers/OpenNext では再発行が勝ってセッションが残る。**ログインが正常でログアウトだけ壊れる非対称**は、ログイン時は「まだセッションが無い」ため middleware の再発行と衝突しない（handler の SET が勝つ）のに対し、ログアウト時は既存セッションを middleware が再発行して handler の DELETE を潰すため。csrf が二重（別値）で出ていたのも同じ二重実行の副作用。
   - **確定した対策（実装済み・検証済み）**:
     1. **`middleware.ts` の matcher から `/api/auth` を除外**（真因B）: `'/((?!api/auth|.+\\.[\\w]+$|_next).*)'` と `'/(api(?!/auth)|trpc)(.*)'`。認証エンドポイントは route handler だけに cookie を触らせる。
-    2. **`AUTH_URL` を環境ごとに設定**（真因A・付録B）: 本番 `https://www.abs-ems.logicode.tech`、workers.dev 検証 `https://abs-ems.<sub>.workers.dev`、ローカル preview `http://localhost:8787`。
+    2. **`AUTH_URL` を環境ごとに設定**（真因A・付録B）: 本番 `https://abs-ems.forgeonics.com`、workers.dev 検証 `https://abs-ems.<sub>.workers.dev`、ローカル preview `http://localhost:8787`。
     3. **ログアウトはクライアント `signOut`（`next-auth/react`, `/api/auth/signout` へ POST）**（`components/auth/logout-button.tsx`）。Server Action 版（`actions/logout.ts`, 削除済み）は**今いるページ経路に POST するため matcher にマッチ→真因B で潰される**ので使えない。matcher 除外後の `/api/auth/signout` のみが削除を確実に効かせられる。
   - **e2e 検証結果（workers.dev https, Neon ブランチ, 使い捨て AUTH_SECRET, 2026-07-05）**:
     - ログイン成功。middleware（`/ems/mypage` 遷移許可）・ページ描画・`/api/auth/session`（ユーザー返却）の**3者が一致**。
