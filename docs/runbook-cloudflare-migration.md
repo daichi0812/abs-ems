@@ -312,11 +312,11 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## 付録C: 検証チェックリスト（プレビュー→本番）
 
-- [ ] Credentials ログイン（`bcrypt.compare` ＋ 2FA 経路）
+- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施
 - [ ] Google ログイン
+- [ ] **サインアウト（🔴 現状 workerd で不具合。付録D 参照）** — `signOut()` Server Action の Set-Cookie が伝播せず cookie が残る。カットオーバー前に要修正
 - [ ] GitHub ログイン（`@auth/prisma-adapter` の linkAccount 経路）
-- [ ] middleware で保護されたルートのリダイレクト挙動
-- [ ] サインアウト（JWE セッションの往復）
+- [x] middleware で保護されたルートのリダイレクト挙動 — **検証済み**（未ログインで `/api/upload`・`/ems/*` が 302→`/auth/login`、ログイン後は保護ページ表示）
 - [ ] 予約 CRUD（`lib/reservation-overlap.ts` の重複チェック含む）
 - [ ] 機材／タグ CRUD（`hasManagerAccess` ゲート＝`NEXT_PUBLIC_MANAGER_KEY` 経路も）
 - [x] 画像アップロード（新規、R2 に入る＋一意キー）— **workerd/preview で検証済み**（403→200、ローカル R2 に blob 永続化。2-1 参照）
@@ -330,6 +330,8 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## 付録D: 既知の落とし穴（敵対的検証で確認済み）
 
+- **`trustHost: true` をコードで明示する（重大・Phase 3 検証で判明）**。Auth.js v5 の `trustHost` 既定は `!!(AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? CF_PAGES ?? NODE_ENV!=='production')`。**Vercel はプラットフォームが `VERCEL` env を自動注入するため暗黙で true** になっていた（隠れた Vercel 依存）。Workers(OpenNext) では `VERCEL` 無し・`CF_PAGES` 無し（Pages 専用）・本番ビルドは `NODE_ENV=production`（OpenNext が define で焼き込む）で **trustHost が false に落ち、全 sign-in/callback/session が `UntrustedHost` で失敗＝本番認証が全断**。`AUTH_TRUST_HOST=true` の env だけに頼ると本番 env 投入を1つ落とすだけで全断するため、**`auth.ts` の設定に静的に `trustHost: true`** を置いた（`.env.vercel-export` にもこの env は無いので一括インポートでは補完されない）。**✅ 検証済み（2026-07-05）**: `.dev.vars` から `AUTH_TRUST_HOST` を外し `trustHost:true`（コード）のみで再ビルドし、`/api/auth/session`→200・`/api/auth/csrf`→200 を確認（trustHost false なら `UntrustedHost` で失敗するはずのエンドポイントが正常応答）。
+- **サインアウトが効かない（未解決・要調査。Phase 3 検証で判明）**。next-auth の `signOut()`（`actions/logout.ts` の Server Action）は **303 リダイレクトは返すがセッション削除の Set-Cookie が反映されず**、JWE セッション cookie が残ってユーザーがログインしたままになる（`/auth/login` へ行っても middleware が「ログイン中」と判定し `/ems/mypage` へ 302 で戻す）。**ログイン（Route Handler `/api/auth/callback/credentials`）は Set-Cookie が効くので成功する**＝**OpenNext/Workers が Server Action レスポンスの Set-Cookie を伝播していない**のが原因像。対策候補: OpenNext のバージョン更新で解消するか確認、または signout を Route Handler 化する回避策、あるいは cookie 分割(chunk)時の全 chunk 削除漏れの確認。**カットオーバー前に必ず解決すること**（ログアウト不能はセキュリティ課題）。
 - **AUTH_SECRET を変えない**。変更＝全ユーザー強制ログアウト。
 - **Prisma は 6.19.x 固定**。7.0.0 は Workers で `Wasm code generation disallowed by embedder`（#28657、2026-07 時点 未解決）。6.16.x も CF 固有バグがあり避ける。
 - **R2 `put()` は上書きされる**。キー一意化（`crypto.randomUUID()`）必須。

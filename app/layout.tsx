@@ -4,7 +4,6 @@ import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ChakraProvider } from '@chakra-ui/react'
 
 const inter = Inter({ subsets: ["latin"] });
@@ -35,7 +34,6 @@ export default async function RootLayout({
         <body className={inter.className}>
           <Toaster />
           <ChakraProvider>{children}</ChakraProvider>
-          <SpeedInsights />
         </body>
       </html>
     </SessionProvider>

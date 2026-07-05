@@ -1,7 +1,6 @@
 "use client";
 
 import axios from "axios";
-import type { PutBlobResult } from "@vercel/blob";
 import { useState } from "react";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import type { Tag } from "./use-tags";
@@ -32,7 +31,8 @@ export const useEquipmentRegistration = ({
 
   const submit = async () => {
     try {
-      let blob: PutBlobResult | null = null;
+      // アップロード API（R2）の応答は { url } のみ（旧 Vercel Blob の PutBlobResult 依存を除去）
+      let blob: { url: string } | null = null;
 
       if (inputFileRef.current?.files && inputFileRef.current.files.length > 0) {
         const file = inputFileRef.current.files[0];
@@ -41,7 +41,7 @@ export const useEquipmentRegistration = ({
           body: file,
           headers: managerAuthHeaders(),
         });
-        blob = (await responseVercel.json()) as PutBlobResult;
+        blob = (await responseVercel.json()) as { url: string };
       }
 
       await axios.post(
