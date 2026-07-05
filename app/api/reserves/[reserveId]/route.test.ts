@@ -1,27 +1,51 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { deleteManyMock, currentUserMock } = vi.hoisted(() => ({
+const { deleteManyMock, findManyMock, currentUserMock } = vi.hoisted(() => ({
   deleteManyMock: vi.fn(),
+  findManyMock: vi.fn(),
   currentUserMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
-  db: { reserve: { findMany: vi.fn(), deleteMany: deleteManyMock } },
+  db: { reserve: { findMany: findManyMock, deleteMany: deleteManyMock } },
 }));
 vi.mock("@/lib/auth", () => ({
   currentUser: () => currentUserMock(),
 }));
 
-import { DELETE } from "./route";
+import { DELETE, GET } from "./route";
 
 const deleteRequest = () =>
   new Request("http://localhost/api/reserves/5", { method: "DELETE" });
+const getRequest = () => new Request("http://localhost/api/reserves/5");
 const params = { params: Promise.resolve({ reserveId: "5" }) };
 
 beforeEach(() => {
   deleteManyMock.mockReset();
+  findManyMock.mockReset();
   currentUserMock.mockReset();
+});
+
+describe("GET /api/reserves/[reserveId]", () => {
+  it("returns 401 and does not query when unauthenticated", async () => {
+    currentUserMock.mockResolvedValue(undefined);
+
+    const res = await GET(getRequest(), params);
+
+    expect(res.status).toBe(401);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the reserve for an authenticated user", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+    findManyMock.mockResolvedValue([{ id: 5 }]);
+
+    const res = await GET(getRequest(), params);
+
+    expect(res.status).toBe(200);
+    expect(findManyMock).toHaveBeenCalledWith({ where: { id: 5 } });
+  });
 });
 
 describe("DELETE /api/reserves/[reserveId]", () => {

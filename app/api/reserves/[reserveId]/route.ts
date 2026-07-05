@@ -9,6 +9,12 @@ interface Params {
 
 export async function GET(request: Request, { params }: Params) {
     try {
+        // ログイン必須（DELETE と同じ currentUser パターン。予約は member-shared なので self-scope はしない）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
+
         const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {
             return NextResponse.json({ error: 'Invalid equipment ID.' }, { status: 400 });

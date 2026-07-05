@@ -1,9 +1,16 @@
 import { db } from '@/lib/db';
 import { hasManagerAccess } from '@/lib/api-auth';
+import { currentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
     try {
+        // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
+
         const tags = await db.tag.findMany();
 
         return NextResponse.json(tags, { status: 200 });

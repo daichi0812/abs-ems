@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { hasManagerAccess } from '@/lib/api-auth';
+import { currentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 interface Params {
@@ -11,6 +12,12 @@ interface Params {
 // 特定のIDのデータを取得する
 export async function GET(request: Request, { params }: Params) {
     try {
+        // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
+
         const equipmentId = parseInt((await params).equipmentId, 10);
 
         if (isNaN(equipmentId)) {
