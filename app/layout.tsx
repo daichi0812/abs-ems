@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import "./globals.css";
@@ -34,6 +35,16 @@ export default async function RootLayout({
         <body className={inter.className}>
           <Toaster />
           <ChakraProvider>{children}</ChakraProvider>
+          {/* Cloudflare Web Analytics（旧 Vercel Speed Insights の代替）。
+              token は全訪問者に配る公開値（ダッシュボードのサイト設定と対応）。
+              beacon は SPA のルート遷移も自動計測する。next dev では読み込まない。 */}
+          {process.env.NODE_ENV === "production" && (
+            <Script
+              strategy="afterInteractive"
+              src="https://static.cloudflareinsights.com/beacon.min.js"
+              data-cf-beacon='{"token": "511cfa581a144ba7bba2ec62e4d2271e"}'
+            />
+          )}
         </body>
       </html>
     </SessionProvider>
