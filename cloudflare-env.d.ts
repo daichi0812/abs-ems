@@ -19,9 +19,23 @@ interface AbsEmsR2Bucket {
   ): Promise<unknown>;
 }
 
+// Email Sending バインディング（wrangler.jsonc の send_email）。
+// 本アプリが使う send() の最小型のみ（フル型は worker-configuration.d.ts を使わない方針のため）。
+interface AbsEmsSendEmail {
+  send(message: {
+    to: string | string[];
+    from: string | { email: string; name?: string };
+    subject: string;
+    html?: string;
+    text?: string;
+    replyTo?: string;
+  }): Promise<{ messageId?: string }>;
+}
+
 declare global {
   interface CloudflareEnv {
     IMAGES_BUCKET: AbsEmsR2Bucket;
+    EMAIL: AbsEmsSendEmail;
   }
 }
 
