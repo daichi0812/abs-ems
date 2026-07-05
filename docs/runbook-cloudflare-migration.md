@@ -357,3 +357,33 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 - **Serwist は仕様上ブラウザ側コードで無影響のはずだが公式の動作保証は無い**。デプロイ後に SW 登録／precache／オフラインを実測すること。
 - **`compatibility_date` は 2025-04-01 以降**推奨（`process.env` 実行時反映・`FinalizationRegistry`）。
 - **コスト**: Phase 1 実測で圧縮 **4.37 MiB gzip** → Free(3 MiB) 超過・**Workers Paid $5/月で確定**。ただし Hobby は商用不可で対抗馬は Vercel Pro $20 のため、CF $5 で安くなる（ADR「理由」参照）。
+
+---
+
+## 付録E: workers.dev(https) での認証サイクル検証手順
+
+付録D の cookie 名不整合は **http preview では検証不能**。本番同等の https で「ログイン→session 一貫性→ログアウト」を確認するため、`workers.dev` サブドメインへ**検証専用デプロイ**を一度行う。本番ドメイン（DNS）は触らないので現行 Vercel には影響しない。
+
+**方針**: 本番データに触れない・本番セッションと互換にしない。→ `DATABASE_URL` は **Neon ブランチ**、`AUTH_SECRET` は**使い捨て**。OAuth はこの検証では不要（Credentials 経路のみ）。
+
+**前提**:
+- **Workers Paid プラン**（バンドル 4.37 MiB > Free 3 MiB。未加入だとデプロイが弾かれる）。
+- R2 バケット: `wrangler r2 bucket create abs-ems-images`（未作成なら。`wrangler.jsonc` の binding 先）。
+
+**手順（デプロイは Daichi 本人が実施）**:
+1. `wrangler login`（ブラウザ認証。セッション内なら `! wrangler login`）。
+2. 使い捨て secret 投入:
+   - `npx auth secret` 等で生成した値 → `wrangler secret put AUTH_SECRET`（**本番値は使わない**）。
+   - Neon ブランチのプール URL（`ep-icy-wildflower-...-pooler`。`npx neonctl connection-string cloudflare-migration-test --pooled --project-id noisy-base-93247272` で取得）→ `wrangler secret put DATABASE_URL`。
+   - `R2_PUBLIC_BASE_URL` は画像検証をしないならダミー可（`wrangler secret put` かダミー var）。
+3. 初回 `wrangler deploy` → 出力の `https://abs-ems.<account-subdomain>.workers.dev` を控える。
+4. **その URL を `AUTH_URL` に設定**（`wrangler.jsonc` の `vars` に一時追記か dashboard）→ 再 `wrangler deploy`。`AUTH_TRUST_HOST=true` も var で（`AUTH_URL` があれば trustHost は自動 true になるが明示しておく）。
+5. **検証**（デプロイ後 URL を教えてもらえれば Claude-in-Chrome で私が実施可）:
+   - `/auth/login` でテストユーザー `logout-probe@test.local`（ブランチに投入済み）でログイン。
+   - `/api/auth/session` がユーザーを返す **かつ** 保護ルート `/ems/mypage` が 200（＝middleware と route handler が同じ session を見る）。
+   - `GET /api/auth/csrf` の Set-Cookie が **単一**（https なので `__Host-authjs.csrf-token` 一本。二重で出ないこと＝割れ解消の確証）。
+   - ログアウト → `/api/auth/session` が `null` **かつ** `/ems/mypage` が `/auth/login` へリダイレクトして留まる。
+6. **判定**:
+   - 全て一貫 → **`AUTH_URL` を環境ごとに設定するだけで対策完了**（本番は `AUTH_URL=https://www.abs-ems.logicode.tech`）。候補の signout 修正（`logout-button.tsx`）も本番相当で確定。
+   - まだ二重 cookie / session=null が残る → 付録D の**フォールバック**（`auth.config.ts` で `useSecureCookies`/`cookies` 名を明示ピン）を適用し再デプロイ・再検証。
+7. **後片付け**: 検証用 worker は `wrangler delete`、使い捨て secret も破棄。Neon ブランチは検証完了後に `npx neonctl branches delete cloudflare-migration-test --project-id noisy-base-93247272`。
