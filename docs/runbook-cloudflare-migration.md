@@ -221,25 +221,40 @@ images: {
 
 ### 2-2. データ移行（既存画像の移送 ＋ URL 書き換え）
 
-Vercel Blob は **S3 互換エンドポイントを持たない**ため rclone/aws-cli で直接 pull できない。二段構えで行う。
+Vercel Blob は **S3 互換エンドポイントを持たない**ため rclone/aws-cli で直接 pull できない。**スクリプト方式**で行う（`rclone` は不要。`wrangler r2 object put --remote` で投入するので R2 API トークン発行も不要）。成果物は **`scripts/migration/`** に確定版として置いてある。
 
-1. **列挙＆ダウンロード（一度きりの Node スクリプト）**: `BLOB_READ_WRITE_TOKEN` で `@vercel/blob` の `list({ cursor, limit: 1000 })` を `hasMore` が尽きるまでページング。各 `blob.url`（公開）を fetch し、`pathname` を保ったまま `./export/<pathname>` に保存。
-   - **事前確認**: `addRandomSuffix` の既定は false。**既存 pathname にランダムサフィックスが実在するか**を実データ（`list()` 結果）で確認する。無い場合、後段のホスト差し替え SQL が 1:1 で当たるかを検証してから進める。
-   - 日本語・特殊文字を含む pathname は URL エンコードと R2 キー／SQL の `LIKE` 整合をサンプルで検証。
-2. **R2 へ投入**: rclone を S3 互換で設定（`type=s3, provider=Cloudflare, endpoint=https://<ACCOUNT_ID>.r2.cloudflarestorage.com`、R2 API トークンで Access Key 発行）し、`rclone copy ./export/ r2:abs-ems-images/`。**キー = 元 pathname** のまま入れる。
-3. **Neon の URL 書き換え**（検証後に実行）:
+> **⚠️ 本番データ操作。カットオーバー直前に一度だけ実行する。** ローカルの `DATABASE_URL` は本番 Neon を直に指す（プロジェクト前提）。以下は **コピー → HTTP 到達性ゲート → DB 書き換え** の順で、各段の合格を次段の前提とする。**ゲートに1件でも落ちたら SQL を実行しない。**
 
-```sql
-UPDATE "List"
-SET image = REPLACE(image,
-  'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/',
-  'https://img.example.com/')
-WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
-```
+**移行対象の実測（2026-07-05 時点、`reconcile.cjs` で確認）**: Vercel Blob 70件（20.1MB、ホスト `a9imy1jqjrudia3w.public.blob.vercel-storage.com`）。`List.image` の画像参照41件（うち有効40件＋引用符混入の id 139 が1件、壊れ参照0、他カラム=`users.image` の blob 参照0）。参照されない orphan blob が30件。**70件全部をコピーする**（40件だけでない）理由は下記「全件コピーが load-bearing」を参照。
 
-   キー=pathname を保ったのでホスト差し替えだけで一致する。**この `UPDATE` は本番 Neon への不可逆な直接変更**（プロジェクト前提: ローカルの `DATABASE_URL` は本番 Neon を直に指す）。実行前に必ず、(a) `SELECT id, image FROM "List"` で**現在の `List.image` 値をスナップショット保存**、(b) `SELECT` で対象件数を確認、してから `UPDATE`。切り戻しはこのスナップショットからの復元で行う。
+#### 手順（4段階・各段の合格が次段の前提）
 
-> **キー方式の整合（重要）**: 上の SQL がホスト差し替えだけで済むのは、**移行する既存オブジェクトを「元の Vercel Blob pathname をそのまま R2 キー」にして投入する**からである（`rclone copy` でキー＝pathname を維持）。一方 **2-1 の新規アップロードは `${uuid}-${filename}` キー**を使う。両者は方式が違うが、`List.image` には常に**絶対 URL 全体**が入るので混在して問題ない（移行済み行＝旧 pathname 由来 URL、新規行＝uuid 由来 URL、いずれも同じ R2 カスタムドメイン配下）。SQL の置換先ホスト（`https://images.abs-ems.forgeonics.com/`）は **2-1 の `R2_PUBLIC_BASE_URL` と同一値**にすること。
+**① 突き合わせ（読み取り専用・任意）** — `node scripts/migration/reconcile.cjs`
+Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_refs: 0` を確認（他カラムに blob 参照が残っていないこと）。件数が上記実測と大きく違えば、以降の期待値もずれるので原因を先に潰す。
+
+**② コピー（Blob → R2）** — `scripts/migration/migrate-blob-to-r2.cjs`
+- キー = `decodeURIComponent(new URL(b.url).pathname)`。**R2 は受信パスを1回 URL デコードしてキー照合する**ので、両側で厳密に1回デコードして一致させる（日本語・全角括弧・`%20`・`+`・二重エンコードいずれも整合を Node で確認済み）。
+- まず **スモークテスト**: `node scripts/migration/migrate-blob-to-r2.cjs --smoke`。代表1件（非ASCIIを優先）を実際に `--remote` で put → get で読み戻し、**書き込み側（wrangler 認証・アカウント選択・キーのバイト往復）** が健全なことを LIVE 前に実証する。`--dry-run` は列挙＋fetch しか通らず書き込み側を検証しないので、必ず `--smoke` を先に通す。
+- 本実行: `node scripts/migration/migrate-blob-to-r2.cjs`。全70件を put。**fetch/put は指数バックオフ3回＋タイムアウト**（一時的な瞬断・5xx を吸収。put は同一キー無警告上書きで冪等なので再試行安全）。**1件でも失敗すると `exit 1`**（`&&` 連結・CI ゲートが機能する）。`fail: 0` を確認。
+
+**③ HTTP 到達性ゲート（🔴 最重要・破壊的 UPDATE の前提）** — `node scripts/migration/verify-r2-reachability.cjs`
+`List.image` の全 blob 参照を、ホストだけ `images.abs-ems.forgeonics.com` に差し替えた URL で実際に **HTTP HEAD し、全件 200** を確認する。**全件200が SQL 実行の前提条件**。落ちたら SQL を実行しない。このゲート1本で敵対的レビュー4観点の major を同時に閉じる:
+   - **id 139 の実体確認**: 引用符混入で URL 解析に失敗し orphan 側に紛れている疑いがある1件。ゲートで 200 なら R2 に実体があると確定。
+   - **非ASCII6件のデコード往復**: NFC/NFD 正規化ズレなど外部ブラックボックスの前提が外れると一括404になり得る箇所。実 URL で200を確認して初めて実証。
+   - **無言の部分コピー失敗**: ②が exit 0 でも配信できなければここで検知。
+
+**④ DB 書き換え（Neon SQL Editor / 本番 main ブランチ）** — `scripts/migration/migrate-rewrite.sql`
+🔴 **④だけはカットオーバー限定（②③より後・ドメイン切替と同時〜直後）。理由: 稼働中の Vercel 版と本番 Neon は同一DBを共有**し、稼働側の `next.config.mjs`(main) は `images.domains=[Vercel Blob ホスト, www.paypalobjects.com]` で **R2 ホスト未許可**。④を早く流すと `List.image` が R2 を指し、稼働側 Vercel の next/image が R2 ホストを弾いて**本番の機材画像が壊れる**（②コピー・③ゲートは稼働側に無影響なので先行してよい）。③が全件200で PASS した後に実行。**一括 Run 禁止**（Neon SQL Editor は最後の結果セットしか出さず事前確認が無効化される）。step 1（backup）→ 2（事前確認: 件数41・非https 0・引用符バイト確認）→ 3（プレビュー）を個別に Run で目視 → step4 を単独 Run。
+   - **id 139 を通常40件から分離**して当てる（4a=ホスト差し替えのみ40件／4b=引用符除去＋差し替え1件）。
+   - 両 UPDATE は `EXISTS (backup に blob URL がある)` を機械条件に持つ＝**バックアップ無し／再実行での事故を機械的に防ぐ**（backup 未取得なら error で中断、移行済み再実行なら0件更新）。
+   - 検証: `new_host ≥ 41`・`old_host = 0`・`with_quote = 0`（当該ホスト固定）・`users_image_blob_refs = 0`。切り戻しは backup 表からの id join UPDATE（冪等）。
+
+#### なぜ「全70件コピー」が load-bearing か
+`40（有効参照）＋30（orphan）＝70` で全 blob が説明づく。id 139 は引用符混入で URL 解析に失敗し**参照済みなのに orphan 30件側に数えられている**可能性が高い。もし「参照中の40件だけコピー」する設計だと id 139 は確実に壊れる。**orphan を含め全件コピーしたことが id 139 を救っている**。よって省略しない。
+
+> **キー方式の整合（重要）**: SQL がホスト差し替えだけで済むのは、**移行オブジェクトのキーを「Blob URL のパス部（デコード済み）」にして投入する**から。一方 **2-1 の新規アップロードは `${uuid}-${filename}` キー**。両者は方式が違うが `List.image` には常に**絶対 URL 全体**が入るので混在して問題ない（70件全て distinct でキー衝突なし。かつ新規 route の `safeName` が非英数字を `_` に潰すため今後の非ASCIIデコード曖昧性は原理的に発生しない）。SQL の置換先ホスト（`https://images.abs-ems.forgeonics.com/`）は **2-1 の `R2_PUBLIC_BASE_URL` と同一値**にすること。
+
+> **敵対的レビュー（2026-07-05・4観点並列）**: エンコード整合／SQL安全性／コピー堅牢性／網羅性を独立レビュー。**critical=0**（SQL が先に backup を取り、Vercel Blob を消さない設計＝最悪でも復旧可能な404でデータ破壊ではない）。全観点が独立に「破壊的 UPDATE の前に HTTP 到達性ゲートを1本挟めば major が同時に閉じる」に収束。指摘は上記手順（exit code・リトライ・cwd・スモーク・id139分離・backup機械ガード・到達性ゲート）にすべて反映済み。**Vercel Blob の削除は R2 配信が本番で e2e 検証されるまで行わない**（Phase 3/後片付け）。
 
 ---
 
@@ -284,6 +299,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 | `components/auth/logout-button.tsx` | Server Action `logout()` → **クライアント `signOut`（`next-auth/react`, `/api/auth/signout` へ POST）**。Server Action 版はページ経路 POST で真因B に潰されるため（付録D） |
 | `actions/logout.ts` | **削除**（Server Action signout はページ経路に POST → middleware にマッチ → 削除 cookie が打ち消され使えない） |
 | OAuth コンソール | Google / GitHub にコールバック URL 追加 |
+| `scripts/migration/`（新規） | データ移行 Phase 2-2 の確定版成果物。`reconcile.cjs`（Blob↔DB 突き合わせ・読取専用）／`migrate-blob-to-r2.cjs`（70件を R2 へコピー。`--smoke`/`--dry-run`、リトライ＋タイムアウト、fail>0 で exit1）／`verify-r2-reachability.cjs`（🔴 HTTP 到達性ゲート・全件200が SQL の前提）／`migrate-rewrite.sql`（id139 分離・backup 機械ガード・ホスト固定検証）。カットオーバー時に一度だけ実行 |
 
 ---
 
@@ -327,6 +343,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 - [x] 画像アップロード（新規、R2 に入る＋一意キー）— **workerd/preview で検証済み**（403→200、ローカル R2 に blob 永続化。2-1 参照）
 - [ ] **既存 Vercel Blob 画像が表示できる（移行期の回帰確認）**: `unoptimized:true` は最適化と同時にホスト allowlist も外すので、`domains` 撤去後も旧 Vercel Blob URL の `<img>` は表示されるはず。`/ems/store`・`/ems/reserve/[id]` をブラウザで開き実際に描画されるか確認（curl では src 出力までしか見えない）
 - [x] **R2 配信での画像表示 — 配信パス検証済み ✅（2026-07-05）**: `abs-ems-images` にカスタムドメイン `images.abs-ems.forgeonics.com` を接続（`wrangler r2 bucket domain add`、ownership/ssl とも active）。テスト画像を `--remote` で put → `https://images.abs-ems.forgeonics.com/<key>` が **HTTP 200 / `content-type: image/png`** で配信されることを確認（検証後 object 削除）。`.dev.vars` の `R2_PUBLIC_BASE_URL` を実値に更新済み。**残り**: アプリからの新規アップロード→保存 URL→`<img>` 描画の e2e はデプロイ時に実確認（upload の `put` は 2-1 で workerd 検証済み・配信も本項で確認済みなので、両者を繋ぐ描画確認のみ）。本番は `R2_PUBLIC_BASE_URL` を wrangler var で投入。
+- [~] **既存画像のデータ移行（Blob→R2）— 下準備＋敵対的検証 完了 ✅／実行はカットオーバー時（2026-07-05）**。確定版スクリプト4本を `scripts/migration/` に用意（2-2 参照）。4観点並列レビューで critical=0、指摘（HTTP到達性ゲート・exit code・リトライ・id139分離・backup機械ガード）を反映済み。**本番実行は未**（コピー・SQL は本番データ操作なのでカットオーバー直前に一度だけ。順序: コピー→到達性ゲート全件200→SQL）。
 - [ ] PWA: `/sw.js` 登録、precache が 200、オフライン遷移、SW 更新サイクル
 - [x] **2FA ＋ メール送信（RESEND）— 検証済み ✅（workers.dev https, 2026-07-05）**。2FA 有効テストユーザーで Credentials ログイン → **`{twoFactor: true}` が返り 2FA コード入力画面へ**（＝`resend` SDK が workerd で例外なく動作＝`sendTwoFactorTokenEmail` の RESEND 呼び出しが Workers で成功。`login.ts` は try/catch 無しで await するため、失敗すれば login ごと落ちる＝ここが唯一の 2FA 固有 Workers リスクだった）→ DB の `TwoFactorToken` を読みコード投入 → `TwoFactorConfirmation` 作成 → セッション成立（`isTwoFactorEnabled:true`）まで一気通貫。送信元は `2factor-auth@servantleader-inc.com`（RESEND 検証済みドメイン・アプリのドメイン変更に非依存）。**リセット/確認メール**は同じ `resend` SDK 経由なので SDK 動作は共通で確認済み。ただしリンク本文は `NEXT_PUBLIC_APP_URL`（ビルド時インライン）を使うため、**本番ビルドで `NEXT_PUBLIC_APP_URL=https://abs-ems.forgeonics.com` にすること**（さもないとリセット/確認リンクが旧ドメインを指す）。実配信の到達性は RESEND アカウント側＝Vercel と同一。
 - [ ] Worker 圧縮サイズが上限内（Free 3 MiB / Paid 10 MiB）
