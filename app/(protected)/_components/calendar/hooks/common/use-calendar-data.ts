@@ -51,12 +51,14 @@ export const useCalendarData = () => {
   const [isFetching, setIsFetching] = useState<boolean>(true);
 
   const fetchReservesData = async () => {
-    // 4つのAPIは互いに独立なので並列取得する（従来は直列awaitでウォーターフォールになっていた）
+    // 4つのAPIは互いに独立なので並列取得する（従来は直列awaitでウォーターフォールになっていた）。
+    // 各APIはログイン必須になり得るため、401/500 の非配列ボディでも .reduce/.map が
+    // クラッシュしないよう Array.isArray で空配列にフォールバックする（他フックと同じ防御水準）。
     const [reservesListsData1, reservesListsData2, tags, reservesData] = await Promise.all([
-      fetch("/api/users").then((res) => res.json() as Promise<User[]>),
-      fetch("/api/lists").then((res) => res.json() as Promise<List[]>),
-      fetch("/api/tags").then((res) => res.json() as Promise<Tag[]>),
-      fetch("/api/reserves").then((res) => res.json() as Promise<Reserve[]>),
+      fetch("/api/users").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as User[]),
+      fetch("/api/lists").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as List[]),
+      fetch("/api/tags").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as Tag[]),
+      fetch("/api/reserves").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as Reserve[]),
     ]);
 
     // ユーザーIDをキーにして名前をマッピング

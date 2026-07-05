@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { hasManagerAccess } from '@/lib/api-auth';
+import { currentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -37,6 +38,12 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
     try {
+        // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
+
         const lists = await db.list.findMany();
 
         return NextResponse.json(lists, { status: 200 });
