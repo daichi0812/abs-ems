@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BeatLoader } from "react-spinners";
 import { useSearchParams } from "next/navigation";
 
 import { newVerification } from "@/actions/new-verification";
@@ -50,7 +49,7 @@ export const NewVerificationForm = () => {
         >
             <div className="flex items-center w-full justify-center">
                 {!success && !error && (
-                    <BeatLoader />
+                    <span className="h-6 w-6 animate-spin rounded-full border-[3px] border-line border-t-brand" />
                 )}
                 <FormSuccess message={success} />
                 {!success && (

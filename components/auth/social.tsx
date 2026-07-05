@@ -4,10 +4,9 @@ import { signIn } from "next-auth/react"
 import { FcGoogle } from "react-icons/fc"
 import { FaGithub } from "react-icons/fa"
 import { useSearchParams } from "next/navigation"
+import { useState } from "react"
 
 import { DEFAULT_LOGIN_REDIRECT } from "@/routes"
-import { useState } from "react"
-import { Button } from "@chakra-ui/react"
 
 export const Social = () => {
     const searchParams = useSearchParams();
@@ -33,28 +32,35 @@ export const Social = () => {
         }
     };
 
+    const baseClass =
+        "flex h-11 w-full items-center justify-center rounded-xl border-[1.5px] border-line bg-white transition-colors hover:bg-surface disabled:opacity-60";
+
     return (
-        <div className="flex items-center w-full gap-x-2">
-            <Button
-                isLoading={isLoadingGoogle}
-                size="lg"
-                className="w-full"
-                variant="outline"
+        <div className="flex w-full items-center gap-x-2">
+            <button
+                type="button"
                 onClick={() => onClick("google")}
                 disabled={isLoadingGoogle}
+                className={baseClass}
+                aria-label="Googleでログイン"
             >
-                <FcGoogle className="h-5 w-5" />
-            </Button>
-            <Button
-                isLoading={isLoadingGithub}
-                size="lg"
-                className="w-full"
-                variant="outline"
+                {isLoadingGoogle ? <Spinner /> : <FcGoogle className="h-5 w-5" />}
+            </button>
+            <button
+                type="button"
                 onClick={() => onClick("github")}
                 disabled={isLoadingGithub}
+                className={baseClass}
+                aria-label="GitHubでログイン"
             >
-                <FaGithub className="h-5 w-5" />
-            </Button>
+                {isLoadingGithub ? <Spinner /> : <FaGithub className="h-5 w-5" />}
+            </button>
         </div>
     );
 };
+
+function Spinner() {
+    return (
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-line-strong border-t-brand" />
+    );
+}

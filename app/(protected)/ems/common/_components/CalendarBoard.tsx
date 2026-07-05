@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   useCalendarData,
   type CalendarEvent,
-} from "@/app/(protected)/_components/calendar/hooks/common/use-calendar-data";
+} from "@/app/(protected)/ems/common/hooks/use-calendar-data";
 import {
   buildMonthMatrix,
   toJstDayIndex,
