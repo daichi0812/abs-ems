@@ -42,10 +42,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const data = await request.json();
-        const { user_id, list_id, start, end, isRenting } = data;
+        // 予約作成もログイン必須。user_id は body ではなくセッションから導出し、body の
+        // user_id は信頼しない（他人になりすました予約作成を防ぐ integrity 対策）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
 
-        if (!user_id || !list_id || !start || !end) {
+        const data = await request.json();
+        const { list_id, start, end, isRenting } = data;
+
+        if (!list_id || !start || !end) {
             return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
         }
 
@@ -116,7 +123,7 @@ export async function POST(request: Request) {
             }
             const reserve = await tx.reserve.create({
                 data: {
-                    user_id,
+                    user_id: user.id,
                     list_id: Number(list_id),
                     start: startDateTime,
                     end: endDateTime,

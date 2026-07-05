@@ -56,6 +56,29 @@ beforeEach(() => {
 });
 
 describe("POST /api/reserves", () => {
+  it("returns 401 and does not create when unauthenticated", async () => {
+    currentUserMock.mockResolvedValueOnce(undefined);
+    const res = await POST(postRequest(validBody()));
+    expect(res.status).toBe(401);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores body user_id and uses the session user (anti-spoof)", async () => {
+    findFirstMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: 2 });
+    currentUserMock.mockResolvedValue({ id: "attacker", role: "USER" });
+
+    // 攻撃者が body で他人(victim)を詐称しても、作成される user_id はセッション(attacker)。
+    const res = await POST(postRequest({ ...validBody(), user_id: "victim" }));
+
+    expect(res.status).toBe(201);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ user_id: "attacker" }),
+      }),
+    );
+  });
+
   it("returns 400 when required fields are missing", async () => {
     const res = await POST(postRequest({ user_id: "u1", list_id: 1 }));
     expect(res.status).toBe(400);
@@ -117,10 +140,10 @@ describe("POST /api/reserves", () => {
     const res = await POST(postRequest(validBody()));
 
     expect(res.status).toBe(201);
-    // "YYYY-MM-DD" 文字列は UTC 00:00 として保存される
+    // user_id は body("u1")ではなくセッション("tester")から入る。"YYYY-MM-DD" は UTC 00:00 保存。
     expect(createMock).toHaveBeenCalledWith({
       data: {
-        user_id: "u1",
+        user_id: "tester",
         list_id: 1,
         start: new Date(jstDate(1) + "T00:00:00Z"),
         end: new Date(jstDate(3) + "T00:00:00Z"),
