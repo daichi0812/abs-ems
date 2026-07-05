@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import { useState } from "react";
+import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import type { Tag } from "./use-tags";
 
@@ -29,7 +30,7 @@ export const useEquipmentRegistration = ({
     setSelectedTag("");
   };
 
-  const submit = async () => {
+  const submit = async (): Promise<boolean> => {
     try {
       // アップロード API（R2）の応答は { url } のみ（旧 Vercel Blob の PutBlobResult 依存を除去）
       let blob: { url: string } | null = null;
@@ -54,12 +55,14 @@ export const useEquipmentRegistration = ({
         },
         { headers: managerAuthHeaders() },
       );
-      alert("機材登録が完了しました");
+      toast.success("機材登録が完了しました");
       setSelectedTag("");
       await refetchEquipments();
       cancel();
+      return true;
     } catch (err) {
-      alert("機材登録ができません");
+      toast.error("機材登録ができません");
+      return false;
     }
   };
 
