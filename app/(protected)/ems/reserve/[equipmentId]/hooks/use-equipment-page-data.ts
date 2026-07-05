@@ -10,14 +10,6 @@ interface List {
   usable: boolean;
 }
 
-interface Reserve {
-  id: number;
-  user_id: string;
-  start: Date;
-  end: Date;
-  list_id: number;
-}
-
 export interface UseEquipmentPageDataParams {
   equipmentId: string | string[] | undefined;
 }
@@ -29,28 +21,20 @@ export const useEquipmentPageData = ({ equipmentId }: UseEquipmentPageDataParams
   const [isFetching, setIsFetching] = useState<boolean>(true);
 
   const fetchEquipmentData = async () => {
-    const equipmentData = await fetch(`/api/lists/${equipmentId}`).then((res) => res.json());
-    console.log(equipmentData.detail);
-    setEquipmentName(equipmentData.name);
-    setEquipmentDetail(equipmentData.detail);
-    setEquipmentImg(equipmentData.image);
-  };
-
-  const fetchReservesData = async () => {
-    // NOTE: This fetch's result was previously stored in local state but never read.
-    // We preserve the fetch (it still drives isFetching) but drop the unused state.
-    await fetch("/api/reserves")
-      .then((res) => res.json())
-      .then((reservesData: Reserve[]) =>
-        reservesData.filter((item) => item.list_id === Number(equipmentId)),
-      );
-
-    setIsFetching(false);
+    try {
+      const equipmentData = await fetch(`/api/lists/${equipmentId}`).then((res) => res.json());
+      setEquipmentName(equipmentData.name);
+      setEquipmentDetail(equipmentData.detail);
+      setEquipmentImg(equipmentData.image);
+    } finally {
+      // 以前はここで /api/reserves を全件取得して filter していたが、その結果は未使用だった。
+      // 無駄な全件取得を廃止し、isFetching は機材データ取得の完了に紐付ける。
+      setIsFetching(false);
+    }
   };
 
   useEffect(() => {
     fetchEquipmentData();
-    fetchReservesData();
   }, []);
 
   return {

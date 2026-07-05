@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 
 export interface UseTagDeletionParams {
   refetchTags: () => Promise<void>;
@@ -13,7 +14,7 @@ export const useTagDeletion = ({ refetchTags }: UseTagDeletionParams) => {
     );
     if (confirmed) {
       try {
-        await axios.delete(`/api/tags/${id}`);
+        await axios.delete(`/api/tags/${id}`, { headers: managerAuthHeaders() });
         alert("カテゴリが削除されました.");
         await refetchTags();
       } catch (err) {

@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useReserves } from "./use-reserves";
 
@@ -55,5 +55,18 @@ describe("useReserves", () => {
     await result.current.refetch();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to empty reserves on a non-array (401/500) body", async () => {
+    // /api/reserves が認証ゲートで {error} を返しても競合判定/描画がクラッシュしないことを固定。
+    // ガードが外れると setReserves がオブジェクトを格納し toEqual([]) が落ちる。
+    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+
+    const { result } = renderHook(() => useReserves());
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.reserves).toEqual([]);
   });
 });

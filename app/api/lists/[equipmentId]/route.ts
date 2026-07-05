@@ -1,4 +1,6 @@
 import { db } from '@/lib/db';
+import { hasManagerAccess } from '@/lib/api-auth';
+import { currentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 
 interface Params {
@@ -10,6 +12,12 @@ interface Params {
 // 特定のIDのデータを取得する
 export async function GET(request: Request, { params }: Params) {
     try {
+        // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
+
         const equipmentId = parseInt((await params).equipmentId, 10);
 
         if (isNaN(equipmentId)) {
@@ -32,6 +40,10 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
+    if (!(await hasManagerAccess(request))) {
+        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
+    }
+
     const data = await request.json();
     const { name, detail, image, tag_id } = data;
 
@@ -69,6 +81,10 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
+    if (!(await hasManagerAccess(request))) {
+        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
+    }
+
     try {
         const equipmentId = parseInt((await params).equipmentId, 10);
 

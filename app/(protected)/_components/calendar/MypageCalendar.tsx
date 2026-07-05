@@ -25,11 +25,12 @@ type MypageCalendarProps = {
 }
 
 export default function MypageCalendar({ filteredData, idToNameMap, userId, mypageFetchReservesData }: MypageCalendarProps) {
-  const { listColorMap } = useListColorMap();
+  const { listColorMap, isLoading: isColorMapLoading } = useListColorMap();
   const { allEvents, setAllEvents, isFetching } = useCalendarEvents({
     filteredData,
     idToNameMap,
     listColorMap,
+    isColorMapLoading,
   });
   const deleteFlow = useDeleteFlow({
     filteredData,

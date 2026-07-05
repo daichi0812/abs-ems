@@ -103,6 +103,12 @@ model Reserve {
   end       DateTime?
   list_id   Int?
   isRenting Int? @default(0)
+
+  // POST の重複(期間重なり)チェック route.ts の findFirst({ list_id, start<=E, end>=S }) と
+  // ?list_id= フィルタに効く。等値 list_id を先頭、範囲 start を第2列に。
+  @@index([list_id, start])
+  // ?user_id= フィルタ(本人予約一覧)に効く。
+  @@index([user_id, start])
 }
 
 model Tag {

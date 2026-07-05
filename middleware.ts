@@ -50,6 +50,19 @@ export default auth((req) => {
 })
 
 // Optionally, don't invoke Middleware on some paths
+//
+// /api/auth/* は matcher から除外する。
+// 理由: このファイルの auth() ラッパーは、マッチした全リクエストで Auth.js を走らせ、
+// jwt セッション cookie を再発行（Set-Cookie）する。/api/auth/signout もマッチすると、
+// route handler が出すセッション削除 Set-Cookie を middleware 側の再発行が打ち消し、
+// Cloudflare Workers(OpenNext) 上ではログアウトしてもセッションが消えない（Vercel では
+// cookie マージ順で削除が勝つため顕在化しない＝Workers 固有）。
+// ログインは「まだセッションが無い」ため再発行と衝突せず正常に動く（login/logout 非対称）。
+// → /api/auth を除外し、認証エンドポイントは route handler だけに cookie を触らせる。
 export const config = {
-    matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+    matcher: [
+        '/((?!api/auth|.+\\.[\\w]+$|_next).*)',
+        '/',
+        '/(api(?!/auth)|trpc)(.*)',
+    ],
 }

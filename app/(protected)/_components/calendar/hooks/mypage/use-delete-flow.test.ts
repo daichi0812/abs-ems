@@ -173,3 +173,32 @@ describe("useDeleteFlow - deleteSelected success", () => {
     expect(result.current.idToDelete).toBeNull();
   });
 });
+
+describe("useDeleteFlow - deleteSelected failure", () => {
+  it("alerts, keeps events intact, and closes modal when the DELETE fails", async () => {
+    vi.mocked(axios.delete).mockRejectedValue(new Error("forbidden"));
+
+    const { result } = renderHook(() =>
+      useDeleteFlow(
+        defaultParams({
+          filteredData: [makeReserve({ id: 1, isRenting: 0 })],
+          allEvents: [makeEvent({ id: 1 })],
+        }),
+      ),
+    );
+
+    act(() => {
+      result.current.openDelete({ event: { id: "1" } });
+    });
+
+    await act(async () => {
+      await result.current.deleteSelected();
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("予約の削除に失敗しました。");
+    // 失敗時はローカルのイベントを消さない
+    expect(setAllEvents).not.toHaveBeenCalled();
+    expect(refetchReserves).not.toHaveBeenCalled();
+    await waitFor(() => expect(result.current.showDeleteModal).toBe(false));
+  });
+});

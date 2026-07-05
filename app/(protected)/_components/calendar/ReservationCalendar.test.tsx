@@ -31,6 +31,7 @@ const stubForm = {
   setNewEvent: vi.fn(),
   showModal: false,
   setShowModal: vi.fn(),
+  isSubmitting: false,
   handleDateClick: vi.fn(),
   addEvent: vi.fn(),
   closeModal: vi.fn(),

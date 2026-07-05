@@ -27,6 +27,7 @@ export interface UseCalendarEventsParams {
   filteredData: Reserve[];
   idToNameMap: { [key: number]: string };
   listColorMap: { [key: number]: string };
+  isColorMapLoading: boolean;
 }
 
 const DEFAULT_COLOR = "#3788D8";
@@ -35,6 +36,7 @@ export const useCalendarEvents = ({
   filteredData,
   idToNameMap,
   listColorMap,
+  isColorMapLoading,
 }: UseCalendarEventsParams) => {
   const [allEvents, setAllEvents] = useState<MypageCalendarEvent[]>([]);
   const [isFetching, setIsFetching] = useState<boolean>(true);
@@ -64,10 +66,11 @@ export const useCalendarEvents = ({
       setIsFetching(false);
     };
 
-    if (Object.keys(listColorMap).length > 0) {
+    // 色マップの取得完了を待つ。取得失敗・空でも DEFAULT_COLOR で描画してローディングを終える
+    if (!isColorMapLoading) {
       createEvents();
     }
-  }, [filteredData, idToNameMap, listColorMap]);
+  }, [filteredData, idToNameMap, listColorMap, isColorMapLoading]);
 
   return { allEvents, setAllEvents, isFetching };
 };

@@ -6,6 +6,7 @@ vi.mock("axios", () => ({
 }));
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagDeletion } from "./use-tag-deletion";
 
 const refetchTags = vi.fn(async () => {});
@@ -46,7 +47,9 @@ describe("useTagDeletion", () => {
 
     await result.current.deleteTag(5);
 
-    expect(axios.delete).toHaveBeenCalledWith("/api/tags/5");
+    expect(axios.delete).toHaveBeenCalledWith("/api/tags/5", {
+      headers: managerAuthHeaders(),
+    });
     expect(alertMock).toHaveBeenCalledWith("カテゴリが削除されました.");
     expect(refetchTags).toHaveBeenCalledOnce();
   });

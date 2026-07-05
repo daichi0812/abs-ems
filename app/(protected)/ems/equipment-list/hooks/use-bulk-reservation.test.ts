@@ -2,7 +2,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("axios", () => ({
-  default: { post: vi.fn() },
+  default: {
+    post: vi.fn(),
+    // 実物と同じく isAxiosError フラグを見る簡易実装
+    isAxiosError: (e: unknown) => !!(e as { isAxiosError?: boolean } | null)?.isAxiosError,
+  },
 }));
 
 import axios from "axios";
@@ -273,5 +277,30 @@ describe("useBulkReservation - submit success path", () => {
     expect(alertMock).toHaveBeenCalledWith("予約の作成中にエラーが発生しました。");
     expect(result.current.isSubmitting).toBe(false);
     expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  it("shows the conflict message and refetches on server-side 409", async () => {
+    vi.mocked(axios.post).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 409, data: { error: "この期間にはすでに予約が入っています。" } },
+    });
+
+    const { result } = renderHook(() => useBulkReservation(defaultParams));
+
+    act(() => {
+      result.current.toggleEquipment(1, true);
+      result.current.updateForm({ start: futureStart(), end: futureEnd() });
+    });
+
+    await act(async () => {
+      await result.current.submit(fakeFormEvent());
+    });
+
+    expect(alertMock).toHaveBeenCalledWith(
+      "選択した期間にすでに予約が入っている機材があります。別の期間を選択してください。",
+    );
+    // Promise.all の部分成功を画面に反映するため refetch する
+    expect(refetchReserves).toHaveBeenCalled();
+    expect(result.current.isSubmitting).toBe(false);
   });
 });

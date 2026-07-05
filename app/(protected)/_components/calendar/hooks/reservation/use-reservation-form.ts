@@ -51,6 +51,7 @@ export const useReservationForm = ({
   refetchReserves,
 }: UseReservationFormParams) => {
   const [showModal, setShowModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newEvent, setNewEvent] = useState<ReservationEvent>(() => makeEmptyEvent(userId));
 
   useEffect(() => {
@@ -96,17 +97,14 @@ export const useReservationForm = ({
     setNewEvent({ ...newEvent, end: value });
   };
 
-  const postReservesData = async () => {
-    const startDate = new Date(newEvent.start);
-    startDate.setDate(startDate.getDate() + 1);
-
-    const response = await axios.post("/api/reserves", {
+  // サーバーは "YYYY-MM-DD" 文字列をそのままJSTの日付として保存する（一括予約と同じ形式）
+  const postReservesData = async (start: string, end: string) => {
+    await axios.post("/api/reserves", {
       user_id: userId,
-      start: startDate,
-      end: newEvent.end,
+      start,
+      end,
       list_id: listId,
     });
-    console.log(response);
   };
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -135,20 +133,28 @@ export const useReservationForm = ({
       return;
     }
 
-    setAllEvents((prevEvents) => [...prevEvents, newEvent]);
-    await postReservesData();
+    setIsSubmitting(true);
+    try {
+      await postReservesData(start, end);
 
-    setNewEvent({
-      title: userId,
-      start: "",
-      end: "",
-      allDay: true,
-      id: 0,
-    });
-
-    window.alert("予約が正常に完了しました。");
-    await refetchReserves();
-    setShowModal(false);
+      setNewEvent(makeEmptyEvent(userId));
+      window.alert("予約が正常に完了しました。");
+      // refetch がユーザー名解決済みのイベントで全置換する（楽観的追加はしない）
+      await refetchReserves();
+      setShowModal(false);
+    } catch (error) {
+      console.error("Error creating reservation:", error);
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        window.alert("この期間にはすでに予約が入っています。別の期間を選択してください。");
+      } else if (axios.isAxiosError(error) && error.response?.status === 400) {
+        window.alert(error.response.data?.error ?? "無効な予約日です。");
+      } else {
+        window.alert("予約の作成中にエラーが発生しました。");
+      }
+      // モーダルは開いたままにして選び直せるようにする
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return {
@@ -156,6 +162,7 @@ export const useReservationForm = ({
     setNewEvent,
     showModal,
     setShowModal,
+    isSubmitting,
     handleDateClick,
     addEvent,
     closeModal,

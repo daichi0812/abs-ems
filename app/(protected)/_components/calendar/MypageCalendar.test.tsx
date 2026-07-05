@@ -33,7 +33,7 @@ const defaultProps = {
 };
 
 beforeEach(() => {
-  vi.mocked(useListColorMap).mockReturnValue({ listColorMap: {} });
+  vi.mocked(useListColorMap).mockReturnValue({ listColorMap: {}, isLoading: false });
   vi.mocked(useDeleteFlow).mockReturnValue({
     showDeleteModal: false,
     setShowDeleteModal: vi.fn(),

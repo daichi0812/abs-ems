@@ -18,8 +18,8 @@ export interface CalendarEvent {
 }
 
 interface User {
+  id: string;
   name: string;
-  user_id: string;
 }
 
 interface List {
@@ -51,23 +51,21 @@ export const useCalendarData = () => {
   const [isFetching, setIsFetching] = useState<boolean>(true);
 
   const fetchReservesData = async () => {
-    // ユーザーリストを取得
-    const responseLists1 = await fetch("/api/users");
-    const reservesListsData1: User[] = await responseLists1.json();
+    // 4つのAPIは互いに独立なので並列取得する（従来は直列awaitでウォーターフォールになっていた）。
+    // 各APIはログイン必須になり得るため、401/500 の非配列ボディでも .reduce/.map が
+    // クラッシュしないよう Array.isArray で空配列にフォールバックする（他フックと同じ防御水準）。
+    const [reservesListsData1, reservesListsData2, tags, reservesData] = await Promise.all([
+      fetch("/api/users").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as User[]),
+      fetch("/api/lists").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as List[]),
+      fetch("/api/tags").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as Tag[]),
+      fetch("/api/reserves").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as Reserve[]),
+    ]);
 
     // ユーザーIDをキーにして名前をマッピング
     const idToNameMap1: { [key: string]: string } = reservesListsData1.reduce((map, item) => {
-      map[item.user_id] = item.name;
+      map[item.id] = item.name;
       return map;
     }, {} as { [key: string]: string });
-
-    // 機材データを取得
-    const responseLists2 = await fetch("/api/lists");
-    const reservesListsData2: List[] = await responseLists2.json();
-
-    // タグデータを取得
-    const responseTags = await fetch("/api/tags");
-    const tags: Tag[] = await responseTags.json();
 
     // IDをキーにして機材名と色をマッピング
     const idToNameMap2: { [key: string]: string } = {};
@@ -83,17 +81,12 @@ export const useCalendarData = () => {
       idToColorMap[tag.id] = tag.color;
     });
 
-    // 予約データを取得
-    const response = await fetch("/api/reserves");
-    const reservesData: Reserve[] = await response.json();
-
     // 新しいイベントの一時配列を作成
     const newEvents: CalendarEvent[] = reservesData.map((item) => {
       const endDate = new Date(item.end);
       endDate.setDate(endDate.getDate() + 1);
 
       const backgroundColor = idToColorMap[idTolistId[item.list_id]] || "#3788D8";
-      console.log(backgroundColor);
       const textColor = getTextColorForBackground(backgroundColor);
 
       return {

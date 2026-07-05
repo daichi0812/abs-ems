@@ -13,6 +13,7 @@ vi.mock("@/app/(protected)/ems/manager/useGetImageUrl", () => ({
 }));
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentUpdate } from "./use-equipment-update";
 
 const onSuccess = vi.fn();
@@ -100,7 +101,7 @@ describe("useEquipmentUpdate - submit", () => {
         image: "https://existing/img.png",
         tag_id: 1,
       },
-      { headers: { "Content-Type": "application/json" } },
+      { headers: { "Content-Type": "application/json", ...managerAuthHeaders() } },
     );
     expect(alertMock).toHaveBeenCalledWith("機材情報が更新されました");
     expect(onSuccess).toHaveBeenCalled();
@@ -128,6 +129,7 @@ describe("useEquipmentUpdate - submit", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=test.png", {
       method: "POST",
       body: file,
+      headers: managerAuthHeaders(),
     });
     expect(axios.put).toHaveBeenCalledWith(
       "/api/lists/5",

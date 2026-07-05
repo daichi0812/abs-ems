@@ -14,6 +14,7 @@ const DEFAULT_COLOR = "#3788D8";
 
 export const useListColorMap = () => {
   const [listColorMap, setListColorMap] = useState<{ [key: number]: string }>({});
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchListData = async () => {
@@ -27,11 +28,14 @@ export const useListColorMap = () => {
         setListColorMap(colorMap);
       } catch (error) {
         console.error("Error fetching list data:", error);
+      } finally {
+        // 失敗・空データでもローディングを終える（呼び出し側はデフォルト色で描画する）
+        setIsLoading(false);
       }
     };
 
     fetchListData();
   }, []);
 
-  return { listColorMap };
+  return { listColorMap, isLoading };
 };

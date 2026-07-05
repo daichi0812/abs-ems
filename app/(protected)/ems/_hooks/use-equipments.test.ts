@@ -51,4 +51,16 @@ describe("useEquipments", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("/api/lists");
   });
+
+  it("resolves the spinner and stays empty on a non-array (401/500) body", async () => {
+    // /api/lists が認証ゲートで {error} を返しても .sort でハングせず、
+    // 無限スピナーにならないことを固定（本来の不変条件）
+    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+
+    const { result } = renderHook(() => useEquipments());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.equipments).toEqual([]);
+  });
 });

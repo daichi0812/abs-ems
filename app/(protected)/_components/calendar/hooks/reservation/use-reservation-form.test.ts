@@ -2,10 +2,15 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("axios", () => ({
-  default: { post: vi.fn() },
+  default: {
+    post: vi.fn(),
+    // 実物と同じく isAxiosError フラグを見る簡易実装
+    isAxiosError: (e: unknown) => !!(e as { isAxiosError?: boolean } | null)?.isAxiosError,
+  },
 }));
 
 import axios from "axios";
+import moment from "moment-timezone";
 import { useReservationForm, isOverlapping } from "./use-reservation-form";
 import type { Reserve, ReservationEvent } from "./use-reservation-data";
 
@@ -21,14 +26,14 @@ const makeReserve = (partial: Partial<Reserve>): Reserve => ({
 const setAllEvents = vi.fn();
 const refetchReserves = vi.fn(async () => {});
 const alertMock = vi.fn();
-const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
   vi.mocked(axios.post).mockReset();
   setAllEvents.mockClear();
   refetchReserves.mockClear();
   alertMock.mockReset();
-  consoleLogSpy.mockClear();
+  consoleErrorSpy.mockClear();
   vi.stubGlobal("alert", alertMock);
 });
 
@@ -249,8 +254,8 @@ describe("useReservationForm - submit validation", () => {
 });
 
 describe("useReservationForm - submit success", () => {
-  it("posts +1 day start, refetches, alerts success, and closes modal", async () => {
-    vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
+  it("posts JST YYYY-MM-DD strings as-is (no +1 day), refetches, alerts success, and closes modal", async () => {
+    vi.mocked(axios.post).mockResolvedValue({ status: 201 } as never);
 
     const { result } = renderHook(() => useReservationForm(defaultParams()));
 
@@ -268,21 +273,86 @@ describe("useReservationForm - submit success", () => {
       await result.current.submit(fakeFormEvent());
     });
 
-    expect(setAllEvents).toHaveBeenCalled();
     expect(axios.post).toHaveBeenCalledOnce();
     const postArgs = vi.mocked(axios.post).mock.calls[0]?.[1] as {
       user_id: string;
-      start: Date;
+      start: string;
       end: string;
       list_id: number;
     };
     expect(postArgs.user_id).toBe("u1");
     expect(postArgs.list_id).toBe(10);
-    // start should be the original + 1 day
-    expect(postArgs.start.getDate()).toBe(new Date(start).getDate() + 1);
+    // 実装と同じ式で期待値を計算する（実行環境のTZに依存しない）
+    expect(postArgs.start).toBe(moment(start).tz("Asia/Tokyo").format("YYYY-MM-DD"));
+    expect(postArgs.end).toBe(moment(end).tz("Asia/Tokyo").format("YYYY-MM-DD"));
+
+    // 楽観的追加はしない（refetch がユーザー名解決済みのイベントで全置換する）
+    expect(setAllEvents).not.toHaveBeenCalled();
 
     expect(alertMock).toHaveBeenCalledWith("予約が正常に完了しました。");
     await waitFor(() => expect(refetchReserves).toHaveBeenCalled());
     expect(result.current.showModal).toBe(false);
+    expect(result.current.isSubmitting).toBe(false);
+  });
+});
+
+describe("useReservationForm - submit failure", () => {
+  const setupAndSubmit = async (result: {
+    current: ReturnType<typeof useReservationForm>;
+  }) => {
+    act(() => {
+      result.current.setShowModal(true);
+    });
+    act(() => {
+      result.current.updateStart(futureStart());
+    });
+    act(() => {
+      result.current.updateEnd(futureEnd());
+    });
+    await act(async () => {
+      await result.current.submit(fakeFormEvent());
+    });
+  };
+
+  it("shows the conflict message and keeps the modal open on 409", async () => {
+    vi.mocked(axios.post).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 409, data: { error: "この期間にはすでに予約が入っています。" } },
+    });
+
+    const { result } = renderHook(() => useReservationForm(defaultParams()));
+    await setupAndSubmit(result);
+
+    expect(alertMock).toHaveBeenCalledWith(
+      "この期間にはすでに予約が入っています。別の期間を選択してください。",
+    );
+    expect(result.current.showModal).toBe(true);
+    expect(refetchReserves).not.toHaveBeenCalled();
+    expect(setAllEvents).not.toHaveBeenCalled();
+    expect(result.current.isSubmitting).toBe(false);
+  });
+
+  it("shows the server message on 400", async () => {
+    vi.mocked(axios.post).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 400, data: { error: "予約開始日は今日以降にしてください。" } },
+    });
+
+    const { result } = renderHook(() => useReservationForm(defaultParams()));
+    await setupAndSubmit(result);
+
+    expect(alertMock).toHaveBeenCalledWith("予約開始日は今日以降にしてください。");
+    expect(result.current.showModal).toBe(true);
+  });
+
+  it("shows a generic message on unexpected errors", async () => {
+    vi.mocked(axios.post).mockRejectedValue(new Error("network down"));
+
+    const { result } = renderHook(() => useReservationForm(defaultParams()));
+    await setupAndSubmit(result);
+
+    expect(alertMock).toHaveBeenCalledWith("予約の作成中にエラーが発生しました。");
+    expect(result.current.showModal).toBe(true);
+    expect(result.current.isSubmitting).toBe(false);
   });
 });

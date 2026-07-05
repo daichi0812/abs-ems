@@ -16,9 +16,9 @@ afterEach(() => {
 });
 
 const setupHappyPath = () => {
-  // /api/users
+  // /api/users（Prisma User の形: キーは id）
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ user_id: "u1", name: "Taro" }],
+    json: async () => [{ id: "u1", name: "Taro" }],
   });
   // /api/lists
   fetchMock.mockResolvedValueOnce({
@@ -94,7 +94,7 @@ describe("useCalendarData", () => {
   });
 
   it("falls back to default color when tag color is missing", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [{ user_id: "u1", name: "Taro" }] });
+    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "u1", name: "Taro" }] });
     fetchMock.mockResolvedValueOnce({
       json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 999 }],
     });

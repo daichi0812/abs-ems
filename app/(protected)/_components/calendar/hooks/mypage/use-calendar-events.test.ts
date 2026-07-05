@@ -18,21 +18,36 @@ describe("useCalendarEvents", () => {
     const idToNameMap = {};
     const listColorMap = {};
     const { result } = renderHook(() =>
-      useCalendarEvents({ filteredData, idToNameMap, listColorMap }),
+      useCalendarEvents({ filteredData, idToNameMap, listColorMap, isColorMapLoading: true }),
     );
     expect(result.current.allEvents).toEqual([]);
     expect(result.current.isFetching).toBe(true);
   });
 
-  it("does not create events until listColorMap has entries", () => {
+  it("does not create events while the color map is still loading", () => {
     const filteredData = [makeReserve({})];
     const idToNameMap = { 10: "Camera" };
     const listColorMap = {};
     const { result } = renderHook(() =>
-      useCalendarEvents({ filteredData, idToNameMap, listColorMap }),
+      useCalendarEvents({ filteredData, idToNameMap, listColorMap, isColorMapLoading: true }),
     );
     expect(result.current.allEvents).toEqual([]);
     expect(result.current.isFetching).toBe(true);
+  });
+
+  it("creates events with default color even when the color map ends up empty (fetch failure)", async () => {
+    const filteredData = [makeReserve({ id: 100, list_id: 10 })];
+    const idToNameMap = { 10: "Camera" };
+    const listColorMap = {}; // /api/lists の失敗・空応答を想定
+
+    const { result } = renderHook(() =>
+      useCalendarEvents({ filteredData, idToNameMap, listColorMap, isColorMapLoading: false }),
+    );
+
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+
+    expect(result.current.allEvents).toHaveLength(1);
+    expect(result.current.allEvents[0].backgroundColor).toBe("#3788D8");
   });
 
   it("creates events with mapped title, color, and +1 day end", async () => {
@@ -41,7 +56,7 @@ describe("useCalendarEvents", () => {
     const listColorMap = { 10: "#ffffff" };
 
     const { result } = renderHook(() =>
-      useCalendarEvents({ filteredData, idToNameMap, listColorMap }),
+      useCalendarEvents({ filteredData, idToNameMap, listColorMap, isColorMapLoading: false }),
     );
 
     await waitFor(() => expect(result.current.isFetching).toBe(false));
@@ -63,7 +78,7 @@ describe("useCalendarEvents", () => {
     const listColorMap = { 10: "#ff0000" }; // 999 not present
 
     const { result } = renderHook(() =>
-      useCalendarEvents({ filteredData, idToNameMap, listColorMap }),
+      useCalendarEvents({ filteredData, idToNameMap, listColorMap, isColorMapLoading: false }),
     );
 
     await waitFor(() => expect(result.current.isFetching).toBe(false));
@@ -77,7 +92,7 @@ describe("useCalendarEvents", () => {
     const listColorMap = { 10: "#ffffff" };
 
     const { result } = renderHook(() =>
-      useCalendarEvents({ filteredData, idToNameMap, listColorMap }),
+      useCalendarEvents({ filteredData, idToNameMap, listColorMap, isColorMapLoading: false }),
     );
 
     await waitFor(() => expect(result.current.isFetching).toBe(false));

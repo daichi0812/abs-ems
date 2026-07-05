@@ -7,6 +7,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentActions } from "./use-equipment-actions";
 
 const refetchEquipments = vi.fn(async () => {});
@@ -77,7 +78,10 @@ describe("useEquipmentActions - delete", () => {
     });
 
     expect(confirmMock).toHaveBeenCalledWith("本当に削除しますか？");
-    expect(fetchMock).toHaveBeenCalledWith("/api/lists/42", { method: "DELETE" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/lists/42", {
+      method: "DELETE",
+      headers: managerAuthHeaders(),
+    });
     expect(refetchEquipments).toHaveBeenCalledOnce();
   });
 });

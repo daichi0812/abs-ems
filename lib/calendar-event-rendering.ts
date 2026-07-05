@@ -12,8 +12,9 @@ export const formatDate1 = (date: Date | string): string => {
 
 export const formatDate2 = (date: Date | string): string => {
   const d = new Date(date);
+  d.setDate(d.getDate() - 1); // Date演算で引くことで月初・年初でも正しく繰り下がる
   const month = `${d.getMonth() + 1}`.padStart(2, "0");
-  const day = `${d.getDate() - 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
   return `${month}月${day}日`;
 };
 

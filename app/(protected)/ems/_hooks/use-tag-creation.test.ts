@@ -6,6 +6,7 @@ vi.mock("axios", () => ({
 }));
 
 import axios from "axios";
+import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagCreation } from "./use-tag-creation";
 
 const refetchTags = vi.fn(async () => {});
@@ -73,13 +74,36 @@ describe("useTagCreation", () => {
       await result.current.submit();
     });
 
-    expect(axios.post).toHaveBeenCalledWith("/api/tags", {
-      name: "Lights",
-      color: "#0000ff",
-    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/api/tags",
+      {
+        name: "Lights",
+        color: "#0000ff",
+      },
+      { headers: managerAuthHeaders() },
+    );
     expect(refetchTags).toHaveBeenCalledOnce();
     expect(result.current.addTagName).toBe("");
     expect(result.current.editTagColor).toBe("");
+  });
+
+  it("alerts and keeps input when the POST fails (e.g. 403/500)", async () => {
+    vi.mocked(axios.post).mockRejectedValue(new Error("forbidden"));
+
+    const { result } = renderHook(() => useTagCreation(defaultParams));
+
+    act(() => {
+      result.current.setAddTagName("Lights");
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("カテゴリの作成に失敗しました.");
+    expect(refetchTags).not.toHaveBeenCalled();
+    // 入力は消さずに再試行できるようにする
+    expect(result.current.addTagName).toBe("Lights");
   });
 
   it("exposes color setter", () => {
