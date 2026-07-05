@@ -28,4 +28,4 @@
 
 ## ADR 一覧
 
-<!-- - [ADR-001_xxx.md](ADR-001_xxx.md) — 1行要約 -->
+- [ADR-001_migrate-to-cloudflare-opennext-r2.md](ADR-001_migrate-to-cloudflare-opennext-r2.md) — Vercel の Next.js モノリスを Cloudflare(OpenNext)＋R2 へ移行、FastAPI 分割は不採用（手順は [`../runbook-cloudflare-migration.md`](../runbook-cloudflare-migration.md)）

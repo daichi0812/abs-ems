@@ -42,3 +42,4 @@
 
 - `CONTRIBUTING.md` — 開発フロー・ブランチ/タグ運用・テスト規約
 - `decisions/` — ADR（採用判断・技術選定。commit に紐づく確定判断のみ）
+- `runbook-cloudflare-migration.md` — Vercel → Cloudflare(OpenNext)＋R2 移行の運用手順（判断は `decisions/ADR-001` が正本）
