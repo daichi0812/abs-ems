@@ -50,4 +50,15 @@ describe("useCategories", () => {
     expect(result.current.categories).toEqual([]);
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
+
+  it("falls back to empty categories on a non-array (401/500) body", async () => {
+    // /api/tags が認証ゲートで {error} を返しても .map がクラッシュしないことを固定
+    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+
+    const { result } = renderHook(() => useCategories());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.categories).toEqual([]);
+  });
 });
