@@ -2,7 +2,6 @@
 import React, { useState, useTransition } from 'react';
 import MypageCalendar from '../../_components/calendar/MypageCalendar';
 import { useRouter } from 'next/navigation';
-import Header from '@/app/(protected)/_components/Header';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button } from '@chakra-ui/react';
 import { useMyReserves } from './hooks/use-my-reserves';
@@ -77,7 +76,6 @@ const Mypage = () => {
     return (
         <>
             <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400 to-blue-800 min-h-full pb-3'>
-                <Header />
                 <div className=" md:w-[80%] mx-2 md:mx-auto mb-3 shadow-md">
                     <MypageCalendar idToNameMap={idToNameMap} filteredData={filteredData} userId={user?.id} mypageFetchReservesData={mypageFetchReservesData} />
                 </div>

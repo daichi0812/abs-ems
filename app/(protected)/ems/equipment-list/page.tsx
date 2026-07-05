@@ -1,6 +1,5 @@
 "use client"
 import React, { Fragment, useState } from 'react';
-import Header from '@/app/(protected)/_components/Header';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Button, Center, Spinner } from '@chakra-ui/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -37,7 +36,6 @@ const EquipmentList = () => {
     return (
         <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 min-h-full pb-3'>
-            <Header />
 
             <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-2 py-2 px-2 shadow-md md:w-[80%] md:mx-auto">
                 <div className='flex justify-between items-center flex-wrap gap-2'>

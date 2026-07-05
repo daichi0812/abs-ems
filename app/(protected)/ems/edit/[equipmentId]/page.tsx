@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import InputImage from "@/components/InputImage";
 
 import { Button } from '@chakra-ui/react';
-import Header from '@/app/(protected)/_components/Header';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useEquipmentDetails } from './hooks/use-equipment-details';
@@ -66,7 +65,6 @@ const EditPage = () => {
   return (
     <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
         from-sky-400 to-blue-800 h-full'>
-      <Header />
       <div className="bg-[#F5F5F8] shadow rounded-md p-3 mt-3 mx-2 md:w-[80%] md:mx-auto">
         <p className='text-xl mb-1'>機材情報の編集</p>
         <label

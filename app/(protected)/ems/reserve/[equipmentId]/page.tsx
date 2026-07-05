@@ -2,7 +2,6 @@
 
 import ReservationCalendar from "@/app/(protected)/_components/calendar/ReservationCalendar";
 import Image from "next/image";
-import Header from "@/app/(protected)/_components/Header";
 import { useParams } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Center, Spinner } from "@chakra-ui/react";
@@ -21,7 +20,6 @@ const ProductDetails = () => {
     return (
         <div className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 pb-3">
-            <Header />
             <div id="listBox" className='rounded-lg shadow-md mx-2 p-3 mb-3 bg-[#F5F5F7] md:w-[80%] md:mx-auto'>
                 <p className="text-xl">{equipmentName}</p>
             </div>
