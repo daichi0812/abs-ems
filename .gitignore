@@ -52,3 +52,7 @@ next-env.d.ts
 **/public/workbox-*.js.map
 
 .env*
+
+# wrangler types のフル生成物（Workers グローバル型で DOM fetch 型を壊すため使わない。
+# バインディング型は cloudflare-env.d.ts で最小定義。tsconfig でも exclude 済み）
+worker-configuration.d.ts

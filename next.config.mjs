@@ -21,7 +21,11 @@ const nextConfig = withSerwist({
     ],
   },
   images: {
-    domains: ['a9imy1jqjrudia3w.public.blob.vercel-storage.com', 'www.paypalobjects.com'],
+    // R2 移行期は旧 Vercel Blob ホストと新 R2 カスタムドメインが混在するため、
+    // ホスト allowlist（remotePatterns）を張らずに済む unoptimized で開始する。
+    // 機材画像の利用は next/image 2箇所のみ（reserve / store）。
+    // 画像最適化を Cloudflare 側で有効化するなら後日 remotePatterns へ移行する。
+    unoptimized: true,
   }
 });
 

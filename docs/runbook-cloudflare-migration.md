@@ -175,41 +175,49 @@ serverExternalPackages: ["@prisma/client", ".prisma/client"],
 
 ## Phase 2 — 画像を R2 へ（コード＋データ移行）
 
-### 2-1. アップロードコード（`app/api/upload/route.ts`）
+### 2-1. アップロードコード（`app/api/upload/route.ts`）— ✅ 実装確定・workerd 検証済み
 
-`@vercel/blob` の `put()` を R2 バインディングへ置換。`hasManagerAccess` ゲートは維持。
+`@vercel/blob` の `put()` を R2 バインディングへ置換。`hasManagerAccess` ゲートは維持。**実際にコミットした形**:
 
 ```ts
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-// ...
-const ext = filename.includes(".") ? filename.split(".").pop() : "";
-const key = `${sanitize(base)}-${crypto.randomUUID()}${ext ? "." + ext : ""}`;
+// hasManagerAccess / filename チェックの後:
+const baseUrl = process.env.R2_PUBLIC_BASE_URL;
+if (!baseUrl) return NextResponse.json({ error: "Image storage is not configured" }, { status: 500 });
+
+// R2 の put() は同一キーをエラー無しで上書きするため UUID で一意化（旧 addRandomSuffix 相当）
+const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+const key = `${crypto.randomUUID()}-${safeName}`;
+
 const { env } = getCloudflareContext();
-await env.IMAGES_BUCKET.put(key, req.body, {
-  httpMetadata: { contentType: req.headers.get("content-type") ?? "application/octet-stream" },
+const body = await req.arrayBuffer();
+await env.IMAGES_BUCKET.put(key, body, {
+  httpMetadata: { contentType: req.headers.get("content-type") ?? undefined },
 });
-const url = `https://img.example.com/${key}`;
-return NextResponse.json({ url }); // 現行が返す blob.url 相当
+
+const url = `${baseUrl.replace(/\/$/, "")}/${key}`;
+return NextResponse.json({ url }); // 呼び出し側フックは .url しか使わない＝後方互換
 ```
 
-> **応答形状の事前確認**: 上記は応答を `{ url }` に固定している。呼び出し側フック（`use-equipment-registration.ts` / `use-equipment-update.ts`）が **`.url` 以外（旧 Blob 応答の `pathname` / `downloadUrl` / `contentType` 等）を参照していないか**を先に確認してから、この形状に固定すること。参照していれば応答に足すか、フック側を直す。
+- **`R2_PUBLIC_BASE_URL`**: 配信カスタムドメインのベース URL（例 `https://img.abs-ems.example`）。実行時 var（secret でも `NEXT_PUBLIC` でもない。組み立てた絶対 URL を `List.image` に保存し、クライアントは DB 由来の URL を読むだけで env は参照しない）。preview では `.dev.vars` に置く。本番は wrangler の var/secret としてカットオーバー時に設定。
+- **応答は `{ url }` に固定**。フック（`use-equipment-registration.ts` / `use-equipment-update.ts`）は `blob.url` のみ参照済みなので無改修。
 
-> **落とし穴**: R2 の `put()` は**同一キーをエラー無しで上書き**する（Vercel Blob 1.0+ は同名でエラー）。現行の `addRandomSuffix: true` 相当を `crypto.randomUUID()`（Workers で利用可）で**必ず自前実装**。怠ると同名アップロードで既存画像が消える。
+> **型の判断（重要・ハマりどころ）**: `getCloudflareContext().env.IMAGES_BUCKET` を型付けするのに **`wrangler types` のフル生成物（`worker-configuration.d.ts`）は使わない**。あれは Workers ランタイムのグローバル型一式を注入し、**DOM の `Response.json()` を `Promise<unknown>` に上書き**する。すると `fetch(...).then(res => res.json())` に依存するクライアント側フック（`use-equipment-page-data.ts` 等）が軒並み `'x' is of type 'unknown'` で **`next build` に失敗**する（Phase 1 で cf:build が通ったのはこの d.ts が無かったから）。
+> → 代わりに **`cloudflare-env.d.ts`（手書き）** で global `CloudflareEnv` に `IMAGES_BUCKET` の最小構造型だけを足す。OpenNext 自身が `declare global { interface CloudflareEnv }` を持つので追記でよく、`skipLibCheck` により未解決の Workers 型は無害。`worker-configuration.d.ts` は **gitignore＋tsconfig exclude** 済みで、`cf-typegen` を実行して生成されても型検査に影響しない（＝`cf-typegen` の出力は事実上未使用のディスカバリ用）。
 
-`next.config.mjs` の画像設定:
+`next.config.mjs` の画像設定 — **`unoptimized: true`**（`domains` は撤去）:
 
 ```js
 images: {
-  // domains は非推奨。remotePatterns へ
-  remotePatterns: [
-    { protocol: "https", hostname: "img.example.com" },
-    { protocol: "https", hostname: "www.paypalobjects.com" }, // 既存で使っていれば残す
-  ],
-  unoptimized: true, // 開始時。next/image は Workers 上で自動最適化されない（下記）
+  // 移行期は旧 Vercel Blob ホストと新 R2 ホストが混在するため allowlist を張らずに済む
+  // unoptimized で開始。機材画像の利用は next/image 2箇所のみ（reserve / store）。
+  unoptimized: true,
 }
 ```
 
-> **next/image の最適化**: Workers 上では自動で効かない。効かせるには `IMAGES` バインディング（Cloudflare Images／課金）か独自ローダー（`/cdn-cgi/image`、ゾーンで Image Transformations 有効化）が要る。利用は2箇所のみなので、まず `unoptimized: true` で R2 から素配信し、必要なら後で最適化を足す。
+> **next/image の最適化**: Workers 上では自動で効かない。効かせるには `IMAGES` バインディング（Cloudflare Images／課金）か独自ローダー（`/cdn-cgi/image`、ゾーンで Image Transformations 有効化）が要る。利用2箇所なのでまず `unoptimized: true` で R2 から素配信し、必要なら後で `remotePatterns`＋最適化を足す。
+
+> **✅ upload 実行時検証 完了（2026-07-05・workerd 実行）**: `npm run preview` で workerd 起動、`/api/upload` を一時的に publicRoutes 追加（middleware はセッションで判定し `x-manager-key` を見ないため。検証後 revert 済み）して POST。**ヘッダ無し→403、`x-manager-key`（=`NEXT_PUBLIC_MANAGER_KEY`）付き→200 `{"url":".../<uuid>-smoke_test_.png"}`**（`smoke test!.png` がサニタイズされキー一意化も確認）。さらに `.wrangler/state/v3/r2/abs-ems-images/blobs/` に **27B の blob** が生成され、R2 メタ SQLite に当該キーが記録＝**miniflare ローカル R2 へ実体が永続化**されたことまで確認（本番 R2 は不使用・DB 非接触＝安全）。これで `env.IMAGES_BUCKET` バインディング配線・`put()`・一意キー・`hasManagerAccess` が **workerd 実行時に**動くことが取れた。**vitest 336 テスト全通過**（upload テストは R2 バインディングのモックへ更新済み）。
 
 ### 2-2. データ移行（既存画像の移送 ＋ URL 書き換え）
 
@@ -230,6 +238,8 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 ```
 
    キー=pathname を保ったのでホスト差し替えだけで一致する。**この `UPDATE` は本番 Neon への不可逆な直接変更**（プロジェクト前提: ローカルの `DATABASE_URL` は本番 Neon を直に指す）。実行前に必ず、(a) `SELECT id, image FROM "List"` で**現在の `List.image` 値をスナップショット保存**、(b) `SELECT` で対象件数を確認、してから `UPDATE`。切り戻しはこのスナップショットからの復元で行う。
+
+> **キー方式の整合（重要）**: 上の SQL がホスト差し替えだけで済むのは、**移行する既存オブジェクトを「元の Vercel Blob pathname をそのまま R2 キー」にして投入する**からである（`rclone copy` でキー＝pathname を維持）。一方 **2-1 の新規アップロードは `${uuid}-${filename}` キー**を使う。両者は方式が違うが、`List.image` には常に**絶対 URL 全体**が入るので混在して問題ない（移行済み行＝旧 pathname 由来 URL、新規行＝uuid 由来 URL、いずれも同じ R2 カスタムドメイン配下）。SQL の置換先ホスト（`https://img.example.com/`）は **2-1 の `R2_PUBLIC_BASE_URL` と同一値**にすること。
 
 ---
 
@@ -262,8 +272,9 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 | `prisma/schema.prisma` | **変更なし**（generator は `prisma-client-js` のまま。6.19 で driverAdapters GA。`directUrl` は migrate 時のみ追加） |
 | `lib/db.ts` | グローバル singleton 廃止 → `getDb()`（per-request・`cache()`）＋ `db` を Proxy で後方互換（**呼び出し側 約30ファイルは無改修**） |
 | ~~`@prisma/client` import 差し替え~~ | **不要**（Proxy＋import パス据え置きで回避。当初計画からの修正） |
-| `next.config.mjs` | `images.domains`→`remotePatterns`（R2 ホスト）＋`unoptimized:true`、`serverExternalPackages` 追加、`withSerwist` は維持 |
-| `app/api/upload/route.ts` | `@vercel/blob put` → `env.IMAGES_BUCKET.put`（一意キー＋contentType）、応答は `{ url }` |
+| `next.config.mjs` | `images.domains` 撤去 → `images.unoptimized:true`（移行期の旧/新ホスト混在を allowlist 不要に）、`serverExternalPackages` 追加、`withSerwist` は維持 |
+| `cloudflare-env.d.ts`（新規） | global `CloudflareEnv` に `IMAGES_BUCKET` の最小型を追記。**`worker-configuration.d.ts` は使わない**（Workers グローバル型が DOM `Response.json()` を壊す）。`worker-configuration.d.ts` は `.gitignore`＋`tsconfig` exclude 済み |
+| `app/api/upload/route.ts` | `@vercel/blob put` → `getCloudflareContext().env.IMAGES_BUCKET.put`（`${uuid}-${safeName}` 一意キー＋contentType）、URL は `R2_PUBLIC_BASE_URL/<key>`、応答は `{ url }`。base 未設定は 500 |
 | `app/layout.tsx` | `<SpeedInsights/>` と import 削除 |
 | `use-equipment-registration.ts` / `use-equipment-update.ts` | `PutBlobResult` 型 import 削除、応答型を `{ url }` に |
 | `lib/mail.ts` | `RESEND_API_KEY` を実行時 secret として供給（必要なら関数内読みへ） |
@@ -283,6 +294,7 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 | `GOOGLE_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
 | `GITHUB_CLIENT_ID` / `_SECRET` | 実行時 secret | wrangler secret |
 | `RESEND_API_KEY` | 実行時 secret | wrangler secret（`lib/mail.ts` で使用） |
+| `R2_PUBLIC_BASE_URL` | 実行時 var（新規） | R2 カスタムドメインのベース URL（例 `https://img.abs-ems.example`）。`app/api/upload/route.ts` が組み立てる公開 URL の前半。secret でも `NEXT_PUBLIC` でもない。preview は `.dev.vars`、本番は wrangler var。データ移行 SQL の置換先ホストと**同一値**にする |
 | `SECRET_API_KEY` | — | **コード参照なし（2026-07 監査で確認）**。未使用なら移行不要。外部連携で使っていないか確認のうえ drop 検討 |
 | `NEXT_PUBLIC_API_KEY` | ビルド時インライン | ビルド環境（`use-reservation-data.ts`） |
 | `NEXT_PUBLIC_APP_URL` | ビルド時インライン | ビルド環境（**新ドメインに更新**） |
