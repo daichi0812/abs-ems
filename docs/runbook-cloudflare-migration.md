@@ -269,6 +269,21 @@ Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_r
 
 ## Phase 4 — カットオーバー＆検証＆ロールバック
 
+> **✅ カットオーバー実施完了（2026-07-05 深夜）**。実施内容と実績:
+> 1. `npx vercel env pull --environment=production` で本番値取得（`AUTH_SECRET` 本番値＝セッション維持）
+> 2. `wrangler.jsonc` に custom_domain route（abs-ems.forgeonics.com）＋非秘匿 vars 4種を追加、
+>    秘匿6種（AUTH_SECRET / DATABASE_URL / GOOGLE_* / RESEND_API_KEY / NEXT_PUBLIC_MANAGER_KEY）を
+>    `wrangler secret bulk` で投入（旧テスト Worker は撤去済みだったため新規作成＝残骸ゼロ）。
+>    `NEXT_PUBLIC_APP_URL/API_KEY/MANAGER_KEY` は本番値を明示 env で注入してビルド→デプロイ
+> 3. Google OAuth コールバック追加済み（URIs 6）
+> 4. カスタムドメイン自動接続（デプロイ時）。スモーク: `/` 200・login 描画・保護302・
+>    csrf 単一 `__Host-` cookie・providers 3種・**実アカウントで Google ログイン→マイページ→機材一覧→ログアウト**
+> 5. 旧サイト → 新ドメインの 307 リダイレクト（PR #49 ＋ ルート `/` 漏れ修正 PR #50。
+>    **Vercel の `/:path*` はルート自身にマッチしない**実測知見）
+> 6. データ移行 ②③④ 完了（付録C 参照）。id139 復活（200 image/jpeg）
+>
+> ロールバック手段は温存: Vercel 側デプロイ・Blob 実体・`_list_image_backup_20260705`（blob URL 41行）。
+
 0. **🔴 認証2点セットの確認（両方必須・片方だけだと壊れる）**: **`AUTH_URL=https://abs-ems.forgeonics.com`（真因A対策）** ＊かつ＊ **`middleware.ts` の `/api/auth` matcher 除外（真因B対策・付録A/D）** が両方入っていること。`AUTH_URL` だけ→ログアウト不能が再発（真因B）、matcher だけ→session=null（真因A）。**さらに `AUTH_URL` 無しだと middleware 経由の API ルート（/api/lists・/api/tags・/api/upload 等）で `auth()` がセッションを復号できず、role=ADMIN 経路の管理操作が全て 403 になる**（2026-07-05 preview で実証・付録D 追記参照）。付録D 参照。
 1. **本番 secret 投入**: `AUTH_SECRET` は**現行本番と同一値**（変えると既存の暗号化 JWE セッションが全て失効し全ユーザー強制ログアウト）。`AUTH_TRUST_HOST=true`。`AUTH_URL`（上記）。DB は プール URL（`DATABASE_URL`）＋直結（`DIRECT_URL`）。
 2. **OAuth コールバック URL 追加**: Google Cloud の OAuth クライアントに **`https://abs-ems.forgeonics.com/api/auth/callback/google`** を追加（新クライアントには workers.dev / logicode.tech / vercel.app は登録済みだが **forgeonics 本番ドメインは未登録**）。GitHub は現状未使用のため任意。
@@ -343,7 +358,7 @@ Blob と `List.image` を照合。`broken_refs_count: 0` と `users_image_blob_r
 - [x] 画像アップロード（新規、R2 に入る＋一意キー）— **workerd/preview で検証済み**（403→200、ローカル R2 に blob 永続化。2-1 参照）
 - [x] **既存 Vercel Blob 画像が表示できる（移行期の回帰確認）— 検証済み ✅（2026-07-05）**: workerd 上で `/ems/reserve/132`（600d照明）をブラウザ描画し、`<img src="https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/...">` が **complete かつ naturalWidth>0（実描画）** を確認。`unoptimized:true` で `domains` 撤去後も旧 Blob URL がそのまま表示される。
 - [x] **R2 配信での画像表示 — 配信パス検証済み ✅（2026-07-05）**: `abs-ems-images` にカスタムドメイン `images.abs-ems.forgeonics.com` を接続（`wrangler r2 bucket domain add`、ownership/ssl とも active）。テスト画像を `--remote` で put → `https://images.abs-ems.forgeonics.com/<key>` が **HTTP 200 / `content-type: image/png`** で配信されることを確認（検証後 object 削除）。`.dev.vars` の `R2_PUBLIC_BASE_URL` を実値に更新済み。**残り**: アプリからの新規アップロード→保存 URL→`<img>` 描画の e2e はデプロイ時に実確認（upload の `put` は 2-1 で workerd 検証済み・配信も本項で確認済みなので、両者を繋ぐ描画確認のみ）。本番は `R2_PUBLIC_BASE_URL` を wrangler var で投入。
-- [~] **既存画像のデータ移行（Blob→R2）— コピー＋到達性ゲートまで実測検証済み ✅／残りは④SQLのみ（カットオーバー時）（2026-07-05）**。確定版スクリプト4本を `scripts/migration/` に用意（2-2 参照）。4観点並列レビューで critical=0、指摘を全反映。**本番実測（2026-07-05）**: ②コピー **70/70（fail:0）**、`--smoke` で**非ASCIIキー `helplee ロゴ-…png`（空白＋日本語）の put→get 往復 OK（490856B一致）**、③到達性ゲート **41/41=200（id139 含む）** で PASS。→ 収束していた major（非ASCIIデコード往復・id139実体・部分コピー失敗）はすべて実測で解消。id139 の実体は予測どおり orphan30 の中に在り解決（全件コピーが load-bearing だった実証）。**残るは④SQLのみ**＝稼働側と同一DB共有・main の `images.domains` がR2ホスト未許可のため**カットオーバー時に一度だけ**実行（②③はカットオーバー時に再実行して差分吸収してもよい／冪等）。
+- [x] **既存画像のデータ移行（Blob→R2）— 全ステップ本番実施完了 ✅（2026-07-05 カットオーバー）**。確定版スクリプト4本（`scripts/migration/`）＋4観点敵対的レビュー（critical=0）を経て実施。**本番実績**: ②コピー **70/70（fail:0）** → ③到達性ゲート **41/41=200（非ASCII 1件・id139 含む）** → ④ Neon SQL Editor で step 個別実行（backup 41行 → 対象41・非https 0 確認 → プレビュー → UPDATE 40＋1）→ 検証 **new_host 41／old_host 0／with_quote 0／users残存 0／backup に blob URL 41行保持（切り戻し可）**。**id139 は移行前は引用符混入で表示不能だった画像が R2 URL で 200 image/jpeg を返すようになり復活**。実データ補足: id139 の引用符は「先頭のみ1個」だった（事前予想の先頭+末尾2個と異なるが、`REPLACE` は全除去のため結果は同一・③ゲートで除去後 URL の 200 も実証済み）。Vercel Blob の実体は削除していない（後片付けは安定稼働後）。
 - [~] **PWA — SW 登録＋precache 稼働まで検証済み（2026-07-05）**: workerd 配信の `/sw.js` が 200/304 で取得され、SW が登録・ページを制御し、serwist のキャッシュ群（`serwist-precache-v2` / `pages-rsc` / `pages-rsc-prefetch` / `apis` / `next-static-js-assets` 他 計7）が実際に生成されることを確認。**残り**: オフライン遷移・SW 更新サイクルは本番ドメインで確認。⚠️ 開発時の注意: SW が localhost を掌握しナビゲーションを吸うため、preview 検証で挙動が不可解になったら SW unregister＋キャッシュ削除（または別ポート）から始めること。
 - [x] **2FA ＋ メール送信（RESEND）— 検証済み ✅（workers.dev https, 2026-07-05）**。2FA 有効テストユーザーで Credentials ログイン → **`{twoFactor: true}` が返り 2FA コード入力画面へ**（＝`resend` SDK が workerd で例外なく動作＝`sendTwoFactorTokenEmail` の RESEND 呼び出しが Workers で成功。`login.ts` は try/catch 無しで await するため、失敗すれば login ごと落ちる＝ここが唯一の 2FA 固有 Workers リスクだった）→ DB の `TwoFactorToken` を読みコード投入 → `TwoFactorConfirmation` 作成 → セッション成立（`isTwoFactorEnabled:true`）まで一気通貫。送信元は `2factor-auth@servantleader-inc.com`（RESEND 検証済みドメイン・アプリのドメイン変更に非依存）。**リセット/確認メール**は同じ `resend` SDK 経由なので SDK 動作は共通で確認済み。ただしリンク本文は `NEXT_PUBLIC_APP_URL`（ビルド時インライン）を使うため、**本番ビルドで `NEXT_PUBLIC_APP_URL=https://abs-ems.forgeonics.com` にすること**（さもないとリセット/確認リンクが旧ドメインを指す）。実配信の到達性は RESEND アカウント側＝Vercel と同一。
 - [x] **Worker 圧縮サイズ — 実測 gzip 4.08 MiB（2026-07-05）**: Free 3 MiB は超過・**Workers Paid（$5/月）の 10 MiB 内**。移行の費用計画は元々 Workers Paid 前提で、workers.dev への deploy も既に成功済み（＝アカウントは受け付け済み）なので問題なし。今後バンドルが 10 MiB に迫ったら削減を検討。
