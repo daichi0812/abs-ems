@@ -160,7 +160,16 @@ serverExternalPackages: ["@prisma/client", ".prisma/client"],
 >
 > **Proxy が実行時に失敗した場合のフォールバック**: 30ファイル無改修を狙った Proxy はあくまで「賭け」。もし delegate 再入・adapter の enumerate・接続過多が出たら、各呼び出し側を明示的な `getDb()` に置き換える（退屈だが安全）方式に切り替える。
 
-> **✅ Phase 1 scaffold 実測結果（2026-07-05・ビルド/テスト段階）**: `npm run cf:build` 成功（`next build` 型検査通過＋OpenNext 変換完了、Prisma も workerd 向けに正常バンドル）。**vitest 335 テスト全通過**、`tsc --noEmit` は `lib/db.ts` エラー無し（残る 1 件は既存のテストファイルの `RefObject` キャストで `next build` 対象外）。`wrangler deploy --dry-run` の圧縮アップロードサイズ = **gzip 4.37 MiB**（生 ~18 MiB）。→ **Free の 3 MiB 上限は超過、Paid の 10 MiB には余裕で収まる**。コストは既に「Vercel Pro $20 vs CF $5」で決着済みなので、Paid $5 で確定。**← ただし上記の workerd 実行時スモークは未実施＝Phase 1 は「ビルド検証済み・実行時未検証」の段階。**
+> **✅ Phase 1 scaffold 実測結果（2026-07-05・ビルド/テスト段階）**: `npm run cf:build` 成功（`next build` 型検査通過＋OpenNext 変換完了、Prisma も workerd 向けに正常バンドル）。**vitest 335 テスト全通過**、`tsc --noEmit` は `lib/db.ts` エラー無し（残る 1 件は既存のテストファイルの `RefObject` キャストで `next build` 対象外）。`wrangler deploy --dry-run` の圧縮アップロードサイズ = **gzip 4.37 MiB**（生 ~18 MiB）。→ **Free の 3 MiB 上限は超過、Paid の 10 MiB には余裕で収まる**。コストは既に「Vercel Pro $20 vs CF $5」で決着済みなので、Paid $5 で確定。
+
+> **✅ read パス 実行時検証 完了（2026-07-05・workerd 実行）**: `npm run preview` で workerd をローカル起動し、認証なしの一時プローブ（`db.list/tag/user.count()` のみ・レコード非返却・検証後に削除、`routes.ts` publicRoutes へ一時追加も revert 済み）で本番 Neon への読取を実行。結果 **HTTP 200 `{listCount:43, tagCount:6, userCount:97}`**。これで以下が **workerd 実行時に**確認できた:
+> - workerd が OpenNext Worker を起動しリクエストを処理する
+> - `lib/db.ts` の **Proxy が複数モデル（list/tag/user）を再帰なく解決**（堅牢化が有効）
+> - **`PrismaNeon`(WebSocket) が workerd から本番 Neon へ実接続**して読取（最大の未知が解消）
+> - `cache()` ＋ `Promise.all` の3クエリが1クライアントで動作。**コールド 2.04s → ウォーム 0.37s** で接続再利用も確認
+> - **middleware の認証ゲートが workerd 上で機能**（公開外ルートは 302 で `/auth/login` へ。プローブ追加前は 302、追加後 200 で挙動一致）
+>
+> **⏳ 未検証（残ゲート）**: **credentials サインインの書き込み系**（`bcrypt.compare` ＋ JWE 発行 ＋ `PrismaAdapter(db)` の実 create/update）は本番 DB を汚すため未実施。**Neon ブランチ**を用意してから流す。ここまでで Phase 1 は「**read パス実行時検証済み・書き込みauth系は Neon ブランチ待ち**」の段階。
 
 ---
 
