@@ -317,8 +317,8 @@ WHERE image LIKE 'https://a9imy1jqjrudia3w.public.blob.vercel-storage.com/%';
 
 ## 付録C: 検証チェックリスト（プレビュー→本番）
 
-- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。**✅ session 一貫性は workers.dev https で再検証済み（2026-07-05）**: ログイン後 middleware（保護ルート遷移）・ページ描画・`/api/auth/session` の3者が一致（付録D 参照）。2FA/OAuth 経路は引き続き未検証。
-- [ ] Google ログイン
+- [x] Credentials 新規登録＋ログイン — **Neon ブランチ＋workerd/preview で検証済み（2026-07-05）**。register（`bcrypt.hash`＋`db.user.create` の書込→ブランチDBに行を実確認）、login（`bcrypt.compare`＋JWE 発行→`/ems/mypage` へ遷移）成功。2FA 経路は未実施。**✅ session 一貫性は workers.dev https で再検証済み（2026-07-05）**: ログイン後 middleware（保護ルート遷移）・ページ描画・`/api/auth/session` の3者が一致（付録D 参照）。Google OAuth は下記で検証済み。**2FA 経路のみ未検証**（本番で `isTwoFactorEnabled=true` の利用者がいるかは要確認）。
+- [x] **Google ログイン — 検証済み ✅（workers.dev https, 2026-07-05）**。新 OAuth クライアントで authorize（PKCE, `scope=openid profile email`）→ Google 同意 → コールバック（worker からの外部 fetch でコード交換）→ **PrismaAdapter が空 DB に User＋Account(`provider=google`, `id_token` 保存) を作成** → セッション成立（`isOAuth:true`）→ 保護ルート表示 → **ログアウトで `session=null`** まで一気通貫で成功。※`provider_account_id`＝Google の `sub` はクライアントを変えても不変なので、**OAuth クライアント作り直し後も既存 Google ユーザーは連携維持**（DB で Account 行を実確認）。検証は使い捨て空 DB（新規 Neon ブランチ＋空データベース `absems_oauth`）＋使い捨て `AUTH_SECRET` で実施し実 PII 非公開。
 - [x] **サインアウト＋セッション一貫性 — 解決済み ✅（workers.dev https で e2e 検証済み・2026-07-05。付録D 参照）** — 真因は2つ（A: `AUTH_URL` 未設定の cookie-secure 名割れ、B: middleware matcher が `/api/auth` を含む二重実行で signout の削除 cookie を打ち消す）。対策は **① `middleware.ts` の matcher から `/api/auth` 除外 ② `AUTH_URL` を環境ごとに設定 ③ クライアント `signOut`（`/api/auth/signout`）**。検証: ログアウト→`session=null`＋`/auth/login` 遷移、`GET /api/auth/csrf` の Set-Cookie が単一 `__Host-authjs.csrf-token`、未ログイン保護ルートは login へリダイレクト。**本番カットオーバー時に `AUTH_URL=https://www.abs-ems.logicode.tech` の投入を忘れないこと**（真因A が再発する）。
 - [ ] GitHub ログイン（`@auth/prisma-adapter` の linkAccount 経路）
 - [x] middleware で保護されたルートのリダイレクト挙動 — **検証済み**（未ログインで `/api/upload`・`/ems/*` が 302→`/auth/login`、ログイン後は保護ページ表示）
