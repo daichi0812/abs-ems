@@ -12,6 +12,24 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // 本番ドメイン（カットオーバー 2026-07-05）。custom_domain: true でデプロイ時に
+  // DNS レコード＋証明書が自動作成される（forgeonics.com ゾーンは同一アカウント）。
+  "routes": [
+    {
+      "pattern": "abs-ems.forgeonics.com",
+      "custom_domain": true
+    }
+  ],
+  // 非秘匿の実行時 vars（秘匿値は wrangler secret で投入・ここには書かない）。
+  // AUTH_URL は認証2点セットの片翼（真因A＋第3症状対策）: 無いと session=null／
+  // ログアウト不能／middleware 経由 API の role 判定全滅が起きる（runbook 付録D）。
+  "vars": {
+    "AUTH_URL": "https://abs-ems.forgeonics.com",
+    "AUTH_TRUST_HOST": "true",
+    "R2_PUBLIC_BASE_URL": "https://images.abs-ems.forgeonics.com",
+    // lib/mail.ts が実行時に読む（リセット/確認メールのリンク生成）
+    "NEXT_PUBLIC_APP_URL": "https://abs-ems.forgeonics.com"
+  },
   // 機材画像の保存先（Phase 2 で使用）。binding 名はコード側の識別子で任意。
   "r2_buckets": [
     {
