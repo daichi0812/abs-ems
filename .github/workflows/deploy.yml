@@ -1,0 +1,52 @@
+# main への push（= develop→main PR のマージ）で Cloudflare Workers へ自動デプロイする。
+#
+# 必要な GitHub Secrets（Settings → Secrets and variables → Actions）:
+#   CLOUDFLARE_API_TOKEN     … Cloudflare ダッシュボードで「Edit Cloudflare Workers」テンプレートから作成
+#   NEXT_PUBLIC_API_KEY      … ビルド時インライン（Vercel 本番と同値）
+#   NEXT_PUBLIC_MANAGER_KEY  … ビルド時インライン ＋ Worker 側 runtime secret と同値にすること
+#
+# 実行時 secrets（AUTH_SECRET / DATABASE_URL / GOOGLE_* / RESEND_API_KEY / NEXT_PUBLIC_MANAGER_KEY）は
+# `wrangler secret` で Worker に投入済みのものが使われる。ここでは扱わない。
+# 非秘匿の実行時 vars（AUTH_URL 等）は wrangler.jsonc の vars がデプロイ時に反映される。
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # 手動再デプロイ用
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # デプロイの割り込み中断はしない（直列実行）
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci # postinstall で prisma generate（DB 接続不要）
+
+      - name: Run tests
+        run: npx vitest run # クリーン環境で 336 テスト通過を確認済み（env 不要）
+
+      - name: Build (OpenNext for Cloudflare)
+        run: npx opennextjs-cloudflare build
+        env:
+          # ビルド時インライン（クライアントバンドルに埋め込まれる）。この3つだけで
+          # クリーン環境ビルドが通ることを検証済み（AUTH_SECRET / DATABASE_URL は不要）
+          NEXT_PUBLIC_APP_URL: https://abs-ems.forgeonics.com
+          NEXT_PUBLIC_API_KEY: ${{ secrets.NEXT_PUBLIC_API_KEY }}
+          NEXT_PUBLIC_MANAGER_KEY: ${{ secrets.NEXT_PUBLIC_MANAGER_KEY }}
+
+      - name: Deploy
+        run: npx opennextjs-cloudflare deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 7bf10493dc9115e2aec069dfcdd43f22 # daichi8120@gmail.com（非秘匿）
