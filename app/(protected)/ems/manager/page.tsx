@@ -2,7 +2,6 @@
 import { useState, useTransition } from "react";
 import React from "react";
 import InputImage from "@/components/InputImage";
-import Header from "@/app/(protected)/_components/Header";
 import { useRouter } from "next/navigation";
 import { Button, Center, Spinner } from "@chakra-ui/react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,7 +45,6 @@ function App() {
             className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 pb-2 min-h-full"
         >
-            <Header />
             <div className="bg-[#F5F5F8] shadow-md rounded-md p-3 mt-3 mx-2 md:w-[80%] md:mx-auto">
                 <p className="text-xl mb-1">機材登録</p>
                 <label

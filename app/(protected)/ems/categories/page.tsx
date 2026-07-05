@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Button, Center, Spinner, Input } from '@chakra-ui/react';
-import Header from '@/app/(protected)/_components/Header';
 import { useTransition } from 'react';
 import { useTagsList } from '../_hooks/use-tags-list';
 import { useTagEditing } from './hooks/use-tag-editing';
@@ -20,7 +19,6 @@ const EditCategories = () => {
             className="bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
             from-sky-400 to-blue-800 h-full"
         >
-            <Header />
             <div className="bg-[#F5F5F8] shadow rounded-md p-3 mt-3 mx-2 md:w-[80%] md:mx-auto">
                 <p className="text-xl mb-1">カテゴリの編集</p>
                 {!isLoading ? (

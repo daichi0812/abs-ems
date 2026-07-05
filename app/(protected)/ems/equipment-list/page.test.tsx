@@ -5,9 +5,6 @@ vi.mock("@/hooks/use-current-user", () => ({
   useCurrentUser: () => ({ id: "u1", name: "Taro" }),
 }));
 
-vi.mock("@/app/(protected)/_components/Header", () => ({
-  default: () => null,
-}));
 
 vi.mock("../_hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
 vi.mock("./hooks/use-categories", () => ({ useCategories: vi.fn() }));

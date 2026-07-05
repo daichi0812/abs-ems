@@ -5,7 +5,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock("@/app/(protected)/_components/Header", () => ({ default: () => null }));
 vi.mock("@/components/InputImage", () => ({ default: () => null }));
 
 vi.mock("../_hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
