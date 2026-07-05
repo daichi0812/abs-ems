@@ -68,7 +68,13 @@ async function head(url, tries = 3) {
   const targets = [];
   for (const row of rows) {
     const newUrl = toNewUrl(row.image);
-    if (newUrl) targets.push({ id: row.id, newUrl, nonAscii: /[^ -~]/.test(newUrl) });
+    if (newUrl) {
+      // DB は %エンコード済み URL を保持するため、非ASCII 判定は「デコード後パス」で行う
+      // （さもないと日本語ファイル名も全て ASCII に見え非ASCII件数が 0 と誤表示される）。
+      let decodedPath = newUrl;
+      try { decodedPath = decodeURIComponent(new URL(newUrl).pathname); } catch {}
+      targets.push({ id: row.id, newUrl, nonAscii: /[^ -~]/.test(decodedPath) });
+    }
   }
   console.log(`対象(blob参照): ${targets.length} 件（非ASCII: ${targets.filter((t) => t.nonAscii).length} 件）`);
 
