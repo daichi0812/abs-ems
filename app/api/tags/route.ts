@@ -11,7 +11,10 @@ export async function GET() {
             return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
         }
 
-        const tags = await db.tag.findMany();
+        // 並び順は sortOrder 昇順（同値は id 昇順で安定化）。
+        const tags = await db.tag.findMany({
+            orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        });
 
         return NextResponse.json(tags, { status: 200 });
     } catch (error) {
@@ -28,7 +31,11 @@ export async function POST(request: Request) {
     try {
         const tag = await request.json();
 
-        await db.tag.create({ data: tag });
+        // 新規カテゴリは末尾に追加（既存 sortOrder の最大値 + 1）。
+        const last = await db.tag.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
+        const sortOrder = (last?.sortOrder ?? 0) + 1;
+
+        await db.tag.create({ data: { ...tag, sortOrder } });
         return NextResponse.json({ message: 'カテゴリを作成しました。' }, { status: 201 });
     } catch (error) {
         console.error('エラー詳細:', error);
