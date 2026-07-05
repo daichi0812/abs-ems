@@ -49,8 +49,9 @@ const EQUIPMENTS = [
   ["ワゴン", "その他", "機材運搬用ワゴン。搬入出をまとめて"],
 ];
 
+// dev1 は管理者画面の動作確認用に ADMIN
 const USERS = [
-  { email: "dev1@example.com", name: "川崎蒼汰" },
+  { email: "dev1@example.com", name: "川崎蒼汰", role: "ADMIN" },
   { email: "dev2@example.com", name: "星野琉生" },
   { email: "dev3@example.com", name: "三浦ひな" },
   { email: "dev4@example.com", name: "大森悠人" },
@@ -85,7 +86,7 @@ async function main() {
   for (const u of USERS) {
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { name: u.name },
+      update: { name: u.name, role: u.role ?? "USER" },
       create: { ...u, password, emailVerified: new Date() },
     });
     userIds.push(user.id);
