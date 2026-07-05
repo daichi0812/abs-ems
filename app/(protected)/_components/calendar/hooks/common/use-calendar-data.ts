@@ -83,8 +83,10 @@ export const useCalendarData = () => {
 
     // 新しいイベントの一時配列を作成
     const newEvents: CalendarEvent[] = reservesData.map((item) => {
+      // end は「利用最終日（inclusive）」をそのまま保持する。
+      // 旧実装は FullCalendar の排他的 end 用に +1 日していたが、自作カレンダー
+      // エンジン（lib/calendar）は inclusive-end 前提のため補正しない。
       const endDate = new Date(item.end);
-      endDate.setDate(endDate.getDate() + 1);
 
       const backgroundColor = idToColorMap[idTolistId[item.list_id]] || "#3788D8";
       const textColor = getTextColorForBackground(backgroundColor);

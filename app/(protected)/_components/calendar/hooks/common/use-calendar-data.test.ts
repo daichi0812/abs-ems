@@ -83,14 +83,15 @@ describe("useCalendarData", () => {
     expect(ev.allDay).toBe(true);
   });
 
-  it("extends end date by 1 day (FullCalendar exclusive-end semantics)", async () => {
+  it("keeps end as the inclusive last day (no FullCalendar +1)", async () => {
     setupHappyPath();
     const { result } = renderHook(() => useCalendarData());
 
     await waitFor(() => expect(result.current.isFetching).toBe(false));
 
     const end = result.current.allEvents[0].end as Date;
-    expect(end.getDate()).toBe(6); // 1/5 + 1 = 1/6
+    // 予約末日 2026-01-05 をそのまま保持（UTC で比較して TZ 非依存にする）
+    expect(end.getUTCDate()).toBe(5);
   });
 
   it("falls back to default color when tag color is missing", async () => {
