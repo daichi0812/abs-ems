@@ -1,9 +1,18 @@
 import { db } from '@/lib/db';
+import { currentUser } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import moment from 'moment-timezone';
 
 export async function GET(request: Request) {
     try {
+        // ログイン必須。middleware 一枚依存をやめる defense-in-depth（DELETE と同じ currentUser パターン）。
+        // 予約データはログイン部員間で共有される設計（共通/機材別カレンダーが全予約を氏名付きで表示）なので、
+        // ここで本人の予約だけに絞る self-scope はしない（絞るとカレンダーが壊れる）。認証のみ・フィルタは維持。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
+
         // ?user_id= / ?list_id= の完全一致フィルタ（日付演算はしないのでタイムゾーン安全）。
         // クエリ無し = 空 where = 全件 で従来の挙動を維持する（後方互換）。
         const { searchParams } = new URL(request.url);
@@ -33,10 +42,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const data = await request.json();
-        const { user_id, list_id, start, end, isRenting } = data;
+        // 予約作成もログイン必須。user_id は body ではなくセッションから導出し、body の
+        // user_id は信頼しない（他人になりすました予約作成を防ぐ integrity 対策）。
+        const user = await currentUser();
+        if (!user?.id) {
+            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
+        }
 
-        if (!user_id || !list_id || !start || !end) {
+        const data = await request.json();
+        const { list_id, start, end, isRenting } = data;
+
+        if (!list_id || !start || !end) {
             return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
         }
 
@@ -107,7 +123,7 @@ export async function POST(request: Request) {
             }
             const reserve = await tx.reserve.create({
                 data: {
-                    user_id,
+                    user_id: user.id,
                     list_id: Number(list_id),
                     start: startDateTime,
                     end: endDateTime,

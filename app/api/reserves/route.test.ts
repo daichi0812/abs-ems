@@ -4,9 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
 const createMock = vi.fn();
-// findMany はファクトリ内で即時参照されるため vi.hoisted で初期化する
+// findMany / currentUser はファクトリ内で即時参照されるため vi.hoisted で初期化する
 // （findFirst/create は $transaction 内の遅延参照なので通常の const で足りる）。
-const { findManyMock } = vi.hoisted(() => ({ findManyMock: vi.fn() }));
+const { findManyMock, currentUserMock } = vi.hoisted(() => ({
+  findManyMock: vi.fn(),
+  currentUserMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -15,6 +18,11 @@ vi.mock("@/lib/db", () => ({
       fn({ reserve: { findFirst: findFirstMock, create: createMock } }),
     ),
   },
+}));
+
+// GET はログイン必須。既定では認証済みユーザーを返し、未認証ケースは個別に上書きする。
+vi.mock("@/lib/auth", () => ({
+  currentUser: currentUserMock,
 }));
 
 import { GET, POST } from "./route";
@@ -42,9 +50,35 @@ beforeEach(() => {
   createMock.mockReset();
   findManyMock.mockReset();
   findManyMock.mockResolvedValue([]);
+  // 既定はログイン済み（GET テストの大半はこの前提）。未認証は各テストで上書き。
+  currentUserMock.mockReset();
+  currentUserMock.mockResolvedValue({ id: "tester", role: "USER" });
 });
 
 describe("POST /api/reserves", () => {
+  it("returns 401 and does not create when unauthenticated", async () => {
+    currentUserMock.mockResolvedValueOnce(undefined);
+    const res = await POST(postRequest(validBody()));
+    expect(res.status).toBe(401);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores body user_id and uses the session user (anti-spoof)", async () => {
+    findFirstMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: 2 });
+    currentUserMock.mockResolvedValue({ id: "attacker", role: "USER" });
+
+    // 攻撃者が body で他人(victim)を詐称しても、作成される user_id はセッション(attacker)。
+    const res = await POST(postRequest({ ...validBody(), user_id: "victim" }));
+
+    expect(res.status).toBe(201);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ user_id: "attacker" }),
+      }),
+    );
+  });
+
   it("returns 400 when required fields are missing", async () => {
     const res = await POST(postRequest({ user_id: "u1", list_id: 1 }));
     expect(res.status).toBe(400);
@@ -106,10 +140,10 @@ describe("POST /api/reserves", () => {
     const res = await POST(postRequest(validBody()));
 
     expect(res.status).toBe(201);
-    // "YYYY-MM-DD" 文字列は UTC 00:00 として保存される
+    // user_id は body("u1")ではなくセッション("tester")から入る。"YYYY-MM-DD" は UTC 00:00 保存。
     expect(createMock).toHaveBeenCalledWith({
       data: {
-        user_id: "u1",
+        user_id: "tester",
         list_id: 1,
         start: new Date(jstDate(1) + "T00:00:00Z"),
         end: new Date(jstDate(3) + "T00:00:00Z"),
@@ -144,6 +178,13 @@ describe("POST /api/reserves", () => {
 const getRequest = (qs = "") => new Request(`http://localhost/api/reserves${qs}`);
 
 describe("GET /api/reserves", () => {
+  it("returns 401 and does not query the DB when unauthenticated", async () => {
+    currentUserMock.mockResolvedValueOnce(undefined);
+    const res = await GET(getRequest());
+    expect(res.status).toBe(401);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns all reserves (empty where) when no query params", async () => {
     const res = await GET(getRequest());
     expect(res.status).toBe(200);
