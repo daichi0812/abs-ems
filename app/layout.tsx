@@ -50,7 +50,7 @@ export default async function RootLayout({
             <Script
               strategy="afterInteractive"
               src="https://static.cloudflareinsights.com/beacon.min.js"
-              data-cf-beacon='{"token": "4da583fec5f34da4bbbd3346ff51db8a"}'
+              data-cf-beacon='{"token": "d7af9ef8eb544c439b12d40727bbaa74"}'
             />
           )}
         </body>
