@@ -21,10 +21,14 @@ vi.mock("@/app/(protected)/ems/equipment-list/hooks/use-create-reservations", ()
 }));
 
 import { BookingWizard } from "./BookingWizard";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 
 beforeEach(() => {
+  // BookingWizard は useCachedEndpoint("/api/users") を実物のまま使うため、
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   fetchMock.mockResolvedValue({ json: async () => [] }); // /api/users
   vi.stubGlobal("fetch", fetchMock);
 });

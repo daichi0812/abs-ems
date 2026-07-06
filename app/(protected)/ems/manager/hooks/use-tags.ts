@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
 
 // manager ページでは API レスポンスの `id` を Select の value（string 必須）として
 // 直接使うため string で扱う。`@/types/domain` の Tag (id: number) との整合は別タスクで対応予定。
@@ -10,30 +10,8 @@ export interface Tag {
   color: string;
 }
 
+// /api/tags のキャッシュは use-categories / use-tags-list と共有される。
 export const useTags = () => {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [categories, setCategories] = useState<Tag[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const refetch = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch("/api/tags");
-      const data = await response.json();
-      // 401/500 の非配列ボディでも render の .map がクラッシュしないよう空配列にフォールバック
-      const safe = Array.isArray(data) ? data : [];
-      setTags(safe);
-      setCategories(safe);
-    } catch (error) {
-      console.error("Error fetching categories: ", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refetch();
-  }, []);
-
-  return { tags, categories, isLoading, refetch };
+  const { data, isLoading, refetch } = useCachedEndpoint<Tag>("/api/tags");
+  return { tags: data, categories: data, isLoading, refetch };
 };

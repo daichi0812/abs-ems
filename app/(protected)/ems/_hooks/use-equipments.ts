@@ -1,31 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
 import type { Equipment } from "@/types/domain";
 
+// 機材一覧。キャッシュはタブ切り替え（再マウント）時に前回データを即表示し、
+// 裏で再取得する（use-cached-endpoint 参照）。
 export const useEquipments = () => {
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const refetch = async () => {
-    try {
-      const response = await fetch("/api/lists");
-      const data = await response.json();
-      // 非配列ボディ(401/500)でも .sort が例外を投げて無限スピナーにならないよう空配列に。
-      const list: Equipment[] = Array.isArray(data) ? data : [];
-      const sortedData = [...list].sort((a, b) => a.name.localeCompare(b.name));
-      setEquipments(sortedData);
-    } catch (error) {
-      console.error("Error fetching equipments:", error);
-    } finally {
-      // fetch/json が例外でも必ずスピナーを解除する
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refetch();
-  }, []);
-
+  const { data, isLoading, refetch } = useCachedEndpoint<Equipment>("/api/lists");
+  // 共有キャッシュの配列を破壊しないよう、非破壊でソートする
+  const equipments = useMemo(
+    () => [...data].sort((a, b) => a.name.localeCompare(b.name)),
+    [data]
+  );
   return { equipments, isLoading, refetch };
 };

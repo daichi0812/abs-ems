@@ -244,4 +244,55 @@ describe("GET /api/reserves", () => {
     expect(res.status).toBe(400);
     expect(findManyMock).not.toHaveBeenCalled();
   });
+
+  // 期間フィルタ（保存値は「JST日付の UTC 00:00」なので同じ座標系で比較する）
+  it("filters by from (end >= from) for availability queries", async () => {
+    await GET(getRequest("?from=2026-07-06"));
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { end: { gte: new Date("2026-07-06T00:00:00Z") } },
+    });
+  });
+
+  it("filters by to (start <= to)", async () => {
+    await GET(getRequest("?to=2026-07-31"));
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { start: { lte: new Date("2026-07-31T00:00:00Z") } },
+    });
+  });
+
+  it("combines from/to with user_id", async () => {
+    await GET(getRequest("?user_id=u1&from=2026-07-01&to=2026-07-31"));
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: {
+        user_id: "u1",
+        end: { gte: new Date("2026-07-01T00:00:00Z") },
+        start: { lte: new Date("2026-07-31T00:00:00Z") },
+      },
+    });
+  });
+
+  it("returns 400 for a malformed from and does not query", async () => {
+    const res = await GET(getRequest("?from=2026/07/06"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a calendar-invalid from (month 13) instead of 500", async () => {
+    // 正規表現は桁数しか見ないため、Invalid Date が Prisma まで届いて 500 になっていた
+    const res = await GET(getRequest("?from=2026-13-01"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a rollover date (Feb 30) instead of silently shifting to Mar 2", async () => {
+    const res = await GET(getRequest("?from=2026-02-30"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a malformed to and does not query", async () => {
+    const res = await GET(getRequest("?to=notadate"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
 });

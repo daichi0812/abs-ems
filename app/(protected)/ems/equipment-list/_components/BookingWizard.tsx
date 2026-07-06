@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
 import { useEquipments } from "@/app/(protected)/ems/_hooks/use-equipments";
 import { useCategories } from "@/app/(protected)/ems/equipment-list/hooks/use-categories";
 import { useReserves } from "@/app/(protected)/ems/equipment-list/hooks/use-reserves";
@@ -47,13 +48,8 @@ export function BookingWizard() {
   } = useReserves();
   const { isSubmitting, createReservations } = useCreateReservations();
 
-  const [users, setUsers] = useState<UserLite[]>([]);
-  useEffect(() => {
-    fetch("/api/users")
-      .then((r) => r.json())
-      .then((d) => setUsers(Array.isArray(d) ? d : []))
-      .catch(() => setUsers([]));
-  }, []);
+  // 部員名の解決用。キャッシュはカレンダー画面の /api/users と共有される
+  const { data: users } = useCachedEndpoint<UserLite>("/api/users");
 
   const todayIdx = todayJstDayIndex();
   const now = new Date();

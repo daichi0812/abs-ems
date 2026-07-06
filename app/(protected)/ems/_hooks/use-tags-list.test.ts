@@ -1,11 +1,14 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTagsList } from "./use-tags-list";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 

@@ -4,6 +4,17 @@ import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 
+// YYYY-MM-DD を UTC 深夜0時の Date として厳密にパースする。
+// 正規表現だけだと「2026-13-01」（Invalid Date → Prisma が例外 → 500）や
+// 「2026-02-30」（3月2日へ静かに繰り上がる）が素通りするため、
+// 逆変換の一致まで確認して暦として実在する日付だけを受け付ける。
+function parseDateOnly(value: string): Date | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const date = new Date(`${value}T00:00:00Z`);
+    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(value)) return null;
+    return date;
+}
+
 export async function GET(request: Request) {
     try {
         // ログイン必須。middleware 一枚依存をやめる defense-in-depth（DELETE と同じ currentUser パターン）。
@@ -15,12 +26,23 @@ export async function GET(request: Request) {
         }
 
         // ?user_id= / ?list_id= の完全一致フィルタ（日付演算はしないのでタイムゾーン安全）。
+        // ?from= / ?to=（YYYY-MM-DD）は期間の重なりフィルタ:
+        //   from … end >= from（from 以降に掛かる予約。予約ウィザードの空き判定用）
+        //   to   … start <= to
+        // 保存値は「JST日付の UTC 00:00」なので、パラメータも同じ座標系に変換して比較する。
         // クエリ無し = 空 where = 全件 で従来の挙動を維持する（後方互換）。
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('user_id');
         const listIdParam = searchParams.get('list_id');
+        const fromParam = searchParams.get('from');
+        const toParam = searchParams.get('to');
 
-        const where: { user_id?: string; list_id?: number } = {};
+        const where: {
+            user_id?: string;
+            list_id?: number;
+            start?: { lte: Date };
+            end?: { gte: Date };
+        } = {};
         // 存在判定は !== null。?user_id= (空文字) は該当0件として扱い、全件漏洩を防ぐ。
         if (userId !== null) {
             where.user_id = userId;
@@ -31,6 +53,20 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: 'list_id が不正です。' }, { status: 400 });
             }
             where.list_id = listId;
+        }
+        if (fromParam !== null) {
+            const from = parseDateOnly(fromParam);
+            if (!from) {
+                return NextResponse.json({ error: 'from が不正です。' }, { status: 400 });
+            }
+            where.end = { gte: from };
+        }
+        if (toParam !== null) {
+            const to = parseDateOnly(toParam);
+            if (!to) {
+                return NextResponse.json({ error: 'to が不正です。' }, { status: 400 });
+            }
+            where.start = { lte: to };
         }
 
         const reserves = await db.reserve.findMany({ where });
