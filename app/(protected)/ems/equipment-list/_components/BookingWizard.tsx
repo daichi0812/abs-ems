@@ -170,7 +170,7 @@ export function BookingWizard() {
       <div className="mx-auto max-w-md">
         <DoneScreen
           doneText={`${rangeText} に ${cartItems.length}件の機材を予約しました`}
-          onToCalendar={() => router.push("/ems/common")}
+          onToMyPage={() => router.push("/ems/mypage")}
           onRestart={restart}
         />
       </div>
