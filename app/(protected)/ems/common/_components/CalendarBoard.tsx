@@ -78,11 +78,13 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   }, [members, memberFilter]);
 
   // 「色＝人」の前提を守るため、素のハッシュ色（少人数でも高確率で衝突する）ではなく
-  // 全予約の部員一覧に対して重複しない割り当てを使う。チップ・詳細カードも同じ割り当て。
+  // 重複しない割り当てを使う。表示中の月の部員（members）を優先して割り当てることで、
+  // 履歴上の部員が16人を超えても「いま見えている月」の中では一意性が守られる。
+  // チップ・詳細カードも同じ割り当てを共有する。
   const memberColorOf = useMemo(() => {
-    const map = memberColorMap(allEvents.map((e) => e.name));
+    const map = memberColorMap(allEvents.map((e) => e.name), members);
     return (name: string | null | undefined) => (name && map.get(name)) || "#667085";
-  }, [allEvents]);
+  }, [allEvents, members]);
 
   const barEvents = useMemo<CalendarBarEvent<CalendarEvent>[]>(
     () =>

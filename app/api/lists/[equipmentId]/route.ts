@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { hasManagerAccess } from '@/lib/api-auth';
 import { currentUser } from '@/lib/auth';
+import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
+import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 import { NextResponse } from 'next/server';
 
 interface Params {
@@ -100,6 +102,21 @@ export async function DELETE(request: Request, { params }: Params) {
             );
         }
 
+        // 削除で消える「今後の予約」の持ち主へ取り消し通知を送るため、削除前に控える
+        //（単発キャンセル DELETE /api/reserves/[id] と同じ通知ポリシー。
+        //  機材名も List 行が消える前にここで取得しておく）。
+        const upcoming = await db.reserve.findMany({
+            where: {
+                list_id: equipmentId,
+                user_id: { not: null },
+                end: { gte: todayJstAsUtcMidnight() },
+            },
+        });
+        const equipmentName = upcoming.length > 0
+            ? ((await db.list.findUnique({ where: { id: equipmentId }, select: { name: true } }))
+                ?.name ?? undefined)
+            : undefined;
+
         // 機材だけ消すと予約が孤児化し、部員のマイページに「#42」のような
         // 機材名なしの予約が残り続けるため、関連予約もまとめて削除する
         //（Reserve.list_id は FK なしの Int? なので DB 側の cascade は効かない）。
@@ -108,6 +125,10 @@ export async function DELETE(request: Request, { params }: Params) {
             db.reserve.deleteMany({ where: { list_id: equipmentId } }),
             db.list.delete({ where: { id: equipmentId } }),
         ]);
+
+        for (const r of upcoming) {
+            notifyInBackground(notifyReservationCancelled(r, equipmentName));
+        }
 
         return NextResponse.json(deleteEquipment, { status: 200 });
     } catch (error) {

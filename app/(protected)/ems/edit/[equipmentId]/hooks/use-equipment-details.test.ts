@@ -17,7 +17,7 @@ afterEach(() => {
 
 describe("useEquipmentDetails", () => {
   it("starts with empty fields", () => {
-    fetchMock.mockResolvedValue({ json: async () => ({}) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
     const { result } = renderHook(() => useEquipmentDetails({ equipmentId: "1" }));
     expect(result.current.equipmentName).toBe("");
     expect(result.current.equipmentDetail).toBe("");
@@ -27,7 +27,7 @@ describe("useEquipmentDetails", () => {
 
   it("loads /api/lists/<id> on mount", async () => {
     fetchMock.mockResolvedValue({
-      json: async () => ({
+      ok: true, json: async () => ({
         name: "Camera",
         detail: "DSLR",
         image: "https://example/cam.png",
@@ -54,7 +54,7 @@ describe("useEquipmentDetails", () => {
   });
 
   it("exposes isLoading until the fetch settles (空フォームの先出し・入力上書きの防止)", async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ name: "Camera" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ name: "Camera" }) });
 
     const { result } = renderHook(() => useEquipmentDetails({ equipmentId: "1" }));
     expect(result.current.isLoading).toBe(true);
@@ -79,7 +79,7 @@ describe("useEquipmentDetails", () => {
     const { result } = renderHook(() => useEquipmentDetails({ equipmentId: "1" }));
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    fetchMock.mockResolvedValue({ json: async () => ({ name: "Camera" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ name: "Camera" }) });
     await result.current.refetch();
 
     await waitFor(() => expect(result.current.isError).toBe(false));

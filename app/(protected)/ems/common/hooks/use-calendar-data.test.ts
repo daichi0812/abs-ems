@@ -21,19 +21,19 @@ afterEach(() => {
 const setupHappyPath = () => {
   // /api/users（Prisma User の形: キーは id）
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ id: "u1", name: "Taro" }],
+    ok: true, json: async () => [{ id: "u1", name: "Taro" }],
   });
   // /api/lists
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 10 }],
+    ok: true, json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 10 }],
   });
   // /api/tags
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ id: 10, name: "Audio", color: "#ff0000" }],
+    ok: true, json: async () => [{ id: 10, name: "Audio", color: "#ff0000" }],
   });
   // /api/reserves
   fetchMock.mockResolvedValueOnce({
-    json: async () => [
+    ok: true, json: async () => [
       {
         id: 100,
         user_id: "u1",
@@ -48,7 +48,7 @@ const setupHappyPath = () => {
 
 describe("useCalendarData", () => {
   it("starts with empty events and isFetching=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useCalendarData());
     expect(result.current.allEvents).toEqual([]);
     expect(result.current.isFetching).toBe(true);
@@ -98,13 +98,13 @@ describe("useCalendarData", () => {
   });
 
   it("falls back to default color when tag color is missing", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "u1", name: "Taro" }] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [{ id: "u1", name: "Taro" }] });
     fetchMock.mockResolvedValueOnce({
-      json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 999 }],
+      ok: true, json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 999 }],
     });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // no tags
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] }); // no tags
     fetchMock.mockResolvedValueOnce({
-      json: async () => [
+      ok: true, json: async () => [
         {
           id: 100,
           user_id: "u1",
@@ -123,10 +123,10 @@ describe("useCalendarData", () => {
   });
 
   it("handles empty reserves response", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useCalendarData());
     await waitFor(() => expect(result.current.isFetching).toBe(false));
@@ -177,7 +177,7 @@ describe("useCalendarData", () => {
     const { result } = renderHook(() => useCalendarData());
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     await result.current.refetch();
 
     await waitFor(() => expect(result.current.isError).toBe(false));

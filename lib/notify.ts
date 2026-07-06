@@ -134,9 +134,14 @@ export async function notifyReservationCreated(reserve: ReserveLike): Promise<vo
 }
 
 // 管理者が他人の予約を取り消したことを、予約の持ち主へ知らせる。
-export async function notifyReservationCancelled(reserve: ReserveLike): Promise<void> {
+// listNameOverride: 機材削除に伴う取り消しでは通知時点で List 行が消えているため、
+// 削除前に控えた機材名を呼び出し側から渡す。
+export async function notifyReservationCancelled(
+  reserve: ReserveLike,
+  listNameOverride?: string
+): Promise<void> {
   if (!reserve.user_id) return;
-  const name = await listName(reserve.list_id);
+  const name = listNameOverride ?? (await listName(reserve.list_id));
   const period = `${formatReserveDate(reserve.start)} 〜 ${formatReserveDate(reserve.end)}`;
   await notifyUser(reserve.user_id, "reservationEvents", {
     subject: `予約が取り消されました（${name}）`,

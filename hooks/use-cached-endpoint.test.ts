@@ -17,7 +17,7 @@ afterEach(() => {
 
 describe("useCachedEndpoint", () => {
   it("初回はスケルトン（isLoading）→取得完了でデータ表示", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [{ id: 1 }] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [{ id: 1 }] });
 
     const { result } = renderHook(() => useCachedEndpoint<{ id: number }>("/api/lists"));
     expect(result.current.isLoading).toBe(true);
@@ -29,14 +29,14 @@ describe("useCachedEndpoint", () => {
 
   it("再マウント時はキャッシュを即表示し（スケルトンなし）、裏で再検証する", async () => {
     // タブ切り替えのたびに全画面スケルトンへ戻る問題（#47/#57）の回帰防止
-    fetchMock.mockResolvedValue({ json: async () => [{ id: 1 }] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [{ id: 1 }] });
 
     const first = renderHook(() => useCachedEndpoint<{ id: number }>("/api/lists"));
     await waitFor(() => expect(first.result.current.hasLoaded).toBe(true));
     first.unmount();
 
     fetchMock.mockClear();
-    fetchMock.mockResolvedValue({ json: async () => [{ id: 1 }, { id: 2 }] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [{ id: 1 }, { id: 2 }] });
 
     const second = renderHook(() => useCachedEndpoint<{ id: number }>("/api/lists"));
     // キャッシュ即表示: ローディングに戻らず前回データが見えている
@@ -49,7 +49,7 @@ describe("useCachedEndpoint", () => {
   });
 
   it("同一URLへの同時リクエストは1本にまとめる", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     renderHook(() => {
       // 同じ画面内で複数フックが同じエンドポイントを見るケース
@@ -63,14 +63,14 @@ describe("useCachedEndpoint", () => {
   });
 
   it("URL が変わったら状態を組み直して取り直す（旧URLのデータを既読扱いしない）", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result, rerender } = renderHook(({ url }) => useCachedEndpoint(url), {
       initialProps: { url: "/api/reserves?user_id=" },
     });
     await waitFor(() => expect(result.current.hasLoaded).toBe(true));
 
-    fetchMock.mockResolvedValue({ json: async () => [{ id: 9 }] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [{ id: 9 }] });
     rerender({ url: "/api/reserves?user_id=u1" });
 
     await waitFor(() => expect(result.current.data).toEqual([{ id: 9 }]));
@@ -88,13 +88,13 @@ describe("useCachedEndpoint", () => {
     });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
-    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "new" }] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [{ id: "new" }] });
     rerender({ url: "/api/reserves?user_id=u1" });
     await waitFor(() => expect(result.current.data).toEqual([{ id: "new" }]));
 
     // 旧URL（user_id=）の応答が遅れて届く
     await act(async () => {
-      resolveOld!({ json: async () => [{ id: "old" }] });
+      resolveOld!({ ok: true, json: async () => [{ id: "old" }] });
       await Promise.resolve();
     });
     expect(result.current.data).toEqual([{ id: "new" }]);
@@ -104,7 +104,7 @@ describe("useCachedEndpoint", () => {
     // エラー応答を「正常な空配列」としてキャッシュすると、誤った空表示が
     // タブセッション全体（他画面の同一エンドポイント）へ伝播するため、エラー扱いにする
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ error: "認証されていません。" }) });
 
     const { result } = renderHook(() => useCachedEndpoint("/api/lists"));
 
@@ -114,7 +114,7 @@ describe("useCachedEndpoint", () => {
     expect(result.current.hasLoaded).toBe(false);
 
     // 復旧後の再マウントは正常データを取得できる（汚染キャッシュが残っていない）
-    fetchMock.mockResolvedValue({ json: async () => [{ id: 1 }] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [{ id: 1 }] });
     const second = renderHook(() => useCachedEndpoint<{ id: number }>("/api/lists"));
     expect(second.result.current.isLoading).toBe(true); // [] が「既読」扱いになっていない
     await waitFor(() => expect(second.result.current.data).toEqual([{ id: 1 }]));
@@ -143,7 +143,7 @@ describe("useCachedEndpoint", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
     // 変更後の再取得は新規リクエストとして飛ぶ
-    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "after" }] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [{ id: "after" }] });
     await act(async () => {
       await result.current.refetch();
     });
@@ -152,7 +152,7 @@ describe("useCachedEndpoint", () => {
 
     // 変更前に発行された古い応答が後着しても、新しい結果を上書きしない
     await act(async () => {
-      resolveOld!({ json: async () => [{ id: "before" }] });
+      resolveOld!({ ok: true, json: async () => [{ id: "before" }] });
       await Promise.resolve();
     });
     expect(result.current.data).toEqual([{ id: "after" }]);
@@ -166,7 +166,7 @@ describe("useCachedEndpoint", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.hasLoaded).toBe(false);
 
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     await act(async () => {
       await result.current.refetch();
     });

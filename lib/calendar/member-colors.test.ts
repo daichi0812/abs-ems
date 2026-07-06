@@ -55,6 +55,16 @@ describe("memberColorMap", () => {
       expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });
+
+  it("優先リスト（表示中の月の部員）は履歴が何人いても互いに異なる色になる", () => {
+    // 卒業生など履歴上の名前が一意枠(16色)を食いつぶしても、
+    // いま表示している月の部員同士は同色にならないことを固定する
+    const history = Array.from({ length: 30 }, (_, i) => `卒業生${i}`);
+    const current = ["現役A", "現役B", "現役C", "現役D"];
+    const map = memberColorMap([...history, ...current], current);
+    const currentColors = current.map((n) => map.get(n));
+    expect(new Set(currentColors).size).toBe(current.length);
+  });
 });
 
 describe("memberInitial", () => {

@@ -28,7 +28,7 @@ export const useEquipmentDetails = ({ equipmentId }: UseEquipmentDetailsParams) 
     setIsError(false);
     try {
       const res = await fetch(`/api/lists/${equipmentId}`);
-      if (res.ok === false) {
+      if (!res.ok) {
         // 404/401/500 の {error} ボディをパースすると undefined が各フィールドに
         // 入り「無言の空フォーム」になるため、エラーとして扱う
         throw new Error(`HTTP ${res.status}`);

@@ -40,7 +40,7 @@ export function useCachedEndpoint<T>(url: string): CachedEndpointResult<T> {
           url,
           async () => {
             const res = await fetch(url);
-            if (res.ok === false) {
+            if (!res.ok) {
               throw new Error(`HTTP ${res.status} for ${url}`);
             }
             const json = await res.json();

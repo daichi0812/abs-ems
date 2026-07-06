@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { categoryColor, tint } from "@/lib/category-colors";
-import { dayIndexToDateString, todayJstDayIndex } from "@/lib/calendar/date-grid";
+import { toJstDayIndex, todayJstDayIndex } from "@/lib/calendar/date-grid";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,18 +37,40 @@ export function EquipmentListPanel({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("すべて");
   const [pendingDelete, setPendingDelete] = useState<Equipment | null>(null);
-  // 削除対象に今後の予約が何件あるか（null = 取得中）。警告なしで消すと
-  // 部員の予約が黙って取り消されるため、ダイアログで件数を見せる
-  const [pendingReserveCount, setPendingReserveCount] = useState<number | null>(null);
+  // 削除対象の予約状況（null = 取得中 / "error" = 取得失敗）。警告なしで消すと
+  // 部員の予約が黙って取り消されるため、確認ダイアログで見せる。
+  // onLoanCount はサーバー側の409ガード（貸出中は削除不可）と同じ isRenting 2/3 判定。
+  const [pendingReserves, setPendingReserves] = useState<
+    { onLoanCount: number; futureCount: number } | "error" | null
+  >(null);
+  // 開き直し時に前の機材の遅い応答が後着して別機材の件数を出さないよう、対象IDを照合する
+  const pendingDeleteIdRef = useRef<number | null>(null);
 
   const openDelete = (eq: Equipment) => {
     setPendingDelete(eq);
-    setPendingReserveCount(null);
-    const from = dayIndexToDateString(todayJstDayIndex());
-    fetch(`/api/reserves?list_id=${eq.id}&from=${from}`)
-      .then((r) => r.json())
-      .then((d) => setPendingReserveCount(Array.isArray(d) ? d.length : 0))
-      .catch(() => setPendingReserveCount(0));
+    setPendingReserves(null);
+    pendingDeleteIdRef.current = eq.id;
+    const todayIdx = todayJstDayIndex();
+    fetch(`/api/reserves?list_id=${eq.id}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = (await r.json()) as { isRenting: number; end: string }[];
+        if (!Array.isArray(d)) throw new Error("unexpected body");
+        if (pendingDeleteIdRef.current !== eq.id) return;
+        setPendingReserves({
+          onLoanCount: d.filter((x) => x.isRenting === 2 || x.isRenting === 3).length,
+          futureCount: d.filter((x) => toJstDayIndex(x.end) >= todayIdx).length,
+        });
+      })
+      .catch(() => {
+        // 失敗を件数0扱いにすると警告だけが欠落するため、fail-safe 側に倒す
+        if (pendingDeleteIdRef.current === eq.id) setPendingReserves("error");
+      });
+  };
+
+  const closeDelete = () => {
+    setPendingDelete(null);
+    pendingDeleteIdRef.current = null;
   };
 
   const catById = useMemo(() => {
@@ -160,23 +182,35 @@ export function EquipmentListPanel({
         )}
       </div>
 
-      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && closeDelete()}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>「{pendingDelete?.name}」を削除</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingReserveCount != null && pendingReserveCount > 0
-                ? `この機材には今後の予約が ${pendingReserveCount}件 あり、削除すると予約も取り消されます。この操作は取り消せません。`
-                : "この操作は取り消せません。"}
+              {pendingReserves === null
+                ? "予約状況を確認しています…"
+                : pendingReserves === "error"
+                  ? "予約状況を確認できませんでした。この機材に予約が残っている場合、削除すると予約も取り消されます。この操作は取り消せません。"
+                  : pendingReserves.onLoanCount > 0
+                    ? "この機材は現在貸出中のため削除できません。返却された後に削除してください。"
+                    : pendingReserves.futureCount > 0
+                      ? `この機材には今後の予約が ${pendingReserves.futureCount}件 あり、削除すると予約も取り消されます（予約した部員へは取り消しの通知が送られます）。この操作は取り消せません。`
+                      : "この操作は取り消せません。"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
             <AlertDialogAction
               className="bg-danger hover:bg-danger/90"
+              // 取得中は誤って警告なしで確定できないよう待たせる。貸出中はサーバーでも
+              // 409 で弾かれる（isRenting 2/3 の同一判定）ため、ここで先に案内して無効化
+              disabled={
+                pendingReserves === null ||
+                (pendingReserves !== "error" && pendingReserves.onLoanCount > 0)
+              }
               onClick={async () => {
                 if (pendingDelete) await onDelete(pendingDelete.id);
-                setPendingDelete(null);
+                closeDelete();
               }}
             >
               削除する

@@ -41,21 +41,33 @@ export function memberColor(name: string | null | undefined): string {
  * 素のハッシュ剰余だと少人数でも高確率で衝突し（誕生日のパラドックス）、
  * 月表示の「色＝人」の前提が崩れるため、各名前のハッシュ色を起点に
  * 空いている色へ線形探索でずらす。パレット数を超えたら重複はやむなし。
- * 名前を昇順ソートしてから割り当てるので、同じメンバー集合なら結果は安定
+ *
+ * priorityNames には「いま表示している月の部員」を渡す。全履歴のユニーク部員が
+ * パレット数（16人）を超えても、先に割り当てる表示中の部員同士は一意性が守られる
+ * （卒業生など履歴上の名前が一意枠を食いつぶすのを防ぐ）。
+ * 各グループ内は名前昇順で割り当てるため、同じメンバー集合なら結果は安定
  * （メンバーが増減すると他の人の色が変わり得るのは一意性とのトレードオフ）。
  */
-export function memberColorMap(names: (string | null | undefined)[]): Map<string, string> {
+export function memberColorMap(
+  names: (string | null | undefined)[],
+  priorityNames: (string | null | undefined)[] = []
+): Map<string, string> {
   const map = new Map<string, string>();
-  const unique = [...new Set(names.filter((n): n is string => !!n))].sort();
   const used = new Set<number>();
-  for (const name of unique) {
-    let idx = hashString(name) % MEMBER_PALETTE.length;
-    if (used.size < MEMBER_PALETTE.length) {
-      while (used.has(idx)) idx = (idx + 1) % MEMBER_PALETTE.length;
+  const assign = (list: (string | null | undefined)[]) => {
+    const unique = [...new Set(list.filter((n): n is string => !!n))].sort();
+    for (const name of unique) {
+      if (map.has(name)) continue;
+      let idx = hashString(name) % MEMBER_PALETTE.length;
+      if (used.size < MEMBER_PALETTE.length) {
+        while (used.has(idx)) idx = (idx + 1) % MEMBER_PALETTE.length;
+      }
+      used.add(idx);
+      map.set(name, MEMBER_PALETTE[idx]);
     }
-    used.add(idx);
-    map.set(name, MEMBER_PALETTE[idx]);
-  }
+  };
+  assign(priorityNames);
+  assign(names);
   return map;
 }
 

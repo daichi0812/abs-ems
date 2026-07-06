@@ -143,9 +143,13 @@ export default function CategoriesPage() {
                       </button>
                     </div>
                     {/* 色の変更。作成後に直す手段が「削除→再作成」しかなく、
-                        その過程で所属機材が未分類化してしまっていた */}
+                        その過程で所属機材が未分類化してしまっていた。
+                        現在色がパレット外（旧既定色など）でも選択中表示と復元ができるよう、
+                        現在色を先頭のスウォッチとして含める */}
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {CATEGORY_PALETTE.map((col) => {
+                      {[...new Set<string>([editing.editTagColor, ...CATEGORY_PALETTE])]
+                        .filter(Boolean)
+                        .map((col) => {
                         const on = editing.editTagColor === col;
                         return (
                           <button

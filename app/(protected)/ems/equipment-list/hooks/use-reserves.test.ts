@@ -24,7 +24,7 @@ afterEach(() => {
 
 describe("useReserves", () => {
   it("starts with empty reserves", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useReserves());
     expect(result.current.reserves).toEqual([]);
   });
@@ -33,7 +33,7 @@ describe("useReserves", () => {
     const data = [
       { id: 1, user_id: "u1", start: "2026-01-01", end: "2026-01-02", list_id: 1 },
     ];
-    fetchMock.mockResolvedValue({ json: async () => data });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => data });
 
     const { result } = renderHook(() => useReserves());
 
@@ -57,7 +57,7 @@ describe("useReserves", () => {
   });
 
   it("exposes isLoading until the first fetch settles", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useReserves());
     expect(result.current.isLoading).toBe(true);
@@ -67,7 +67,7 @@ describe("useReserves", () => {
   });
 
   it("refetches when the tab becomes visible again", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     renderHook(() => useReserves());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -79,7 +79,7 @@ describe("useReserves", () => {
 
   it("does not refetch when the tab is hidden", async () => {
     // 「visible のときだけ再取得する」契約の負分岐を固定する
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     renderHook(() => useReserves());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -106,7 +106,7 @@ describe("useReserves", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.hasLoaded).toBe(false);
 
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     await act(async () => {
       await result.current.refetch();
     });
@@ -120,7 +120,7 @@ describe("useReserves", () => {
     // 成功後の visibilitychange 再取得が失敗しても、表示中のデータを
     // 全画面エラーで置き換えないための契約（isError は立つが hasLoaded は保持）
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useReserves());
     await waitFor(() => expect(result.current.hasLoaded).toBe(true));
@@ -136,7 +136,7 @@ describe("useReserves", () => {
   });
 
   it("refetch re-runs the fetch", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useReserves());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -149,7 +149,7 @@ describe("useReserves", () => {
   it("falls back to empty reserves on a non-array (401/500) body", async () => {
     // /api/reserves が認証ゲートで {error} を返しても競合判定/描画がクラッシュしないことを固定。
     // ガードが外れると setReserves がオブジェクトを格納し toEqual([]) が落ちる。
-    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ error: "認証されていません。" }) });
 
     const { result } = renderHook(() => useReserves());
     await act(async () => {
