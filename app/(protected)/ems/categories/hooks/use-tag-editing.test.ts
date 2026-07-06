@@ -83,6 +83,53 @@ describe("useTagEditing - saveEdit", () => {
     expect(ok).toBe(false);
   });
 
+  it("toasts error when renaming to an existing category name (自分以外との重複)", async () => {
+    // 同名カテゴリを許すと機材フォームのチップが2つ点灯し、保存時に別カテゴリへ
+    // 黙って付け替わるため、追加側（use-tag-add）と同じ重複チェックを行う
+    const { result } = renderHook(() =>
+      useTagEditing({
+        refetchTags,
+        existingTags: [
+          { id: 5, name: "音響" },
+          { id: 6, name: "カメラ" },
+        ],
+      })
+    );
+
+    act(() => {
+      result.current.startEdit(5, "音響", "#ff0000");
+      result.current.setEditTagName("カメラ");
+    });
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.saveEdit(5);
+    });
+
+    expect(toastError).toHaveBeenCalledWith("同じ名前のカテゴリがすでにあります");
+    expect(axios.put).not.toHaveBeenCalled();
+    expect(ok).toBe(false);
+  });
+
+  it("allows saving the same name for the tag itself (自分自身は重複扱いしない)", async () => {
+    vi.mocked(axios.put).mockResolvedValue({ status: 200 } as never);
+
+    const { result } = renderHook(() =>
+      useTagEditing({ refetchTags, existingTags: [{ id: 5, name: "音響" }] })
+    );
+
+    act(() => {
+      result.current.startEdit(5, "音響", "#ff0000");
+    });
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.saveEdit(5);
+    });
+
+    expect(ok).toBe(true);
+  });
+
   it("PUTs the tag, refetches, and returns true on success", async () => {
     vi.mocked(axios.put).mockResolvedValue({ status: 200 } as never);
 
