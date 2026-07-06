@@ -73,7 +73,7 @@ export const NewPasswordForm = () => {
                                         <Input
                                             {...field}
                                             disabled={isPending}
-                                            className="text-[16px]"
+                                            className="h-[46px] rounded-xl border-[1.5px] border-line bg-[#F9FAFB] px-3.5 text-[16px] focus-visible:border-brand focus-visible:bg-white focus-visible:ring-0"
                                             placeholder="10文字以上で入力"
                                             type="password"
                                         />
@@ -88,7 +88,7 @@ export const NewPasswordForm = () => {
                     <Button
                         disabled={isPending}
                         type="submit"
-                        className="w-full"
+                        className="h-[46px] w-full rounded-xl bg-brand text-sm font-bold text-white hover:bg-brand-dark"
                     >
                         パスワードを再設定する
                     </Button>

@@ -95,7 +95,7 @@ export const LoginForm = () => {
                                         <FormControl>
                                             <Input
                                                 {...field}
-                                                className="text-[16px]"
+                                                className="h-[46px] rounded-xl border-[1.5px] border-line bg-[#F9FAFB] px-3.5 text-[16px] focus-visible:border-brand focus-visible:bg-white focus-visible:ring-0"
                                                 disabled={isPending}
                                                 placeholder="123456"
                                             />
@@ -116,7 +116,7 @@ export const LoginForm = () => {
                                             <FormControl>
                                                 <Input
                                                     {...field}
-                                                    className="text-[16px]"
+                                                    className="h-[46px] rounded-xl border-[1.5px] border-line bg-[#F9FAFB] px-3.5 text-[16px] focus-visible:border-brand focus-visible:bg-white focus-visible:ring-0"
                                                     disabled={isPending}
                                                     placeholder="daichi@example.com"
                                                     type="email"
@@ -135,7 +135,7 @@ export const LoginForm = () => {
                                             <FormControl>
                                                 <Input
                                                     {...field}
-                                                    className="text-[16px]"
+                                                    className="h-[46px] rounded-xl border-[1.5px] border-line bg-[#F9FAFB] px-3.5 text-[16px] focus-visible:border-brand focus-visible:bg-white focus-visible:ring-0"
                                                     disabled={isPending}
                                                     placeholder="******"
                                                     type="password"
@@ -145,7 +145,7 @@ export const LoginForm = () => {
                                                 size="sm"
                                                 variant="link"
                                                 asChild
-                                                className="px-0 font-nomal"
+                                                className="px-0 text-[12.5px] font-normal text-brand"
                                             >
                                                 <Link href="/auth/reset">
                                                     パスワードをお忘れですか？
@@ -163,7 +163,7 @@ export const LoginForm = () => {
                     <Button
                         disabled={isPending}
                         type="submit"
-                        className="w-full"
+                        className="h-[46px] w-full rounded-xl bg-brand text-sm font-bold text-white hover:bg-brand-dark"
                     >
                         {showTwoFactor ? "確認する" : "ログイン"}
                     </Button>
