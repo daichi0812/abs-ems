@@ -14,6 +14,8 @@ export interface MemberChipsProps {
   className?: string;
   /** 折りたたみ時に表示するチップ数の上限（「すべて」を含む。おおよそ2行分） */
   collapseLimit?: number;
+  /** バー側と同じ色割り当て（memberColorMap）を使う場合に渡す。省略時はハッシュ色 */
+  colorOf?: (name: string) => string;
 }
 
 export function MemberChips({
@@ -22,6 +24,7 @@ export function MemberChips({
   onChange,
   className,
   collapseLimit = 10,
+  colorOf = memberColor,
 }: MemberChipsProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -31,7 +34,7 @@ export function MemberChips({
       name,
       label: name,
       initial: memberInitial(name),
-      color: memberColor(name),
+      color: colorOf(name),
     })),
   ];
 
