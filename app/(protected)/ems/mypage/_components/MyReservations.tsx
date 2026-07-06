@@ -63,13 +63,23 @@ function badgeOf(g: Grouped, todayIdx: number): { tone: StatusTone; label: strin
 export function MyReservations() {
   const router = useRouter();
   const user = useCurrentUser();
-  const { filteredData, refetch } = useMyReserves({ userId: user?.id });
+  const {
+    filteredData,
+    isLoading: reservesLoading,
+    isError: reservesError,
+    refetch,
+  } = useMyReserves({ userId: user?.id });
   const { equipments, isLoading: eqLoading } = useEquipments();
   const { categories } = useCategories();
   const { pendingIds, borrow, borrowMany, giveBack, giveBackMany, cancel, cancelMany } =
     useReserveActions({ refetch });
   // キャンセル確認の対象。単体は items 1件、一括は複数件。
   const [cancelTarget, setCancelTarget] = useState<{
+    items: GroupedItem[];
+    rangeText: string;
+  } | null>(null);
+  // 返却確認の対象。返却は取り消せない操作（isRenting 4→2 の遷移が無い）なので確認を挟む。
+  const [returnTarget, setReturnTarget] = useState<{
     items: GroupedItem[];
     rangeText: string;
   } | null>(null);
@@ -143,22 +153,48 @@ export function MyReservations() {
     [barEvents, matrix, isDesktop]
   );
 
-  // カードのセクション分け（利用中/今後/終了）
+  // カードのセクション分け（要返却/利用中/今後/終了）
   const sections = useMemo(() => {
+    const overdue: Grouped[] = [];
     const active: Grouped[] = [];
     const upcoming: Grouped[] = [];
     const past: Grouped[] = [];
     groups.forEach((g) => {
-      if (g.endIdx < todayIdx) past.push(g);
-      else if (g.startIdx > todayIdx) upcoming.push(g);
-      else active.push(g);
+      const hasUnreturned = g.items.some((it) => it.isRenting === 2 || it.isRenting === 3);
+      if (g.endIdx < todayIdx && hasUnreturned) {
+        // 期限超過なのに未返却の予約。「終了した予約」の山に埋めると
+        // 本人がスクロールしない限り延滞に気づけないため、最上部に出す。
+        overdue.push(g);
+      } else if (g.endIdx < todayIdx) {
+        past.push(g);
+      } else if (g.startIdx > todayIdx) {
+        upcoming.push(g);
+      } else {
+        active.push(g);
+      }
     });
+    // 終了した予約は新しい順（「先週返したやつ」を探すのに全履歴を遡らせない）
+    past.reverse();
     return [
+      { label: "要返却（期限超過）", items: overdue },
       { label: "利用中・受取可", items: active },
       { label: "今後の予約", items: upcoming },
       { label: "終了した予約", items: past },
     ].filter((s) => s.items.length > 0);
   }, [groups, todayIdx]);
+
+  // ページ上部の延滞バナー用（未返却のまま期限を過ぎた機材の件数）
+  const overdueCount = useMemo(
+    () =>
+      groups.reduce(
+        (n, g) =>
+          g.endIdx < todayIdx
+            ? n + g.items.filter((it) => it.isRenting === 2 || it.isRenting === 3).length
+            : n,
+        0
+      ),
+    [groups, todayIdx]
+  );
 
   const goPrevMonth = () => {
     setViewMonth0((m) => (m === 0 ? 11 : m - 1));
@@ -169,7 +205,9 @@ export function MyReservations() {
     if (viewMonth0 === 11) setViewYear((y) => y + 1);
   };
 
-  if (eqLoading) {
+  // 予約の取得完了前に判定すると、予約がある部員にも「予約はまだありません。」が
+  // 一瞬表示されてしまうため、機材と予約の両方の完了を待つ。
+  if (eqLoading || reservesLoading) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-[320px] w-full rounded-2xl" />
@@ -178,8 +216,49 @@ export function MyReservations() {
     );
   }
 
+  if (reservesError) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+        <p className="text-sm font-bold text-ink">予約を読み込めませんでした。</p>
+        <p className="mt-1 text-[12.5px] text-ink-faint">
+          通信環境を確認して、もう一度お試しください。
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-4 h-10 rounded-xl bg-brand px-5 text-sm font-bold text-white"
+        >
+          再試行
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
+    <div>
+      {overdueCount > 0 && (
+        <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-[#FDA29B] bg-[#FEF3F2] px-4 py-3">
+          <svg
+            className="flex-none text-danger"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+            <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+          </svg>
+          <p className="m-0 text-[13px] font-bold text-danger">
+            返却期限を過ぎた機材が {overdueCount}件 あります。「要返却」から返却してください。
+          </p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
       {/* 自分の予定カレンダー */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between px-1">
@@ -288,7 +367,7 @@ export function MyReservations() {
                                 <button
                                   type="button"
                                   disabled={pending}
-                                  onClick={() => giveBack(it.reserveId)}
+                                  onClick={() => setReturnTarget({ items: [it], rangeText })}
                                   className="h-7 flex-none rounded-lg border-[1.5px] border-brand px-2.5 text-[11px] font-bold text-brand transition-colors hover:bg-brand-faint disabled:opacity-50"
                                 >
                                   {pending ? "…" : "返却"}
@@ -332,7 +411,7 @@ export function MyReservations() {
                               type="button"
                               disabled={pendingIds.length > 0}
                               onClick={() =>
-                                giveBackMany(returnables.map((it) => it.reserveId))
+                                setReturnTarget({ items: returnables, rangeText })
                               }
                               className="h-7 rounded-lg border-[1.5px] border-brand px-2.5 text-[11px] font-bold text-brand transition-colors hover:bg-brand-faint disabled:opacity-50"
                             >
@@ -398,6 +477,42 @@ export function MyReservations() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 返却確認。誤タップで即「返却済」になると本人が元に戻せない（4→2 の遷移が無い）ため、
+          キャンセルと同じく確認を挟む */}
+      <AlertDialog
+        open={returnTarget != null}
+        onOpenChange={(open) => !open && setReturnTarget(null)}
+      >
+        <AlertDialogContent className="max-w-[360px] rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">機材を返却しますか？</AlertDialogTitle>
+            <AlertDialogDescription className="text-[12.5px]">
+              {returnTarget?.items.length === 1
+                ? `「${returnTarget.items[0].name}」を返却済みにします。`
+                : `${returnTarget?.rangeText} の機材 ${returnTarget?.items.length}件（${returnTarget?.items
+                    .map((it) => it.name)
+                    .join("・")}）を返却済みにします。`}
+              機材は所定の場所に戻しましたか？この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>戻る</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (returnTarget) {
+                  const ids = returnTarget.items.map((it) => it.reserveId);
+                  void (ids.length === 1 ? giveBack(ids[0]) : giveBackMany(ids));
+                }
+                setReturnTarget(null);
+              }}
+            >
+              返却する
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </div>
     </div>
   );
 }
