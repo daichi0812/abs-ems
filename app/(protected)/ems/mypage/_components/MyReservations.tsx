@@ -137,8 +137,8 @@ export function MyReservations() {
         barEvents,
         matrix,
         isDesktop
-          ? { headH: 26, laneH: 26, minH: 96, maxLanes: 4 }
-          : { headH: 18, laneH: 20, minH: 58, maxLanes: 3 }
+          ? { headH: 26, laneH: 26, minH: 96 }
+          : { headH: 18, laneH: 20, minH: 58 }
       ),
     [barEvents, matrix, isDesktop]
   );

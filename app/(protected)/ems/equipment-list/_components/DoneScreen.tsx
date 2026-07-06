@@ -3,11 +3,11 @@
 // 予約完了画面。
 export function DoneScreen({
   doneText,
-  onToCalendar,
+  onToMyPage,
   onRestart,
 }: {
   doneText: string;
-  onToCalendar: () => void;
+  onToMyPage: () => void;
   onRestart: () => void;
 }) {
   return (
@@ -21,10 +21,10 @@ export function DoneScreen({
       <p className="m-0 mb-6 text-[13px] text-ink-muted">{doneText}</p>
       <button
         type="button"
-        onClick={onToCalendar}
+        onClick={onToMyPage}
         className="mb-2.5 h-12 w-full rounded-xl bg-navy text-[14.5px] font-bold text-white"
       >
-        カレンダーで確認する
+        マイ予約で確認する
       </button>
       <button
         type="button"

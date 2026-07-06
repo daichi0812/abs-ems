@@ -77,8 +77,8 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         barEvents,
         matrix,
         isDesktop
-          ? { headH: 26, laneH: 26, minH: 104, maxLanes: 6 }
-          : { headH: 20, laneH: 20, minH: 62, maxLanes: 4 }
+          ? { headH: 26, laneH: 26, minH: 104 }
+          : { headH: 20, laneH: 20, minH: 62 }
       ),
     [barEvents, matrix, isDesktop]
   );
