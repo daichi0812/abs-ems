@@ -32,10 +32,6 @@ export const {
 
   callbacks: {
     async signIn({ user, account }) {
-      console.log({
-        user,
-        account,
-      })
       // Allow OAuth without email verification
       if (account?.provider !== "credentials") return true;
 
@@ -100,10 +96,14 @@ export const {
       /* 更新されたセッションを返す */
       return session;
     },
-    async jwt({ token, user, profile }) {
-      //console.log(token);
-      // console.log("I AM BEING CALLED AGAIN!")
+    async jwt({ token, user, trigger }) {
       if (!token.sub) return token;
+
+      // DB照会はサインイン直後（user あり）と useSession().update() 実行時のみ。
+      // ここは auth() のたびに呼ばれるため、毎回照会すると全ページ・全APIに
+      // user/account の2クエリ分の遅延が上乗せされる。
+      // role 等を DB 側で直接変更した場合は再ログイン（または update()）で反映される。
+      if (!user && trigger !== "update") return token;
 
       const existingUser = await getUserById(token.sub);
 

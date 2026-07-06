@@ -6,6 +6,19 @@ const withSerwist = withSerwistInit({
   swDest: 'public/sw.js',
   // ↓開発中にservice workerを無効にする場合は以下のコメントを外す
   // disable: process.env.NODE_ENV === "development",
+
+  // precache は「アプリの起動に必要な最小限」に絞る。
+  // 以前はデフォルト（public/ 全部 + 全ビルド資産）で約19MBを全端末に先読みさせていた:
+  // README用画像 5.8MB / manifest用スクリーンショット 5.8MB / フォント全サブセット約5MB。
+  // フォントは defaultCache の static-font-assets（実際に使う数個だけ）で十分。
+  globPublicPatterns: [
+    'manifest.json',
+    'favicon.ico',
+    'ABS-EMS*.{png,webp}',
+    'logicode.jpeg',
+  ],
+  // 先頭2つは serwist のデフォルト exclude（上書きするため明示的に残す）
+  exclude: [/\.map$/, /^manifest.*\.js$/, /\.woff2$/],
 });
 
 const nextConfig = withSerwist({

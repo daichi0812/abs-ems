@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { notifyReturnReminder } from '@/lib/notify';
 import { NextResponse } from 'next/server';
-import moment from 'moment-timezone';
+import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 
 /* 返却期限リマインダー（cron から叩かれる内部エンドポイント）。
  *
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     try {
         // 保存値は「JST 日付の UTC 00:00」。今日(JST)も同じ座標系に変換して等値比較する。
-        const todayJst = new Date(moment().tz('Asia/Tokyo').format('YYYY-MM-DD') + 'T00:00:00Z');
+        const todayJst = todayJstAsUtcMidnight();
 
         const reserves = await db.reserve.findMany({
             where: {

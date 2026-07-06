@@ -34,7 +34,13 @@ export async function POST(req: NextRequest) {
     const { env } = getCloudflareContext();
     const body = await req.arrayBuffer();
     await env.IMAGES_BUCKET.put(key, body, {
-      httpMetadata: { contentType: req.headers.get('content-type') ?? undefined },
+      httpMetadata: {
+        contentType: req.headers.get('content-type') ?? undefined,
+        // キーは UUID 付きで内容が変わることはないため immutable キャッシュが安全。
+        // これが無いと配信がヒューリスティックな短期キャッシュ頼みになり、
+        // 機材一覧を開くたびサムネイル20点強がオリジン（R2）まで往復していた。
+        cacheControl: 'public, max-age=31536000, immutable',
+      },
     });
 
     const url = `${baseUrl.replace(/\/$/, '')}/${key}`;
