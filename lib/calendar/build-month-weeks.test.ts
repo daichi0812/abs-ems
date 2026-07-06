@@ -69,3 +69,46 @@ describe("buildMonthWeeks", () => {
     expect(weeks[1].bars[0].data).toEqual({ who: "蒼" });
   });
 });
+
+describe("buildMonthWeeks: maxLanes（レーン上限）", () => {
+  const matrix = buildMonthMatrix(2024, 11); // 2024年12月
+  const idx = (d: number) => idxOf(2024, 11, d);
+
+  // 12/9(月)〜12/13(金) に同日重なりのイベントを5本
+  const five = (): CalendarBarEvent[] =>
+    Array.from({ length: 5 }, (_, i) => ({
+      key: i + 1,
+      startIdx: idx(9),
+      endIdx: idx(13),
+      color: "#111",
+      label: `E${i + 1}`,
+    }));
+
+  it("上限を超えたバーは隠れ、hiddenByCol に曜日ごとの件数が入る", () => {
+    const weeks = buildMonthWeeks(five(), matrix, {
+      headH: 20, laneH: 20, minH: 40, bottomPad: 4, maxLanes: 3, moreH: 16,
+    });
+    const wk2 = weeks[1];
+    expect(wk2.bars).toHaveLength(3); // 3レーンまで表示
+    expect(wk2.bars.every((b) => b.lane < 3)).toBe(true);
+    // 12/9(月)=col1 〜 12/13(金)=col5 に 2件ずつ隠れる
+    expect(wk2.hiddenByCol).toEqual([0, 2, 2, 2, 2, 2, 0]);
+    // 高さ = headH(20) + 3レーン*20 + moreH(16) + bottomPad(4) = 100（レーン数で無限に伸びない）
+    expect(wk2.height).toBe(100);
+  });
+
+  it("上限未指定なら全バー表示で hiddenByCol は全て 0", () => {
+    const weeks = buildMonthWeeks(five(), matrix, { headH: 20, laneH: 20, minH: 40, bottomPad: 4 });
+    const wk2 = weeks[1];
+    expect(wk2.bars).toHaveLength(5);
+    expect(wk2.hiddenByCol).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(wk2.height).toBe(20 + 5 * 20 + 4);
+  });
+
+  it("隠れバーが無い週には moreH を加算しない", () => {
+    const weeks = buildMonthWeeks(five().slice(0, 2), matrix, {
+      headH: 20, laneH: 20, minH: 40, bottomPad: 4, maxLanes: 3, moreH: 16,
+    });
+    expect(weeks[1].height).toBe(20 + 2 * 20 + 4);
+  });
+});

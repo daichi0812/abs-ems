@@ -30,6 +30,8 @@ export interface WeekRow<T = unknown> {
   days: DayCell[];
   height: number; // px
   bars: PositionedBar<T>[];
+  /** maxLanes 超過で隠れたバーの数（曜日列ごと。上限なしなら全て 0） */
+  hiddenByCol: number[];
 }
 
 export interface BuildOptions {
@@ -38,15 +40,25 @@ export interface BuildOptions {
   minH?: number; // 週の最小高さ（px）
   bottomPad?: number; // 最終レーン下の余白（px）
   gapPct?: number; // バー左右の隙間（%・セル幅比）
+  /**
+   * 週あたりの表示レーン数の上限。超えたバーは非表示にし hiddenByCol に集計する
+   * （実データでは1週に20件以上重なることがあり、無制限だと行高が数百pxに膨らむ）。
+   * 未指定なら無制限。
+   */
+  maxLanes?: number;
+  /** hiddenByCol の「+N」表示行のための追加高さ（px）。隠れバーがある週にだけ加算 */
+  moreH?: number;
 }
 
-const DEFAULTS: Required<BuildOptions> = {
+const DEFAULTS = {
   headH: 22,
   laneH: 22,
   minH: 64,
   bottomPad: 4,
   gapPct: 1.2,
-};
+  maxLanes: Infinity,
+  moreH: 16,
+} satisfies Required<BuildOptions>;
 
 /**
  * events（inclusive な day index 区間）を matrix の各週に配置する。
@@ -72,7 +84,17 @@ export function buildMonthWeeks<T = unknown>(
 
     const { laneCount, laned } = packLanes(segments);
 
-    const bars: PositionedBar<T>[] = laned.map((seg) => {
+    // 上限超過レーンのバーは隠し、曜日列ごとに件数を集計する
+    const hiddenByCol = Array.from({ length: 7 }, () => 0);
+    const visible = laned.filter((seg) => {
+      if (seg.lane < opt.maxLanes) return true;
+      for (let col = seg.startCol; col <= seg.endCol; col++) {
+        hiddenByCol[col] += 1;
+      }
+      return false;
+    });
+
+    const bars: PositionedBar<T>[] = visible.map((seg) => {
       const spanCols = seg.endCol - seg.startCol + 1;
       return {
         key: seg.ev.key,
@@ -88,7 +110,12 @@ export function buildMonthWeeks<T = unknown>(
       };
     });
 
-    const height = Math.max(opt.minH, opt.headH + laneCount * opt.laneH + opt.bottomPad);
-    return { days, height, bars };
+    const shownLanes = Math.min(laneCount, opt.maxLanes);
+    const hasHidden = hiddenByCol.some((n) => n > 0);
+    const height = Math.max(
+      opt.minH,
+      opt.headH + shownLanes * opt.laneH + (hasHidden ? opt.moreH : 0) + opt.bottomPad
+    );
+    return { days, height, bars, hiddenByCol };
   });
 }

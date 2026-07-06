@@ -41,11 +41,11 @@ export function MonthGrid<T = unknown>({
             style={{ height: week.height }}
           >
             <div className="grid h-full grid-cols-7">
-              {week.days.map((day) => (
+              {week.days.map((day, colIdx) => (
                 <div
                   key={day.dayIndex}
                   className={cn(
-                    "border-r border-line/60 pt-[3px] text-center text-[10px] last:border-r-0 md:pt-1.5 md:text-[11.5px]",
+                    "relative border-r border-line/60 pt-[3px] text-center text-[10px] last:border-r-0 md:pt-1.5 md:text-[11.5px]",
                     !day.inMonth && "text-line-strong",
                     day.inMonth && !day.isToday && "text-ink-muted",
                     day.isToday && "font-bold text-brand"
@@ -53,6 +53,11 @@ export function MonthGrid<T = unknown>({
                   style={day.isToday ? { background: "#EAF3FE" } : undefined}
                 >
                   {day.dayOfMonth}
+                  {(week.hiddenByCol?.[colIdx] ?? 0) > 0 && (
+                    <span className="absolute bottom-[2px] left-0 right-0 text-[8.5px] font-bold text-ink-faint md:text-[9.5px]">
+                      +{week.hiddenByCol[colIdx]}件
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
