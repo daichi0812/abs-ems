@@ -14,7 +14,9 @@ const withSerwist = withSerwistInit({
   globPublicPatterns: [
     'manifest.json',
     'favicon.ico',
-    'ABS-EMS*.{png,webp}',
+    'ABS-EMS512_maskable.png',
+    'ABS-EMS512_rounded.png',
+    'ABS-EMS-Icon.webp',
     'logicode.jpeg',
   ],
   // 先頭2つは serwist のデフォルト exclude（上書きするため明示的に残す）
