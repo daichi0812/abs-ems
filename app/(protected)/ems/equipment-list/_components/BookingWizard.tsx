@@ -61,6 +61,9 @@ export function BookingWizard() {
   const [cart, setCart] = useState<number[]>([]);
   const [step, setStep] = useState<1 | 2 | 3>(1); // モバイルのステップ
   const [done, setDone] = useState(false);
+  // 機材が増えても目当てを探せるよう、名前検索と「空きのみ」絞り込みを持つ
+  const [query, setQuery] = useState("");
+  const [freeOnly, setFreeOnly] = useState(false);
 
   const rangeOk = range.startIdx != null && range.endIdx != null;
   const startStr = range.startIdx != null ? dayIndexToDateString(range.startIdx) : "";
@@ -76,13 +79,18 @@ export function BookingWizard() {
     if (!rangeOk) return [];
 
     const toItem = (e: Equipment) => {
-      const conflict = reserves.find(
-        (r) =>
-          r.list_id === e.id &&
-          range.startIdx! <= toJstDayIndex(r.end) &&
-          range.endIdx! >= toJstDayIndex(r.start)
-      );
-      const free = !conflict;
+      // 競合は全件拾って開始日順に出す。先頭1件だけだと「表示された予約を避けて
+      // 期間を選び直したのにまだ弾かれる」という手戻りが起きる（DB挿入順は日付順ですらない）。
+      const conflicts = reserves
+        .filter(
+          (r) =>
+            r.list_id === e.id &&
+            range.startIdx! <= toJstDayIndex(r.end) &&
+            range.endIdx! >= toJstDayIndex(r.start)
+        )
+        .sort((a, b) => toJstDayIndex(a.start) - toJstDayIndex(b.start));
+      const free = conflicts.length === 0;
+      const first = conflicts[0];
       return {
         id: e.id,
         name: e.name,
@@ -91,7 +99,7 @@ export function BookingWizard() {
         free,
         sub: free
           ? "この期間は空いています"
-          : `${formatRange(toJstDayIndex(conflict!.start), toJstDayIndex(conflict!.end))} ${userName(conflict!.user_id)}が予約`,
+          : `${formatRange(toJstDayIndex(first.start), toJstDayIndex(first.end))} ${userName(first.user_id)}が予約${conflicts.length > 1 ? ` ほか${conflicts.length - 1}件` : ""}`,
         selected: cart.includes(e.id),
       };
     };
@@ -126,6 +134,20 @@ export function BookingWizard() {
 
     return grouped.filter((g) => g.items.length > 0);
   }, [categories, catLoading, equipments, reserves, rangeOk, range, cart, users]);
+
+  // 検索・空きのみ絞り込み（絞り込みで空になったカテゴリは出さない）
+  const visibleGroups = useMemo<PickGroup[]>(() => {
+    const q = query.trim().toLowerCase();
+    if (!q && !freeOnly) return groups;
+    return groups
+      .map((g) => ({
+        ...g,
+        items: g.items.filter(
+          (it) => (!freeOnly || it.free) && (!q || it.name.toLowerCase().includes(q))
+        ),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [groups, query, freeOnly]);
 
   const cartItems = useMemo<CartItem[]>(
     () =>
@@ -283,7 +305,54 @@ export function BookingWizard() {
     />
   );
   const pickPanel = (
-    <EquipmentPickPanel groups={groups} rangeOk={rangeOk} onToggle={toggle} />
+    <div className="flex flex-col gap-2.5">
+      {rangeOk && (
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="機材名で検索"
+              aria-label="機材名で検索"
+              className="h-10 w-full rounded-xl border-[1.5px] border-line bg-white pl-9 pr-3 text-[13px] outline-none focus:border-brand"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setFreeOnly((v) => !v)}
+            aria-pressed={freeOnly}
+            className={cn(
+              "h-10 flex-none rounded-xl border-[1.5px] px-3 text-[12px] font-bold transition-colors",
+              freeOnly
+                ? "border-brand bg-brand-faint text-brand"
+                : "border-line bg-white text-ink-muted"
+            )}
+          >
+            空きのみ
+          </button>
+        </div>
+      )}
+      {rangeOk && visibleGroups.length === 0 ? (
+        <p className="rounded-2xl bg-white px-4 py-8 text-center text-[12.5px] text-ink-faint shadow-sm">
+          条件に合う機材がありません
+        </p>
+      ) : (
+        <EquipmentPickPanel groups={visibleGroups} rangeOk={rangeOk} onToggle={toggle} />
+      )}
+    </div>
   );
   const confirmPanel = (
     <ConfirmPanel
