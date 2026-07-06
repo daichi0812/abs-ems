@@ -18,6 +18,7 @@ import {
   dayIndexToDateString,
 } from "@/lib/calendar/date-grid";
 import { categoryColor, categoryIconPath } from "@/lib/category-colors";
+import { flattenNewlines } from "@/lib/text";
 import type { DayRange } from "@/components/calendar/RangeMiniCalendar";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -85,7 +86,8 @@ export function BookingWizard() {
             return {
               id: e.id,
               name: e.name,
-              detail: e.detail ?? "",
+              detail: flattenNewlines(e.detail ?? ""),
+              image: e.image ?? "",
               free,
               sub: free
                 ? "この期間は空いています"
@@ -113,6 +115,7 @@ export function BookingWizard() {
         return {
           id,
           name: e?.name ?? "",
+          image: e?.image ?? "",
           color,
           iconPath: categoryIconPath(cat?.name),
         };
@@ -170,7 +173,7 @@ export function BookingWizard() {
       <div className="mx-auto max-w-md">
         <DoneScreen
           doneText={`${rangeText} に ${cartItems.length}件の機材を予約しました`}
-          onToCalendar={() => router.push("/ems/common")}
+          onToMyPage={() => router.push("/ems/mypage")}
           onRestart={restart}
         />
       </div>

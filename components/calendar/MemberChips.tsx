@@ -1,18 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { memberColor, memberInitial } from "@/lib/calendar/member-colors";
 
 // 月カレンダーの部員絞り込みチップ。「すべて」+ 各部員。選択中の部員以外のバーを
 // 呼び出し側で淡色化する（value===null で全表示）。
+// 人数が多い月はスマホで縦に膨らむため、上限を超えたら折りたたみ「他N人」で展開する。
 export interface MemberChipsProps {
   members: string[]; // 部員名の一覧
   value: string | null; // 選択中の部員名（null = すべて）
   onChange: (name: string | null) => void;
   className?: string;
+  /** 折りたたみ時に表示するチップ数の上限（「すべて」を含む。おおよそ2行分） */
+  collapseLimit?: number;
 }
 
-export function MemberChips({ members, value, onChange, className }: MemberChipsProps) {
+export function MemberChips({
+  members,
+  value,
+  onChange,
+  className,
+  collapseLimit = 10,
+}: MemberChipsProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const items: { name: string | null; label: string; initial: string; color: string }[] = [
     { name: null, label: "すべて", initial: "全", color: "#475467" },
     ...members.map((name) => ({
@@ -23,9 +35,20 @@ export function MemberChips({ members, value, onChange, className }: MemberChips
     })),
   ];
 
+  const overflow = items.length > collapseLimit;
+  let shown = items;
+  if (overflow && !expanded) {
+    shown = items.slice(0, collapseLimit);
+    // 選択中の部員が折りたたみで隠れると「何で絞っているか」が見えなくなるので末尾に足す
+    if (value != null && !shown.some((it) => it.name === value)) {
+      const selected = items.find((it) => it.name === value);
+      if (selected) shown = [...shown, selected];
+    }
+  }
+
   return (
-    <div className={cn("flex gap-1.5 overflow-x-auto", className)}>
-      {items.map((it) => {
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
+      {shown.map((it) => {
         const on = value === it.name;
         return (
           <button
@@ -49,6 +72,15 @@ export function MemberChips({ members, value, onChange, className }: MemberChips
           </button>
         );
       })}
+      {overflow && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex h-8 flex-none items-center rounded-full border border-dashed border-line-strong bg-white px-3 text-[11.5px] font-bold text-ink-muted"
+        >
+          {expanded ? "折りたたむ" : `他${items.length - shown.length}人`}
+        </button>
+      )}
     </div>
   );
 }

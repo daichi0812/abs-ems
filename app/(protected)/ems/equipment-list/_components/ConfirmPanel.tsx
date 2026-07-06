@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { tint } from "@/lib/category-colors";
 import type { CartItem } from "./types";
 
@@ -38,14 +39,20 @@ export function ConfirmPanel({
         ) : (
           cartItems.map((c) => (
             <div key={c.id} className="flex items-center gap-2.5 rounded-xl bg-surface px-3 py-2">
-              <span
-                className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px]"
-                style={{ background: tint(c.color) }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={c.iconPath} />
-                </svg>
-              </span>
+              {c.image ? (
+                <span className="relative h-[38px] w-[38px] flex-none overflow-hidden rounded-[10px] bg-white">
+                  <Image src={c.image} alt="" fill sizes="38px" className="object-cover" unoptimized />
+                </span>
+              ) : (
+                <span
+                  className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px]"
+                  style={{ background: tint(c.color) }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c.color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={c.iconPath} />
+                  </svg>
+                </span>
+              )}
               <span className="flex-1 truncate text-[13.5px] font-bold">{c.name}</span>
               <button
                 type="button"

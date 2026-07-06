@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useCalendarData,
@@ -44,16 +44,29 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   const [viewYear, setViewYear] = useState(todayDate.getFullYear());
   const [viewMonth0, setViewMonth0] = useState(todayDate.getMonth());
 
-  const members = useMemo(() => {
-    const set = new Set<string>();
-    allEvents.forEach((e) => e.name && set.add(e.name));
-    return [...set];
-  }, [allEvents]);
-
   const matrix = useMemo(
     () => buildMonthMatrix(viewYear, viewMonth0),
     [viewYear, viewMonth0]
   );
+
+  // 絞り込みチップは「表示中の月グリッドに予約が掛かる部員」だけに絞る
+  // （全期間の部員を並べるとチップが縦に膨らむうえ、選んでも何も起きない）。
+  const gridStartIdx = matrix.weeks[0][0].dayIndex;
+  const gridEndIdx = matrix.weeks[matrix.weeks.length - 1][6].dayIndex;
+  const members = useMemo(() => {
+    const set = new Set<string>();
+    allEvents.forEach((e) => {
+      if (!e.name) return;
+      const { startIdx, endIdx } = eventInterval(e);
+      if (endIdx >= gridStartIdx && startIdx <= gridEndIdx) set.add(e.name);
+    });
+    return [...set];
+  }, [allEvents, gridStartIdx, gridEndIdx]);
+
+  // 月を移動して選択中の部員がいなくなったら「すべて」に戻す
+  useEffect(() => {
+    if (memberFilter != null && !members.includes(memberFilter)) setMemberFilter(null);
+  }, [members, memberFilter]);
 
   const barEvents = useMemo<CalendarBarEvent<CalendarEvent>[]>(
     () =>
@@ -77,8 +90,8 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         barEvents,
         matrix,
         isDesktop
-          ? { headH: 26, laneH: 26, minH: 104, maxLanes: 6 }
-          : { headH: 20, laneH: 20, minH: 62, maxLanes: 4 }
+          ? { headH: 26, laneH: 26, minH: 104 }
+          : { headH: 20, laneH: 20, minH: 62 }
       ),
     [barEvents, matrix, isDesktop]
   );

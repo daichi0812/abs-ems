@@ -41,7 +41,7 @@ export function MonthGrid<T = unknown>({
             style={{ height: week.height }}
           >
             <div className="grid h-full grid-cols-7">
-              {week.days.map((day, colIdx) => (
+              {week.days.map((day) => (
                 <div
                   key={day.dayIndex}
                   className={cn(
@@ -53,11 +53,6 @@ export function MonthGrid<T = unknown>({
                   style={day.isToday ? { background: "#EAF3FE" } : undefined}
                 >
                   {day.dayOfMonth}
-                  {(week.hiddenByCol?.[colIdx] ?? 0) > 0 && (
-                    <span className="absolute bottom-[2px] left-0 right-0 text-[8.5px] font-bold text-ink-faint md:text-[9.5px]">
-                      +{week.hiddenByCol[colIdx]}件
-                    </span>
-                  )}
                 </div>
               ))}
             </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { tint } from "@/lib/category-colors";
 import type { PickGroup } from "./types";
@@ -58,14 +59,20 @@ export function EquipmentPickPanel({
                     </svg>
                   )}
                 </span>
-                <span
-                  className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-xl"
-                  style={{ background: tint(g.color) }}
-                >
-                  <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke={g.color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={g.iconPath} />
-                  </svg>
-                </span>
+                {it.image ? (
+                  <span className="relative h-[52px] w-[52px] flex-none overflow-hidden rounded-xl bg-surface">
+                    <Image src={it.image} alt="" fill sizes="52px" className="object-cover" unoptimized />
+                  </span>
+                ) : (
+                  <span
+                    className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-xl"
+                    style={{ background: tint(g.color) }}
+                  >
+                    <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke={g.color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                      <path d={g.iconPath} />
+                    </svg>
+                  </span>
+                )}
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold">{it.name}</span>
                   <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-muted line-clamp-2">
