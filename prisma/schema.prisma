@@ -27,8 +27,24 @@ model User {
   isTwoFactorEnabled Boolean @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
   settings      UserSettings?
+  feedbacks     Feedback[]
 
   @@map("users")
+}
+
+// 部員からのアプリ内フィードバック（ユーザーメニューの1タップ送信）。
+// 閲覧は開発者専用ページ /dev/feedback（部長向け管理画面とは別系統）。
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  body      String
+  path      String?  // 送信元ページ（自動付与）
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([resolved, createdAt])
+  @@map("feedback")
 }
 
 enum CalendarView {

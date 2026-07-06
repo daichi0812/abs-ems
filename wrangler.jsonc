@@ -28,7 +28,9 @@
     "AUTH_TRUST_HOST": "true",
     "R2_PUBLIC_BASE_URL": "https://images.abs-ems.forgeonics.com",
     // lib/mail.ts が実行時に読む（リセット/確認メールのリンク生成）
-    "NEXT_PUBLIC_APP_URL": "https://abs-ems.forgeonics.com"
+    "NEXT_PUBLIC_APP_URL": "https://abs-ems.forgeonics.com",
+    // 開発者専用機能（/dev/feedback 閲覧など）のゲート。カンマ区切り（lib/dev-auth.ts）
+    "DEVELOPER_EMAILS": "daichi8120@gmail.com"
   },
   // 機材画像の保存先（Phase 2 で使用）。binding 名はコード側の識別子で任意。
   "r2_buckets": [
