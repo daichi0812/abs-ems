@@ -86,6 +86,7 @@ export function BookingWizard() {
               id: e.id,
               name: e.name,
               detail: e.detail ?? "",
+              image: e.image ?? "",
               free,
               sub: free
                 ? "この期間は空いています"
@@ -113,6 +114,7 @@ export function BookingWizard() {
         return {
           id,
           name: e?.name ?? "",
+          image: e?.image ?? "",
           color,
           iconPath: categoryIconPath(cat?.name),
         };

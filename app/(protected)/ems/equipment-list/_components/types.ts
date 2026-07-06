@@ -3,6 +3,7 @@ export interface PickItem {
   id: number;
   name: string;
   detail: string;
+  image: string; // 機材写真のURL。空ならカテゴリアイコンで代替
   free: boolean;
   sub: string; // 「この期間は空いています」/「M/D〜M/D ○○が予約」
   selected: boolean;
@@ -19,6 +20,7 @@ export interface PickGroup {
 export interface CartItem {
   id: number;
   name: string;
+  image: string; // 機材写真のURL。空ならカテゴリアイコンで代替
   color: string;
   iconPath: string;
 }
