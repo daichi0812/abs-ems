@@ -67,6 +67,7 @@ export function MyReservations() {
     filteredData,
     isLoading: reservesLoading,
     isError: reservesError,
+    hasLoaded: reservesLoaded,
     refetch,
   } = useMyReserves({ userId: user?.id });
   const { equipments, isLoading: eqLoading } = useEquipments();
@@ -216,7 +217,10 @@ export function MyReservations() {
     );
   }
 
-  if (reservesError) {
+  // 全画面エラーは「一度も取得できていない」ときだけ。返却・キャンセル成功後の
+  // refetch が失敗したケースで画面ごと乗っ取ると、「返却しました」のトーストと
+  // エラー画面が同時に出る矛盾した状態になる（表示済みの一覧は維持する）。
+  if (reservesError && !reservesLoaded) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
         <p className="text-sm font-bold text-ink">予約を読み込めませんでした。</p>

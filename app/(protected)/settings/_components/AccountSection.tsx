@@ -62,7 +62,9 @@ export function AccountSection() {
             toast.error(data.error);
           }
           if (data.success) {
-            update();
+            // 引数なしの update() は GET になり jwt コールバックが DB を再照会しない。
+            // update({}) の POST で trigger="update" を立てて最新値をセッションに反映する。
+            update({});
             setMessage({ kind: "success", text: data.success });
             toast.success(data.success);
           }

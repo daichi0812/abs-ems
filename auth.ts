@@ -6,7 +6,7 @@ import { db } from "@/lib/db"
 import authConfig from "@/auth.config"
 import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
-import { getAccountByUserId } from "./data/account"
+import { refreshJwtToken } from "@/lib/jwt-refresh"
 
 export const {
   auth,
@@ -97,29 +97,9 @@ export const {
       return session;
     },
     async jwt({ token, user, trigger }) {
-      if (!token.sub) return token;
-
-      // DB照会はサインイン直後（user あり）と useSession().update() 実行時のみ。
-      // ここは auth() のたびに呼ばれるため、毎回照会すると全ページ・全APIに
-      // user/account の2クエリ分の遅延が上乗せされる。
-      // role 等を DB 側で直接変更した場合は再ログイン（または update()）で反映される。
-      if (!user && trigger !== "update") return token;
-
-      const existingUser = await getUserById(token.sub);
-
-      if (!existingUser) return token;
-
-      const existingAccount = await getAccountByUserId(
-        existingUser.id
-      );
-
-      token.isOAuth = !!existingAccount;
-      token.name = existingUser.name;
-      token.email = existingUser.email;
-      token.role = existingUser.role;
-      token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
-
-      return token;
+      // 方針とテストは lib/jwt-refresh.ts を参照（通常リクエストは DB フリー、
+      // サインイン・update({})・15分経過時のみ user/account を再照会する）。
+      return refreshJwtToken({ token, user, trigger });
     }
   },
   adapter: PrismaAdapter(db),

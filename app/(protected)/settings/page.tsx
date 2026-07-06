@@ -41,7 +41,9 @@ export default function SettingsPage() {
       if (result.success) {
         // セッション(JWT)を更新しないと、このカードやヘッダーの表示名が旧名のまま残り
         // 「保存に失敗した？」と見える（AccountSection の保存処理と同じパターン）。
-        await update();
+        // 引数なしの update() は GET になり jwt コールバックに trigger="update" が
+        // 渡らない（DB 再照会がスキップされる）ため、必ず update({}) で POST にする。
+        await update({});
         toast.success("プロフィールを保存しました");
       }
     });

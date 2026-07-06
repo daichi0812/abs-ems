@@ -37,11 +37,12 @@ interface UserLite {
 export function BookingWizard() {
   const router = useRouter();
   const { equipments, isLoading: eqLoading } = useEquipments();
-  const { categories } = useCategories();
+  const { categories, isLoading: catLoading } = useCategories();
   const {
     reserves,
     isLoading: reservesLoading,
     isError: reservesError,
+    hasLoaded: reservesLoaded,
     refetch: refetchReserves,
   } = useReserves();
   const { isSubmitting, createReservations } = useCreateReservations();
@@ -109,8 +110,9 @@ export function BookingWizard() {
 
     // カテゴリ未設定・カテゴリ削除後の機材も「未分類」として末尾に出す。
     // 以前はどのグループにも入らず、部員からは機材が消えて予約不可能になっていた。
-    // categories が空の間（読み込み中）は全機材が未分類に見えてしまうため出さない。
-    if (categories.length > 0) {
+    // 読み込み中は全機材が未分類に見えてしまうため isLoading で判定する
+    // （categories.length だと最後の1カテゴリを削除した後に未分類が出なくなる）。
+    if (!catLoading) {
       const knownIds = new Set(categories.map((c) => String(c.id)));
       const uncategorized = equipments.filter(
         (e) => e.tag_id == null || !knownIds.has(String(e.tag_id))
@@ -127,7 +129,7 @@ export function BookingWizard() {
     }
 
     return grouped.filter((g) => g.items.length > 0);
-  }, [categories, equipments, reserves, rangeOk, range, cart, users]);
+  }, [categories, catLoading, equipments, reserves, rangeOk, range, cart, users]);
 
   const cartItems = useMemo<CartItem[]>(
     () =>
@@ -176,17 +178,18 @@ export function BookingWizard() {
     if (res.createdCount > 0) {
       // 部分成功: 予約できた機材はカートから外し、できなかった機材を機材名で明示する。
       // 全体を失敗のように伝えると、成功分まで期間を変えて予約し直す二重予約につながる。
+      // トーストは1本に統合する（2本重ねるとモバイルでは背面の成功分が読めない）。
       setCart((prev) => prev.filter((id) => !res.createdIds.includes(id)));
-      toast.success(`${res.createdCount}件は予約が完了しました（マイ予約で確認できます）。`, {
-        duration: 8000,
-      });
       if (res.conflictIds.length > 0) {
         toast.error(
-          `${res.conflictIds.map(equipmentName).join("、")} は期間の重なる予約があり予約できませんでした。期間を変えて再度お試しください。`,
-          { duration: 8000 }
+          `${res.conflictIds.map(equipmentName).join("、")} は期間の重なる予約があり予約できませんでした。それ以外の${res.createdCount}件は予約済みです（マイ予約で確認できます）。期間を変えて再度お試しください。`,
+          { duration: 10000 }
         );
       } else {
-        toast.error(res.errorMessage ?? "一部の機材が予約できませんでした。");
+        toast.error(
+          `一部の機材が予約できませんでした（${res.createdCount}件は予約済み。マイ予約で確認できます）。${res.errorMessage ?? ""}`,
+          { duration: 10000 }
+        );
       }
     } else if (res.conflict) {
       toast.error(
@@ -205,9 +208,24 @@ export function BookingWizard() {
     setStep(1);
   };
 
+  // 完了画面はデータ取得状態に依存しないので最優先で出す。
+  // これより後に置くと、成功直後のバックグラウンド refetch が失敗したときに
+  // 「予約できたのにエラー画面に置き換わる」事故になる。
+  if (done) {
+    return (
+      <div className="mx-auto max-w-md">
+        <DoneScreen
+          doneText={`${rangeText} に ${cartItems.length}件の機材を予約しました`}
+          onToMyPage={() => router.push("/ems/mypage")}
+          onRestart={restart}
+        />
+      </div>
+    );
+  }
+
   // reserves の読み込み完了前に一覧を出すと、予約済みの機材まで
-  // 「この期間は空いています」と表示されてしまうため、両方の完了を待つ。
-  if (eqLoading || reservesLoading) {
+  // 「この期間は空いています」と表示されてしまうため、各取得の完了を待つ。
+  if (eqLoading || reservesLoading || catLoading) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-10 w-full rounded-xl" />
@@ -216,7 +234,10 @@ export function BookingWizard() {
     );
   }
 
-  if (reservesError) {
+  // 全画面エラーは「一度も空き状況を取得できていない」ときだけ。
+  // 取得済みデータがあるのに visibilitychange 再取得の失敗などで画面ごと
+  // 乗っ取ると、進行中のウィザードが消えてしまう。
+  if (reservesError && !reservesLoaded) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
         <p className="text-sm font-bold text-ink">空き状況を読み込めませんでした。</p>
@@ -230,18 +251,6 @@ export function BookingWizard() {
         >
           再試行
         </button>
-      </div>
-    );
-  }
-
-  if (done) {
-    return (
-      <div className="mx-auto max-w-md">
-        <DoneScreen
-          doneText={`${rangeText} に ${cartItems.length}件の機材を予約しました`}
-          onToMyPage={() => router.push("/ems/mypage")}
-          onRestart={restart}
-        />
       </div>
     );
   }
