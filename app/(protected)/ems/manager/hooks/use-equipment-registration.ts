@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useState } from "react";
 import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
@@ -64,16 +63,18 @@ export const useEquipmentRegistration = ({
         blob = (await responseVercel.json()) as { url: string };
       }
 
-      await axios.post(
-        "/api/lists",
-        {
+      const res = await fetch("/api/lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        body: JSON.stringify({
           name: equipmentName,
           detail: equipmentDetail,
           image: blob?.url || "",
           tag_id: tagId,
-        },
-        { headers: managerAuthHeaders() },
-      );
+        }),
+      });
+      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("機材登録が完了しました");
       setSelectedTag("");
       await refetchEquipments();

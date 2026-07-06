@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
@@ -46,14 +45,16 @@ export const useTagEditing = ({ refetchTags, existingTags = [] }: UseTagEditingP
       return false;
     }
     try {
-      await axios.put(
-        `/api/tags/${id}`,
-        {
+      const res = await fetch(`/api/tags/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        body: JSON.stringify({
           name: trimmed,
           color: editTagColor,
-        },
-        { headers: managerAuthHeaders() },
-      );
+        }),
+      });
+      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("カテゴリを更新しました");
       setEditTagId(null);
       await refetchTags();

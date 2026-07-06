@@ -1,10 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("axios", () => ({
-  default: { put: vi.fn() },
-}));
-
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 vi.mock("sonner", () => ({
@@ -14,19 +10,20 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagEditing } from "./use-tag-editing";
 
 const refetchTags = vi.fn(async () => {});
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+const fetchMock = vi.fn();
 
 beforeEach(() => {
-  vi.mocked(axios.put).mockReset();
+  fetchMock.mockReset();
   refetchTags.mockClear();
   toastSuccess.mockReset();
   toastError.mockReset();
   consoleErrorSpy.mockClear();
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
@@ -79,7 +76,7 @@ describe("useTagEditing - saveEdit", () => {
     });
 
     expect(toastError).toHaveBeenCalledWith("カテゴリ名を入力してください");
-    expect(axios.put).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(ok).toBe(false);
   });
 
@@ -107,12 +104,12 @@ describe("useTagEditing - saveEdit", () => {
     });
 
     expect(toastError).toHaveBeenCalledWith("同じ名前のカテゴリがすでにあります");
-    expect(axios.put).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(ok).toBe(false);
   });
 
   it("allows saving the same name for the tag itself (自分自身は重複扱いしない)", async () => {
-    vi.mocked(axios.put).mockResolvedValue({ status: 200 } as never);
+    fetchMock.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() =>
       useTagEditing({ refetchTags, existingTags: [{ id: 5, name: "音響" }] })
@@ -131,7 +128,7 @@ describe("useTagEditing - saveEdit", () => {
   });
 
   it("PUTs the tag, refetches, and returns true on success", async () => {
-    vi.mocked(axios.put).mockResolvedValue({ status: 200 } as never);
+    fetchMock.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() => useTagEditing({ refetchTags }));
 
@@ -144,14 +141,17 @@ describe("useTagEditing - saveEdit", () => {
       ok = await result.current.saveEdit(5);
     });
 
-    expect(axios.put).toHaveBeenCalledWith(
-      "/api/tags/5",
-      {
-        name: "Audio",
-        color: "#ff0000",
-      },
-      { headers: managerAuthHeaders() },
-    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/tags/5");
+    expect(init.method).toBe("PUT");
+    expect(init.headers).toEqual({
+      "Content-Type": "application/json",
+      ...managerAuthHeaders(),
+    });
+    expect(JSON.parse(init.body)).toEqual({
+      name: "Audio",
+      color: "#ff0000",
+    });
     expect(toastSuccess).toHaveBeenCalledWith("カテゴリを更新しました");
     expect(refetchTags).toHaveBeenCalledOnce();
     expect(result.current.editTagId).toBeNull();
@@ -159,7 +159,7 @@ describe("useTagEditing - saveEdit", () => {
   });
 
   it("toasts error and returns false on PUT failure", async () => {
-    vi.mocked(axios.put).mockRejectedValue(new Error("server"));
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
 
     const { result } = renderHook(() => useTagEditing({ refetchTags }));
 

@@ -1,10 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("axios", () => ({
-  default: { post: vi.fn() },
-}));
-
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 vi.mock("sonner", () => ({
@@ -22,7 +18,6 @@ vi.mock("@/lib/image-compress", () => ({
   compressImage: (f: File) => compressImageMock(f),
 }));
 
-import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentRegistration } from "./use-equipment-registration";
 
@@ -47,7 +42,6 @@ const defaultParams = {
 };
 
 beforeEach(() => {
-  vi.mocked(axios.post).mockReset();
   refetchEquipments.mockClear();
   resetImage.mockClear();
   alertMock.mockReset();
@@ -110,7 +104,7 @@ describe("useEquipmentRegistration - cancel", () => {
 
 describe("useEquipmentRegistration - submit", () => {
   it("posts to /api/lists without upload when no file selected", async () => {
-    vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
+    fetchMock.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() => useEquipmentRegistration(defaultParams));
 
@@ -124,17 +118,21 @@ describe("useEquipmentRegistration - submit", () => {
       await result.current.submit();
     });
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(axios.post).toHaveBeenCalledWith(
-      "/api/lists",
-      {
-        name: "Camera",
-        detail: "DSLR",
-        image: "",
-        tag_id: "2", // "Video" tag id
-      },
-      { headers: managerAuthHeaders() },
-    );
+    // アップロード API へは行かず、/api/lists への POST 1回のみ
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/lists");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({
+      "Content-Type": "application/json",
+      ...managerAuthHeaders(),
+    });
+    expect(JSON.parse(init.body)).toEqual({
+      name: "Camera",
+      detail: "DSLR",
+      image: "",
+      tag_id: "2", // "Video" tag id
+    });
     expect(toastSuccess).toHaveBeenCalledWith("機材登録が完了しました");
     expect(refetchEquipments).toHaveBeenCalledOnce();
     expect(resetImage).toHaveBeenCalled();
@@ -142,11 +140,12 @@ describe("useEquipmentRegistration - submit", () => {
 
   it("uploads file to Vercel Blob and posts the returned URL", async () => {
     const file = new File(["xxx"], "test.png", { type: "image/png" });
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ url: "https://blob.example/test.png" }),
-    });
-    vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ url: "https://blob.example/test.png" }),
+      })
+      .mockResolvedValueOnce({ ok: true });
 
     const params = { ...defaultParams, inputFileRef: makeInputRef([file]) };
 
@@ -161,25 +160,24 @@ describe("useEquipmentRegistration - submit", () => {
       await result.current.submit();
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=test.png", {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/upload?filename=test.png", {
       method: "POST",
       body: file,
       headers: managerAuthHeaders(),
     });
-    expect(axios.post).toHaveBeenCalledWith(
-      "/api/lists",
-      {
-        name: "Camera",
-        detail: "",
-        image: "https://blob.example/test.png",
-        tag_id: "1", // "Audio" tag id
-      },
-      { headers: managerAuthHeaders() },
-    );
+    const [listUrl, listInit] = fetchMock.mock.calls[1];
+    expect(listUrl).toBe("/api/lists");
+    expect(listInit.method).toBe("POST");
+    expect(JSON.parse(listInit.body)).toEqual({
+      name: "Camera",
+      detail: "",
+      image: "https://blob.example/test.png",
+      tag_id: "1", // "Audio" tag id
+    });
   });
 
   it("alerts on failure", async () => {
-    vi.mocked(axios.post).mockRejectedValue(new Error("network"));
+    fetchMock.mockRejectedValue(new Error("network"));
 
     const { result } = renderHook(() => useEquipmentRegistration(defaultParams));
 
@@ -202,11 +200,12 @@ describe("useEquipmentRegistration - submit", () => {
     const original = new File(["x".repeat(1024)], "photo.png", { type: "image/png" });
     const compressed = new File(["y"], "photo.jpg", { type: "image/jpeg" });
     compressImageMock.mockResolvedValueOnce(compressed);
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ url: "https://blob.example/photo.jpg" }),
-    });
-    vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ url: "https://blob.example/photo.jpg" }),
+      })
+      .mockResolvedValueOnce({ ok: true });
 
     const params = { ...defaultParams, inputFileRef: makeInputRef([original]) };
     const { result } = renderHook(() => useEquipmentRegistration(params));
@@ -221,15 +220,15 @@ describe("useEquipmentRegistration - submit", () => {
     });
 
     expect(compressImageMock).toHaveBeenCalledWith(original);
-    expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=photo.jpg", {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/upload?filename=photo.jpg", {
       method: "POST",
       body: compressed,
       headers: managerAuthHeaders(),
     });
-    expect(axios.post).toHaveBeenCalledWith(
-      "/api/lists",
-      expect.objectContaining({ image: "https://blob.example/photo.jpg" }),
-      expect.any(Object),
+    const [listUrl, listInit] = fetchMock.mock.calls[1];
+    expect(listUrl).toBe("/api/lists");
+    expect(JSON.parse(listInit.body)).toEqual(
+      expect.objectContaining({ image: "https://blob.example/photo.jpg" })
     );
   });
 
@@ -247,7 +246,7 @@ describe("useEquipmentRegistration - submit", () => {
 
     expect(ok).toBe(false);
     expect(toastError).toHaveBeenCalledWith("カテゴリを選択してください");
-    expect(axios.post).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("aborts registration when the image upload responds with an error status", async () => {
@@ -273,6 +272,8 @@ describe("useEquipmentRegistration - submit", () => {
     expect(toastError).toHaveBeenCalledWith(
       "画像のアップロードに失敗しました。機材は登録されていません。"
     );
-    expect(axios.post).not.toHaveBeenCalled();
+    // アップロードの1回のみで、/api/lists への POST には到達しない
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/upload?filename=test.png");
   });
 });

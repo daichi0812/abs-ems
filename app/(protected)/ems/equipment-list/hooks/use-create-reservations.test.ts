@@ -1,21 +1,21 @@
 import { renderHook, act } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import axios from "axios";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCreateReservations } from "./use-create-reservations";
 
-vi.mock("axios");
-const mockedPost = vi.mocked(axios.post);
-// axios.isAxiosError はモックで失われるため、簡易実体に差し替える
-(axios as unknown as { isAxiosError: (v: unknown) => boolean }).isAxiosError = (v) =>
-  !!v && typeof v === "object" && "isAxiosError" in (v as object);
+const fetchMock = vi.fn();
+
+beforeEach(() => {
+  fetchMock.mockReset();
+  vi.stubGlobal("fetch", fetchMock);
+});
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("useCreateReservations", () => {
   it("全件成功で ok=true", async () => {
-    mockedPost.mockResolvedValue({ data: {} });
+    fetchMock.mockResolvedValue({ ok: true });
     const { result } = renderHook(() => useCreateReservations());
 
     let res: Awaited<ReturnType<typeof result.current.createReservations>> | undefined;
@@ -23,8 +23,12 @@ describe("useCreateReservations", () => {
       res = await result.current.createReservations([1, 2, 3], "2026-07-10", "2026-07-12");
     });
 
-    expect(mockedPost).toHaveBeenCalledTimes(3);
-    expect(mockedPost).toHaveBeenCalledWith("/api/reserves", {
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/reserves");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({ "Content-Type": "application/json" });
+    expect(JSON.parse(init.body)).toEqual({
       list_id: 1,
       start: "2026-07-10",
       end: "2026-07-12",
@@ -39,9 +43,9 @@ describe("useCreateReservations", () => {
   });
 
   it("409 が混ざると conflict=true・ok=false", async () => {
-    mockedPost
-      .mockResolvedValueOnce({ data: {} })
-      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 409 } });
+    fetchMock
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({}) });
     const { result } = renderHook(() => useCreateReservations());
 
     let res: Awaited<ReturnType<typeof result.current.createReservations>> | undefined;
@@ -59,9 +63,10 @@ describe("useCreateReservations", () => {
   });
 
   it("409以外の失敗は API のエラーメッセージを拾う", async () => {
-    mockedPost.mockRejectedValue({
-      isAxiosError: true,
-      response: { status: 400, data: { error: "予約開始日は今日以降にしてください。" } },
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "予約開始日は今日以降にしてください。" }),
     });
     const { result } = renderHook(() => useCreateReservations());
 
@@ -80,17 +85,33 @@ describe("useCreateReservations", () => {
     });
   });
 
+  it("ネットワーク例外は errorMessage なしの失敗扱い", async () => {
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { result } = renderHook(() => useCreateReservations());
+
+    let res: Awaited<ReturnType<typeof result.current.createReservations>> | undefined;
+    await act(async () => {
+      res = await result.current.createReservations([1], "2026-07-10", "2026-07-12");
+    });
+
+    expect(res).toEqual({
+      ok: false,
+      conflict: false,
+      createdCount: 0,
+      createdIds: [],
+      conflictIds: [],
+    });
+  });
+
   it("user_id は body に含めない（API がセッションから導出）", async () => {
-    mockedPost.mockResolvedValue({ data: {} });
+    fetchMock.mockResolvedValue({ ok: true });
     const { result } = renderHook(() => useCreateReservations());
 
     await act(async () => {
       await result.current.createReservations([5], "2026-07-10", "2026-07-10");
     });
 
-    expect(mockedPost).toHaveBeenCalledWith(
-      "/api/reserves",
-      expect.not.objectContaining({ user_id: expect.anything() })
-    );
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body)).not.toHaveProperty("user_id");
   });
 });
