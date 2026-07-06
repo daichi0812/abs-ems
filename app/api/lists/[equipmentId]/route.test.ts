@@ -1,17 +1,46 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findUniqueMock, updateMock, deleteMock, currentUserMock, hasManagerAccessMock } =
-  vi.hoisted(() => ({
-    findUniqueMock: vi.fn(),
-    updateMock: vi.fn(),
-    deleteMock: vi.fn(),
-    currentUserMock: vi.fn(),
-    hasManagerAccessMock: vi.fn(),
-  }));
+const {
+  findUniqueMock,
+  updateMock,
+  deleteMock,
+  reserveCountMock,
+  reserveFindManyMock,
+  reserveDeleteManyMock,
+  transactionMock,
+  currentUserMock,
+  hasManagerAccessMock,
+  notifyInBackgroundMock,
+  notifyReservationCancelledMock,
+} = vi.hoisted(() => ({
+  findUniqueMock: vi.fn(),
+  updateMock: vi.fn(),
+  deleteMock: vi.fn(),
+  reserveCountMock: vi.fn(),
+  reserveFindManyMock: vi.fn(),
+  reserveDeleteManyMock: vi.fn(),
+  transactionMock: vi.fn(),
+  currentUserMock: vi.fn(),
+  hasManagerAccessMock: vi.fn(),
+  notifyInBackgroundMock: vi.fn(),
+  notifyReservationCancelledMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({
-  db: { list: { findUnique: findUniqueMock, update: updateMock, delete: deleteMock } },
+  db: {
+    list: { findUnique: findUniqueMock, update: updateMock, delete: deleteMock },
+    reserve: {
+      count: reserveCountMock,
+      findMany: reserveFindManyMock,
+      deleteMany: reserveDeleteManyMock,
+    },
+    $transaction: transactionMock,
+  },
+}));
+vi.mock("@/lib/notify", () => ({
+  notifyInBackground: notifyInBackgroundMock,
+  notifyReservationCancelled: (...a: unknown[]) => notifyReservationCancelledMock(...a),
 }));
 // GET はログイン必須。PUT/DELETE の hasManagerAccess 経由で currentRole も参照されうるため両方出す。
 vi.mock("@/lib/auth", () => ({
@@ -41,6 +70,16 @@ beforeEach(() => {
   findUniqueMock.mockReset();
   updateMock.mockReset();
   deleteMock.mockReset();
+  reserveCountMock.mockReset();
+  reserveCountMock.mockResolvedValue(0);
+  reserveFindManyMock.mockReset();
+  reserveFindManyMock.mockResolvedValue([]);
+  notifyInBackgroundMock.mockReset();
+  notifyReservationCancelledMock.mockReset();
+  reserveDeleteManyMock.mockReset();
+  transactionMock.mockReset();
+  // db.$transaction([...]) は各操作の Promise を解決した配列を返す想定
+  transactionMock.mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops));
   currentUserMock.mockReset();
   hasManagerAccessMock.mockReset();
   hasManagerAccessMock.mockResolvedValue(true);
@@ -108,13 +147,29 @@ describe("PUT /api/lists/[equipmentId]", () => {
 });
 
 describe("DELETE /api/lists/[equipmentId]", () => {
-  it("deletes without a pre-check query", async () => {
+  it("deletes the equipment together with its reserves (orphan cleanup)", async () => {
     deleteMock.mockResolvedValue({ id: 5 });
+    reserveDeleteManyMock.mockResolvedValue({ count: 2 });
 
     const res = await DELETE(deleteRequest(), params);
 
     expect(res.status).toBe(200);
     expect(findUniqueMock).not.toHaveBeenCalled();
+    // 機材だけ消すと予約が孤児化（マイページに「#5」表示）するため、まとめて削除する
+    expect(reserveDeleteManyMock).toHaveBeenCalledWith({ where: { list_id: 5 } });
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 409 and does not delete while the equipment is on loan (isRenting 2/3)", async () => {
+    reserveCountMock.mockResolvedValue(1);
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(409);
+    expect(reserveCountMock).toHaveBeenCalledWith({
+      where: { list_id: 5, isRenting: { in: [2, 3] } },
+    });
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("maps P2025 (record not found) to 404", async () => {
@@ -123,5 +178,37 @@ describe("DELETE /api/lists/[equipmentId]", () => {
     const res = await DELETE(deleteRequest(), params);
 
     expect(res.status).toBe(404);
+  });
+
+  it("notifies owners of upcoming reserves that get cancelled by the deletion", async () => {
+    // 単発キャンセル（DELETE /api/reserves/[id]）と同じ「管理者による取り消しは
+    // 持ち主へ通知する」ポリシーを、機材削除経由の一括取り消しにも適用する
+    deleteMock.mockResolvedValue({ id: 5 });
+    reserveDeleteManyMock.mockResolvedValue({ count: 2 });
+    findUniqueMock.mockResolvedValue({ name: "Camera" });
+    const upcoming = [
+      { id: 100, user_id: "u1", list_id: 5, start: new Date(), end: new Date() },
+      { id: 101, user_id: "u2", list_id: 5, start: new Date(), end: new Date() },
+    ];
+    reserveFindManyMock.mockResolvedValue(upcoming);
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(200);
+    // 機材名は List 行が消える前に控えたものを渡す（削除後は引けない）
+    expect(notifyReservationCancelledMock).toHaveBeenCalledTimes(2);
+    expect(notifyReservationCancelledMock).toHaveBeenCalledWith(upcoming[0], "Camera");
+    expect(notifyReservationCancelledMock).toHaveBeenCalledWith(upcoming[1], "Camera");
+    expect(notifyInBackgroundMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not notify when there are no upcoming reserves", async () => {
+    deleteMock.mockResolvedValue({ id: 5 });
+    reserveDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(200);
+    expect(notifyReservationCancelledMock).not.toHaveBeenCalled();
   });
 });

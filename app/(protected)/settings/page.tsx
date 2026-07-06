@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { UserRole } from "@prisma/client";
@@ -19,10 +19,18 @@ function initialOf(name?: string | null) {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const user = useCurrentUser();
   const role = useCurrentRole();
   const { update } = useSession();
   const { settings, isLoading, patch } = useUserSettings();
+
+  // 戻る先を /ems/mypage に固定すると、カレンダー等から来た場合に文脈が失われる。
+  // 履歴があれば来た画面へ、なければ（直リンク・PWA起動直後）マイ予約へ。
+  const goBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/ems/mypage");
+  };
 
   const [name, setName] = useState("");
   const [savingName, startNameSave] = useTransition();
@@ -56,11 +64,11 @@ export default function SettingsPage() {
       {/* ネイビーヘッダー */}
       <div className="bg-navy px-4 pb-4 pt-5">
         <div className="mx-auto flex max-w-xl items-center gap-2.5">
-          <Link href="/ems/mypage" aria-label="戻る" className="text-white/90 hover:text-white">
+          <button type="button" onClick={goBack} aria-label="戻る" className="text-white/90 hover:text-white">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 5l-7 7 7 7" />
             </svg>
-          </Link>
+          </button>
           <span className="text-lg font-black tracking-wide text-white">設定</span>
         </div>
       </div>

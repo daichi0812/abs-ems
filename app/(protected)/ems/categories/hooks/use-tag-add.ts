@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useState } from "react";
 import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
@@ -36,11 +35,13 @@ export const useTagAdd = ({ existingTags, refetchTags }: UseTagAddParams) => {
 
     setIsSubmitting(true);
     try {
-      await axios.post(
-        "/api/tags",
-        { name: trimmed, color },
-        { headers: managerAuthHeaders() },
-      );
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        body: JSON.stringify({ name: trimmed, color }),
+      });
+      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("カテゴリを追加しました");
       setName("");
       setColor(CATEGORY_PALETTE[0]);

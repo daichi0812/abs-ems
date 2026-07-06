@@ -84,6 +84,8 @@ export function MyReservations() {
     items: GroupedItem[];
     rangeText: string;
   } | null>(null);
+  // 「終了した予約」は履歴が無限に溜まるため、既定は直近数件だけ表示する
+  const [showAllPast, setShowAllPast] = useState(false);
   const isDesktop = useIsDesktop();
 
   const todayIdx = todayJstDayIndex();
@@ -297,11 +299,15 @@ export function MyReservations() {
             </button>
           </div>
         ) : (
-          sections.map((sec) => (
+          sections.map((sec) => {
+            const isPast = sec.label === "終了した予約";
+            const collapsed = isPast && !showAllPast && sec.items.length > 5;
+            const visibleItems = collapsed ? sec.items.slice(0, 5) : sec.items;
+            return (
             <div key={sec.label} className="mb-4">
               <p className="mb-2 px-1 text-xs font-bold text-ink-muted">{sec.label}</p>
               <div className="flex flex-col gap-2.5">
-                {sec.items.map((g) => {
+                {visibleItems.map((g) => {
                   const active = g.startIdx <= todayIdx && g.endIdx >= todayIdx;
                   const badge = badgeOf(g, todayIdx);
                   const days = g.endIdx - g.startIdx + 1;
@@ -439,9 +445,19 @@ export function MyReservations() {
                     </div>
                   );
                 })}
+                {collapsed && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPast(true)}
+                    className="h-10 rounded-xl border-[1.5px] border-line bg-white text-[12.5px] font-bold text-ink-muted transition-colors hover:bg-line-soft"
+                  >
+                    すべて表示（あと{sec.items.length - visibleItems.length}件）
+                  </button>
+                )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

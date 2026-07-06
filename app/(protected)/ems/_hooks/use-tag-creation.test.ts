@@ -1,22 +1,19 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("axios", () => ({
-  default: { post: vi.fn() },
-}));
-
-import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagCreation } from "./use-tag-creation";
 
 const refetchTags = vi.fn(async () => {});
 const alertMock = vi.fn();
+const fetchMock = vi.fn();
 
 beforeEach(() => {
-  vi.mocked(axios.post).mockReset();
+  fetchMock.mockReset();
   refetchTags.mockClear();
   alertMock.mockReset();
   vi.stubGlobal("alert", alertMock);
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
@@ -40,7 +37,7 @@ describe("useTagCreation", () => {
     });
 
     expect(alertMock).toHaveBeenCalledWith("カテゴリ名は1文字以上入力してください.");
-    expect(axios.post).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(result.current.addTagName).toBe("");
   });
 
@@ -56,12 +53,12 @@ describe("useTagCreation", () => {
     });
 
     expect(alertMock).toHaveBeenCalledWith("このカテゴリは既に存在しています.");
-    expect(axios.post).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(result.current.addTagName).toBe("");
   });
 
   it("posts new tag and refetches on success, clearing name + color", async () => {
-    vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
+    fetchMock.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() => useTagCreation(defaultParams));
 
@@ -74,21 +71,24 @@ describe("useTagCreation", () => {
       await result.current.submit();
     });
 
-    expect(axios.post).toHaveBeenCalledWith(
-      "/api/tags",
-      {
-        name: "Lights",
-        color: "#0000ff",
-      },
-      { headers: managerAuthHeaders() },
-    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/tags");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({
+      "Content-Type": "application/json",
+      ...managerAuthHeaders(),
+    });
+    expect(JSON.parse(init.body)).toEqual({
+      name: "Lights",
+      color: "#0000ff",
+    });
     expect(refetchTags).toHaveBeenCalledOnce();
     expect(result.current.addTagName).toBe("");
     expect(result.current.editTagColor).toBe("");
   });
 
   it("alerts and keeps input when the POST fails (e.g. 403/500)", async () => {
-    vi.mocked(axios.post).mockRejectedValue(new Error("forbidden"));
+    fetchMock.mockResolvedValue({ ok: false, status: 403 });
 
     const { result } = renderHook(() => useTagCreation(defaultParams));
 

@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
@@ -69,27 +68,28 @@ export const useEquipmentUpdate = ({
       }
 
       try {
-        const response = await axios.put(
-          `/api/lists/${equipmentId}`,
-          {
+        const response = await fetch(`/api/lists/${equipmentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+          body: JSON.stringify({
             name: equipmentName,
             detail: equipmentDetail,
             image: blobUrl,
             tag_id: tags.find((tag) => tag.name === selectedTagName)?.id,
-          },
-          {
-            headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
-          },
-        );
-        console.log("Update response:", response.data);
+          }),
+        });
+        // fetch は HTTP エラーで throw しない。旧 axios 実装が catch 側で出していた
+        // レスポンス本文（Response data）のログはエラーメッセージに含めて引き継ぐ。
+        if (!response.ok) {
+          const body = await response.text().catch(() => "");
+          throw new Error(`HTTP ${response.status}${body ? `: ${body}` : ""}`);
+        }
+        console.log("Update response:", await response.json().catch(() => undefined));
         toast.success("機材情報を更新しました");
         onSuccess();
         return true;
       } catch (error) {
         console.error("Failed to update equipment:", error);
-        if (axios.isAxiosError(error)) {
-          console.error("Response data:", error.response?.data);
-        }
         toast.error("機材情報の更新に失敗しました");
         return false;
       }

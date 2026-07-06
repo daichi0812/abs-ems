@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { categoryColor, categoryIconPath, tint } from "@/lib/category-colors";
+import { CATEGORY_PALETTE, categoryColor, categoryIconPath, tint } from "@/lib/category-colors";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,7 @@ import { useTagAdd } from "./hooks/use-tag-add";
 export default function CategoriesPage() {
   const { tags, isLoading, refetch } = useTagsList();
   const { equipments } = useEquipments();
-  const editing = useTagEditing({ refetchTags: refetch });
+  const editing = useTagEditing({ refetchTags: refetch, existingTags: tags });
   const { deleteTag } = useTagDeletion({ refetchTags: refetch });
   const reorder = useTagReorder({ tags, refetchTags: refetch });
   const add = useTagAdd({ existingTags: tags, refetchTags: refetch });
@@ -88,7 +88,7 @@ export default function CategoriesPage() {
                     aria-label="上へ移動"
                     disabled={index === 0 || reorder.isSaving}
                     onClick={() => reorder.moveUp(index)}
-                    className="flex h-5 w-6 items-center justify-center text-ink-faint hover:text-brand disabled:opacity-25"
+                    className="flex h-7 w-9 items-center justify-center text-ink-faint hover:text-brand disabled:opacity-25"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 15l6-6 6 6" />
@@ -99,7 +99,7 @@ export default function CategoriesPage() {
                     aria-label="下へ移動"
                     disabled={index === rows.length - 1 || reorder.isSaving}
                     onClick={() => reorder.moveDown(index)}
-                    className="flex h-5 w-6 items-center justify-center text-ink-faint hover:text-brand disabled:opacity-25"
+                    className="flex h-7 w-9 items-center justify-center text-ink-faint hover:text-brand disabled:opacity-25"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 9l6 6 6-6" />
@@ -118,29 +118,56 @@ export default function CategoriesPage() {
                 </span>
 
                 {isEditing ? (
-                  <>
-                    <input
-                      ref={editing.inputRef}
-                      value={editing.editTagName}
-                      onChange={(e) => editing.setEditTagName(e.target.value)}
-                      className="h-9 min-w-0 flex-1 rounded-[10px] border-[1.5px] border-brand bg-white px-3 text-sm outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => editing.saveEdit(tag.id)}
-                      className="h-9 flex-none rounded-[10px] bg-brand px-3.5 text-[13px] font-bold text-white hover:bg-brand-dark"
-                    >
-                      保存
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="編集をやめる"
-                      onClick={editing.cancelEdit}
-                      className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border-[1.5px] border-line bg-white text-lg leading-none text-ink-muted"
-                    >
-                      ×
-                    </button>
-                  </>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={editing.inputRef}
+                        value={editing.editTagName}
+                        onChange={(e) => editing.setEditTagName(e.target.value)}
+                        className="h-9 min-w-0 flex-1 rounded-[10px] border-[1.5px] border-brand bg-white px-3 text-sm outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => editing.saveEdit(tag.id)}
+                        className="h-9 flex-none rounded-[10px] bg-brand px-3.5 text-[13px] font-bold text-white hover:bg-brand-dark"
+                      >
+                        保存
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="編集をやめる"
+                        onClick={editing.cancelEdit}
+                        className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border-[1.5px] border-line bg-white text-lg leading-none text-ink-muted"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {/* 色の変更。作成後に直す手段が「削除→再作成」しかなく、
+                        その過程で所属機材が未分類化してしまっていた。
+                        現在色がパレット外（旧既定色など）でも選択中表示と復元ができるよう、
+                        現在色を先頭のスウォッチとして含める */}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {[...new Set<string>([editing.editTagColor, ...CATEGORY_PALETTE])]
+                        .filter(Boolean)
+                        .map((col) => {
+                        const on = editing.editTagColor === col;
+                        return (
+                          <button
+                            key={col}
+                            type="button"
+                            aria-label={`色 ${col}`}
+                            onClick={() => editing.setEditTagColor(col)}
+                            className="h-[26px] w-[26px] rounded-full p-0 transition-[border-color]"
+                            style={{
+                              background: col,
+                              border: `3px solid ${on ? col : "transparent"}`,
+                              boxShadow: `inset 0 0 0 2px #fff${on ? ", 0 0 0 1.5px " + col : ""}`,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <div className="min-w-0 flex-1">

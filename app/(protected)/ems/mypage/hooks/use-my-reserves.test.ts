@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe("useMyReserves", () => {
   it("starts with empty filteredData and isLoading=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useMyReserves({ userId: "u1" }));
     expect(result.current.filteredData).toEqual([]);
     expect(result.current.isLoading).toBe(true);
@@ -27,7 +27,7 @@ describe("useMyReserves", () => {
   it("fetches only /api/reserves filtered by userId (no /api/lists duplication)", async () => {
     // サーバーが user_id=u1 で絞り込み済みのデータを返す想定（u2 は含めない）
     fetchMock.mockResolvedValueOnce({
-      json: async () => [
+      ok: true, json: async () => [
         { id: 100, user_id: "u1", start: new Date(), end: new Date(), list_id: 1, isRenting: 0 },
       ],
     });
@@ -47,7 +47,7 @@ describe("useMyReserves", () => {
   });
 
   it("returns empty filteredData when no reserves match userId", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // サーバーが0件
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] }); // サーバーが0件
 
     const { result } = renderHook(() => useMyReserves({ userId: "u1" }));
 
@@ -57,7 +57,7 @@ describe("useMyReserves", () => {
   });
 
   it("refetch re-runs the fetch", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useMyReserves({ userId: "u1" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -70,7 +70,7 @@ describe("useMyReserves", () => {
   });
 
   it("refetches when userId becomes available after mount", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { rerender } = renderHook(({ userId }) => useMyReserves({ userId }), {
       initialProps: { userId: undefined as string | undefined },
@@ -83,7 +83,7 @@ describe("useMyReserves", () => {
   });
 
   it("sends an empty ?user_id= (server zero-match) when userId is undefined, never a bare /api/reserves", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // /api/reserves?user_id= (サーバーが0件)
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] }); // /api/reserves?user_id= (サーバーが0件)
 
     renderHook(() => useMyReserves({ userId: undefined }));
 
@@ -94,7 +94,7 @@ describe("useMyReserves", () => {
   });
 
   it("does not crash and stays empty when the reserves response is not an array (5xx body)", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => ({ error: "boom" }) }); // 非配列
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ error: "boom" }) }); // 非配列
 
     const { result } = renderHook(() => useMyReserves({ userId: "u1" }));
 

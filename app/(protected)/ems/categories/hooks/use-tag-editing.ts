@@ -1,15 +1,16 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 
 export interface UseTagEditingParams {
   refetchTags: () => Promise<void>;
+  /** 重複名チェック用の既存カテゴリ一覧（自分自身は除外して判定する） */
+  existingTags?: { id: number; name: string }[];
 }
 
-export const useTagEditing = ({ refetchTags }: UseTagEditingParams) => {
+export const useTagEditing = ({ refetchTags, existingTags = [] }: UseTagEditingParams) => {
   const [editTagId, setEditTagId] = useState<number | null>(null);
   const [editTagName, setEditTagName] = useState<string>("");
   const [editTagColor, setEditTagColor] = useState<string>("");
@@ -32,19 +33,28 @@ export const useTagEditing = ({ refetchTags }: UseTagEditingParams) => {
   };
 
   const saveEdit = async (id: number): Promise<boolean> => {
-    if (!editTagName.trim()) {
+    const trimmed = editTagName.trim();
+    if (!trimmed) {
       toast.error("カテゴリ名を入力してください");
       return false;
     }
+    // 同名カテゴリを許すと、機材フォームのチップ選択（名前一致判定）が2つ同時に
+    // 点灯し、保存時は並び順で先のカテゴリへ黙って付け替わる（追加側と同じチェック）
+    if (existingTags.some((t) => t.name === trimmed && t.id !== id)) {
+      toast.error("同じ名前のカテゴリがすでにあります");
+      return false;
+    }
     try {
-      await axios.put(
-        `/api/tags/${id}`,
-        {
-          name: editTagName,
+      const res = await fetch(`/api/tags/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        body: JSON.stringify({
+          name: trimmed,
           color: editTagColor,
-        },
-        { headers: managerAuthHeaders() },
-      );
+        }),
+      });
+      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("カテゴリを更新しました");
       setEditTagId(null);
       await refetchTags();

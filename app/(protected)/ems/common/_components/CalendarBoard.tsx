@@ -13,7 +13,7 @@ import {
   formatRange,
 } from "@/lib/calendar/date-grid";
 import { buildMonthWeeks, type CalendarBarEvent } from "@/lib/calendar/build-month-weeks";
-import { memberColor, memberInitial } from "@/lib/calendar/member-colors";
+import { memberColorMap, memberInitial } from "@/lib/calendar/member-colors";
 import { daysLeftLabel } from "@/lib/calendar/reservation-labels";
 import { MonthGrid } from "@/components/calendar/MonthGrid";
 import { EquipmentGantt, type GanttRow } from "@/components/calendar/EquipmentGantt";
@@ -77,6 +77,15 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     if (memberFilter != null && !members.includes(memberFilter)) setMemberFilter(null);
   }, [members, memberFilter]);
 
+  // 「色＝人」の前提を守るため、素のハッシュ色（少人数でも高確率で衝突する）ではなく
+  // 重複しない割り当てを使う。表示中の月の部員（members）を優先して割り当てることで、
+  // 履歴上の部員が16人を超えても「いま見えている月」の中では一意性が守られる。
+  // チップ・詳細カードも同じ割り当てを共有する。
+  const memberColorOf = useMemo(() => {
+    const map = memberColorMap(allEvents.map((e) => e.name), members);
+    return (name: string | null | undefined) => (name && map.get(name)) || "#667085";
+  }, [allEvents, members]);
+
   const barEvents = useMemo<CalendarBarEvent<CalendarEvent>[]>(
     () =>
       allEvents.map((ev) => {
@@ -85,12 +94,12 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           key: ev.id,
           startIdx,
           endIdx,
-          color: memberColor(ev.name),
+          color: memberColorOf(ev.name),
           label: ev.title,
           data: ev,
         };
       }),
-    [allEvents]
+    [allEvents, memberColorOf]
   );
 
   const weeks = useMemo(
@@ -100,20 +109,23 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         matrix,
         isDesktop
           ? { headH: 26, laneH: 26, minH: 104 }
-          : { headH: 20, laneH: 20, minH: 62 }
+          : // モバイルはレーン間隔を広げてバー(18px)のタップしやすさを確保する
+            { headH: 20, laneH: 22, minH: 64 }
       ),
     [barEvents, matrix, isDesktop]
   );
 
-  // ガント: 今日の3日前から14日窓
-  const ganttWindowStart = todayIdx - 3;
+  // ガント: 既定は「今日の3日前から14日窓」。1週間単位で前後に送れる
+  //（固定窓だと来週末より先の空きが確認できず、月表示への切替に気づかないと詰む）。
+  const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
   const ganttDayCount = 14;
+  const ganttWindowStart = todayIdx - 3 + ganttWeekOffset * 7;
+  const ganttWindowEnd = ganttWindowStart + ganttDayCount - 1;
   const ganttRows = useMemo<GanttRow<CalendarEvent>[]>(() => {
-    const winEnd = ganttWindowStart + ganttDayCount - 1;
     const byEquip = new Map<string, GanttRow<CalendarEvent>>();
     allEvents.forEach((ev) => {
       const { startIdx, endIdx } = eventInterval(ev);
-      if (endIdx < ganttWindowStart || startIdx > winEnd) return;
+      if (endIdx < ganttWindowStart || startIdx > ganttWindowEnd) return;
       let row = byEquip.get(ev.title);
       if (!row) {
         row = {
@@ -128,14 +140,14 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         key: ev.id,
         startIdx,
         endIdx,
-        color: memberColor(ev.name),
+        color: memberColorOf(ev.name),
         initial: memberInitial(ev.name),
         label: `〜${formatRange(endIdx, endIdx)}`,
         data: ev,
       });
     });
     return [...byEquip.values()];
-  }, [allEvents, ganttWindowStart]);
+  }, [allEvents, ganttWindowStart, ganttWindowEnd, memberColorOf]);
 
   const selectedEvent = allEvents.find((e) => e.id === selectedKey) ?? null;
   const detail = selectedEvent
@@ -214,6 +226,47 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
             </button>
           ))}
         </div>
+        {view === "gantt" && (
+          <div className="ml-auto flex items-center gap-1">
+            {ganttWeekOffset !== 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKey(null);
+                  setGanttWeekOffset(0);
+                }}
+                className="flex h-8 items-center rounded-lg px-2.5 text-xs font-bold text-brand hover:bg-line-soft"
+              >
+                今日
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedKey(null);
+                setGanttWeekOffset((o) => o - 1);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
+              aria-label="前の週"
+            >
+              ‹
+            </button>
+            <span className="min-w-[104px] text-center text-xs font-black">
+              {formatRange(ganttWindowStart, ganttWindowEnd)}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedKey(null);
+                setGanttWeekOffset((o) => o + 1);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
+              aria-label="次の週"
+            >
+              ›
+            </button>
+          </div>
+        )}
         {view === "month" && (
           <div className="ml-auto flex items-center gap-1">
             {!isCurrentMonth && (
@@ -255,6 +308,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
               members={members}
               value={memberFilter}
               onChange={setMemberFilter}
+              colorOf={memberColorOf}
               className="mb-3"
             />
             <MonthGrid<CalendarEvent>
@@ -269,7 +323,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           </div>
           <div ref={detailRef} className="md:sticky md:top-24 md:self-start scroll-mt-20">
             {detail ? (
-              <EventDetailPopover detail={detail} />
+              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
             ) : (
               <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center text-[12.5px] text-ink-faint">
                 バーをタップすると
@@ -296,7 +350,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           )}
           {detail && (
             <div ref={detailRef} className="mt-3 scroll-mt-20">
-              <EventDetailPopover detail={detail} />
+              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
             </div>
           )}
         </div>

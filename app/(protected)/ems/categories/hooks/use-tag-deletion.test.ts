@@ -1,10 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("axios", () => ({
-  default: { delete: vi.fn() },
-}));
-
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 vi.mock("sonner", () => ({
@@ -14,19 +10,20 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagDeletion } from "./use-tag-deletion";
 
 const refetchTags = vi.fn(async () => {});
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+const fetchMock = vi.fn();
 
 beforeEach(() => {
-  vi.mocked(axios.delete).mockReset();
+  fetchMock.mockReset();
   refetchTags.mockClear();
   toastSuccess.mockReset();
   toastError.mockReset();
   consoleErrorSpy.mockClear();
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
@@ -35,13 +32,14 @@ afterEach(() => {
 
 describe("useTagDeletion", () => {
   it("DELETEs, refetches, toasts success, and returns true", async () => {
-    vi.mocked(axios.delete).mockResolvedValue({ status: 200 } as never);
+    fetchMock.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() => useTagDeletion({ refetchTags }));
 
     const ok = await result.current.deleteTag(5);
 
-    expect(axios.delete).toHaveBeenCalledWith("/api/tags/5", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/tags/5", {
+      method: "DELETE",
       headers: managerAuthHeaders(),
     });
     expect(toastSuccess).toHaveBeenCalledWith("カテゴリを削除しました");
@@ -50,7 +48,7 @@ describe("useTagDeletion", () => {
   });
 
   it("toasts error, does not refetch, and returns false on failure", async () => {
-    vi.mocked(axios.delete).mockRejectedValue(new Error("server"));
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
 
     const { result } = renderHook(() => useTagDeletion({ refetchTags }));
 

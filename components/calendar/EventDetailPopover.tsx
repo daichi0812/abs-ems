@@ -11,8 +11,15 @@ export interface EventDetail {
   leftText: string; // 「あとN日」「今日返却」など
 }
 
-export function EventDetailPopover({ detail }: { detail: EventDetail }) {
-  const color = memberColor(detail.who);
+export function EventDetailPopover({
+  detail,
+  color: colorProp,
+}: {
+  detail: EventDetail;
+  /** バー側と同じ色割り当て（memberColorMap）を使う場合に渡す。省略時はハッシュ色 */
+  color?: string;
+}) {
+  const color = colorProp ?? memberColor(detail.who);
   return (
     <div className="rounded-2xl bg-navy p-[13px] px-[15px] text-white">
       <div className="flex items-center gap-2.5">

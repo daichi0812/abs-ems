@@ -63,6 +63,7 @@ export default function ManagerPage() {
       categories={tags}
       onEdit={actions.editEquipment}
       onDelete={actions.deleteEquipment}
+      editingId={actions.isPending ? actions.loadingId : null}
     />
   );
 

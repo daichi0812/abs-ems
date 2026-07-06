@@ -20,7 +20,7 @@ afterEach(() => {
 
 describe("useTags", () => {
   it("starts with empty tags and isLoading=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useTags());
     expect(result.current.tags).toEqual([]);
     expect(result.current.categories).toEqual([]);
@@ -32,7 +32,7 @@ describe("useTags", () => {
       { id: "1", name: "Audio", color: "#ff0000" },
       { id: "2", name: "Video", color: "#00ff00" },
     ];
-    fetchMock.mockResolvedValue({ json: async () => data });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => data });
 
     const { result } = renderHook(() => useTags());
 
@@ -56,7 +56,7 @@ describe("useTags", () => {
   });
 
   it("refetch re-runs the fetch", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useTags());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -69,7 +69,7 @@ describe("useTags", () => {
 
   it("falls back to empty tags/categories on a non-array (401/500) body", async () => {
     // /api/tags が認証ゲートで {error} を返しても .map がクラッシュしないことを固定
-    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ error: "認証されていません。" }) });
 
     const { result } = renderHook(() => useTags());
 

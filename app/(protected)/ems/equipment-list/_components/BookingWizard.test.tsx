@@ -29,7 +29,7 @@ beforeEach(() => {
   // BookingWizard は useCachedEndpoint("/api/users") を実物のまま使うため、
   // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
   clearClientCache();
-  fetchMock.mockResolvedValue({ json: async () => [] }); // /api/users
+  fetchMock.mockResolvedValue({ ok: true, json: async () => [] }); // /api/users
   vi.stubGlobal("fetch", fetchMock);
 });
 

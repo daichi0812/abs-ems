@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { EquipmentForm } from "@/app/(protected)/ems/_components/EquipmentForm";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEquipmentDetails } from "./hooks/use-equipment-details";
 import { useTagsList } from "../../_hooks/use-tags-list";
 import { useEquipmentUpdate } from "./hooks/use-equipment-update";
@@ -20,6 +21,9 @@ export default function EditPage() {
     setEquipmentDetail,
     equipmentImg,
     equipmentTag,
+    isLoading: detailsLoading,
+    isError: detailsError,
+    refetch: refetchDetails,
   } = useEquipmentDetails({ equipmentId });
 
   const { tags } = useTagsList();
@@ -69,6 +73,27 @@ export default function EditPage() {
         <h1 className="m-0 text-lg font-black text-ink">機材情報の編集</h1>
       </div>
 
+      {/* 取得完了前にフォームを出すと、入力し始めた文字がフェッチ結果で上書きされる */}
+      {detailsLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-[180px] w-full rounded-2xl" />
+          <Skeleton className="h-[260px] w-full rounded-2xl" />
+        </div>
+      ) : detailsError ? (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-bold text-ink">機材情報を読み込めませんでした。</p>
+          <p className="mt-1 text-[12.5px] text-ink-faint">
+            通信環境を確認して、もう一度お試しください。
+          </p>
+          <button
+            type="button"
+            onClick={() => refetchDetails()}
+            className="mt-4 h-10 rounded-xl bg-brand px-5 text-sm font-bold text-white"
+          >
+            再試行
+          </button>
+        </div>
+      ) : (
       <EquipmentForm
         categories={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
         name={equipmentName}
@@ -86,6 +111,7 @@ export default function EditPage() {
         canSubmit={canSubmit}
         isSubmitting={submitting}
       />
+      )}
     </div>
   );
 }
