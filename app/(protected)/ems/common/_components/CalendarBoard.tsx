@@ -20,6 +20,7 @@ import { EquipmentGantt, type GanttRow } from "@/components/calendar/EquipmentGa
 import { MemberChips } from "@/components/calendar/MemberChips";
 import { EventDetailPopover } from "@/components/calendar/EventDetailPopover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
 
 type View = "month" | "gantt";
 
@@ -31,6 +32,8 @@ function eventInterval(ev: CalendarEvent) {
 export function CalendarBoard({ initialView = "month" }: { initialView?: View }) {
   const { allEvents, isFetching } = useCalendarData();
   const todayIdx = todayJstDayIndex();
+  // PC では行高を上げてカレンダーを画面の高さに合わせて大きく見せる
+  const isDesktop = useIsDesktop();
 
   const [view, setView] = useState<View>(initialView);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
@@ -69,8 +72,15 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   );
 
   const weeks = useMemo(
-    () => buildMonthWeeks(barEvents, matrix, { headH: 20, laneH: 20, minH: 62 }),
-    [barEvents, matrix]
+    () =>
+      buildMonthWeeks(
+        barEvents,
+        matrix,
+        isDesktop
+          ? { headH: 26, laneH: 26, minH: 104 }
+          : { headH: 20, laneH: 20, minH: 62 }
+      ),
+    [barEvents, matrix, isDesktop]
   );
 
   // ガント: 今日の3日前から14日窓
@@ -181,7 +191,9 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
       </div>
 
       {view === "month" ? (
-        <div className="grid gap-4 md:grid-cols-[1fr_300px]">
+        // grid-cols-1（minmax(0,1fr)）を明示しないと、モバイルでトラックが
+        // コンテンツ幅に広がり画面からはみ出す
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <MemberChips
               members={members}
@@ -191,6 +203,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
             />
             <MonthGrid<CalendarEvent>
               weeks={weeks}
+              barHeight={isDesktop ? 22 : 18}
               selectedKey={selectedKey ?? undefined}
               onBarClick={(bar) => setSelectedKey(Number(bar.key))}
               isDimmed={(bar) =>

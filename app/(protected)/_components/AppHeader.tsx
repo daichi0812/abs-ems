@@ -16,7 +16,7 @@ export const AppHeader = () => {
   return (
     <header className="sticky top-0 z-30 bg-navy">
       {/* PC: 1行（ブランド / セグメント / ユーザー）。スマホ: 2行（上=ブランド+ユーザー、下=セグメント）。 */}
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 pb-3 pt-3 md:flex-row md:items-center md:gap-6 md:py-3">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 pb-3 pt-3 md:flex-row md:items-center md:gap-6 md:py-3">
         <div className="flex items-center justify-between md:justify-start md:gap-3">
           <Link
             href="/ems/mypage"
