@@ -120,6 +120,7 @@ describe("useEquipmentUpdate - submit", () => {
   it("uploads new file then PUTs with returned URL", async () => {
     const file = new File(["x"], "test.png", { type: "image/png" });
     fetchMock.mockResolvedValue({
+      ok: true,
       text: async () => JSON.stringify({ url: "https://blob/test.png" }),
     });
     vi.mocked(axios.put).mockResolvedValue({ data: {} } as never);
@@ -147,6 +148,33 @@ describe("useEquipmentUpdate - submit", () => {
       expect.any(Object),
     );
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("alerts and aborts when image upload responds with an error status", async () => {
+    // fetch は HTTP エラーで throw しないため、ok チェックが無いと {error} ボディをパースして
+    // image:undefined のまま PUT が成功し「古い画像のまま更新しました」になっていた（回帰防止）
+    const file = new File(["x"], "test.png", { type: "image/png" });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ error: "権限がありません。" }),
+    });
+
+    const { result } = renderHook(() => useEquipmentUpdate(defaultParams()));
+
+    act(() => {
+      result.current.onFileChange({
+        currentTarget: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(toastError).toHaveBeenCalledWith("画像のアップロードに失敗しました");
+    expect(axios.put).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it("alerts and aborts when image upload fails", async () => {

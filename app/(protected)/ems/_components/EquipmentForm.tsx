@@ -47,12 +47,27 @@ export function EquipmentForm({
 }) {
   const shownImage = previewUrl || existingImageUrl || "";
 
+  // 文言どおり PC からのドラッグ&ドロップを受け付ける。preventDefault しないと
+  // ブラウザが画像ファイルそのものを開いてページ遷移し、入力途中の内容が全部消える。
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/") || !inputFileRef.current) return;
+    // input.files へ流し込み、既存の onChange 経路（プレビュー生成・送信時参照）を再利用する
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    inputFileRef.current.files = dt.files;
+    inputFileRef.current.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm">
       <p className="m-0 mb-2 text-xs font-bold text-ink-muted">機材の写真</p>
       <button
         type="button"
         onClick={() => inputFileRef.current?.click()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
         className="relative flex h-[180px] w-full items-center justify-center overflow-hidden rounded-[14px] border-[1.5px] border-dashed border-line-strong bg-surface text-[13px] text-ink-faint"
       >
         {shownImage ? (

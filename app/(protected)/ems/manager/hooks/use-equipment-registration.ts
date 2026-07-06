@@ -21,7 +21,9 @@ export const useEquipmentRegistration = ({
 }: UseEquipmentRegistrationParams) => {
   const [equipmentName, setEquipmentName] = useState("");
   const [equipmentDetail, setEquipmentDetail] = useState("");
-  const [selectedTag, setSelectedTag] = useState("all");
+  // 初期値を "all" にしていた頃は、カテゴリ未選択でも canSubmit（selectedTag !== ""）を
+  // 素通りして tag_id: undefined の「未分類」機材が登録され、予約画面から消えていた。
+  const [selectedTag, setSelectedTag] = useState("");
 
   const cancel = () => {
     resetImage();
@@ -32,6 +34,14 @@ export const useEquipmentRegistration = ({
 
   const submit = async (): Promise<boolean> => {
     try {
+      // tag_id 無しで登録すると機材が部員の予約画面に表示されなくなるため、
+      // 実在するカテゴリが選ばれていることを送信時にも保証する。
+      const tagId = tags.find((tag) => tag.name === selectedTag)?.id;
+      if (tagId == null) {
+        toast.error("カテゴリを選択してください");
+        return false;
+      }
+
       // アップロード API（R2）の応答は { url } のみ（旧 Vercel Blob の PutBlobResult 依存を除去）
       let blob: { url: string } | null = null;
 
@@ -42,6 +52,12 @@ export const useEquipmentRegistration = ({
           body: file,
           headers: managerAuthHeaders(),
         });
+        // fetch は HTTP エラーでは throw しない。API のエラー応答 {error:...} も有効な JSON の
+        // ため、ここで止めないと写真なしの機材が「登録完了」と表示されてしまう。
+        if (!responseVercel.ok) {
+          toast.error("画像のアップロードに失敗しました。機材は登録されていません。");
+          return false;
+        }
         blob = (await responseVercel.json()) as { url: string };
       }
 
@@ -51,7 +67,7 @@ export const useEquipmentRegistration = ({
           name: equipmentName,
           detail: equipmentDetail,
           image: blob?.url || "",
-          tag_id: tags.find((tag) => tag.name === selectedTag)?.id,
+          tag_id: tagId,
         },
         { headers: managerAuthHeaders() },
       );

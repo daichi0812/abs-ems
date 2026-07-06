@@ -48,7 +48,12 @@ export const useEquipmentUpdate = ({
             headers: managerAuthHeaders(),
           });
           const responseText = await responseVercel.text();
-          console.log("Image upload response:", responseText);
+
+          // fetch は HTTP エラーでは throw せず、API のエラー応答 {error:...} も有効な JSON の
+          // ため、ok チェックなしでは catch に入らず「古い画像のまま更新しました」になっていた。
+          if (!responseVercel.ok) {
+            throw new Error(`画像アップロードに失敗: ${responseVercel.status} ${responseText}`);
+          }
 
           // アップロード API（R2）の応答は { url } のみ（旧 Vercel Blob の PutBlobResult 依存を除去）
           const blob = JSON.parse(responseText) as { url: string };
