@@ -115,7 +115,7 @@ export const login = async (
                 case "CredentialsSignin":
                     return { error: "Emailかパスワードに間違いがあります！" }
                 default:
-                    return { error: "something went wrong!" }
+                    return { error: "エラーが発生しました。時間をおいて再度お試しください。" }
             }
         }
 

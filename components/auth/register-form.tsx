@@ -90,7 +90,7 @@ export const RegisterForm = () => {
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email</FormLabel>
+                                    <FormLabel>メールアドレス</FormLabel>
                                     <FormControl>
                                         <Input
                                             {...field}
@@ -115,7 +115,7 @@ export const RegisterForm = () => {
                                             {...field}
                                             disabled={isPending}
                                             className="text-[16px]"
-                                            placeholder="******"
+                                            placeholder="10文字以上で入力"
                                             type="password"
                                         />
                                     </FormControl>

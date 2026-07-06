@@ -229,7 +229,7 @@ describe("login - signIn errors", () => {
     vi.mocked(signIn).mockRejectedValue(new MockAuthError("Verification"));
 
     const result = await login({ email: "a@b.com", password: "anything" });
-    expect(result).toEqual({ error: "something went wrong!" });
+    expect(result).toEqual({ error: "エラーが発生しました。時間をおいて再度お試しください。" });
   });
 
   it("re-throws non-AuthError errors", async () => {
