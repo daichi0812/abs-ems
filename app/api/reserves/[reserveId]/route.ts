@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { currentUser } from '@/lib/auth';
+import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
 import { UserRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import moment from 'moment-timezone';
@@ -117,6 +118,8 @@ export async function DELETE(request: Request, { params }: Params) {
         // 一般部員は未貸出（0:予約中/1:受取可）のみキャンセル可。貸出中(2)・滞納(3)・
         // 返却済(4)の記録は消せない（旧UIのクライアント側ルールをサーバーに移植）。
         const isAdmin = user.role === UserRole.ADMIN;
+        // 管理者が他人の予約を取り消したとき持ち主へ通知するため、削除前に対象を控える。
+        const target = await db.reserve.findUnique({ where: { id: reserveId } });
         const result = await db.reserve.deleteMany({
             where: isAdmin
                 ? { id: reserveId }
@@ -134,6 +137,11 @@ export async function DELETE(request: Request, { params }: Params) {
                 );
             }
             return NextResponse.json({ error: '予約が見つかりません。' }, { status: 404 });
+        }
+
+        // 管理者が他人の予約を取り消した場合のみ、持ち主へメール通知（本人の自己取消は通知しない）。
+        if (target?.user_id && target.user_id !== user.id) {
+            notifyInBackground(notifyReservationCancelled(target));
         }
 
         return NextResponse.json({ message: 'Reserve deleted successfully.' }, { status: 200 });

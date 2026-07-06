@@ -25,6 +25,12 @@ vi.mock("@/lib/auth", () => ({
   currentUser: currentUserMock,
 }));
 
+// 通知はバックグラウンド副作用なので、ルートの契約テストでは無効化する。
+vi.mock("@/lib/notify", () => ({
+  notifyInBackground: vi.fn(),
+  notifyReservationCreated: vi.fn(),
+}));
+
 import { GET, POST } from "./route";
 
 const postRequest = (body: Record<string, unknown>) =>
