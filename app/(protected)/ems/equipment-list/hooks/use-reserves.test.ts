@@ -44,6 +44,30 @@ describe("useReserves", () => {
     await waitFor(() => expect(consoleErrorSpy).toHaveBeenCalled());
 
     expect(result.current.reserves).toEqual([]);
+    // エラーを isError で返す（黙って「全件空き」と誤表示しない）
+    expect(result.current.isError).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("exposes isLoading until the first fetch settles", async () => {
+    fetchMock.mockResolvedValue({ json: async () => [] });
+
+    const { result } = renderHook(() => useReserves());
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isError).toBe(false);
+  });
+
+  it("refetches when the tab becomes visible again", async () => {
+    fetchMock.mockResolvedValue({ json: async () => [] });
+
+    renderHook(() => useReserves());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
   it("refetch re-runs the fetch", async () => {

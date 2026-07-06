@@ -15,7 +15,7 @@ interface AbsEmsR2Bucket {
   put(
     key: string,
     value: ArrayBuffer | ArrayBufferView | ReadableStream | Blob | string | null,
-    options?: { httpMetadata?: { contentType?: string } },
+    options?: { httpMetadata?: { contentType?: string; cacheControl?: string } },
   ): Promise<unknown>;
 }
 
