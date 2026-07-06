@@ -26,9 +26,10 @@ export const CardWrapper = ({
     showSocial
 }: CardWrapperProps) => {
     // 固定幅だと CSS 幅360px級の端末（Galaxy 等）で左右が見切れるため max-width にする
-    // （スマホでは w-full で画面幅いっぱい−px-4、広い画面では 420px）
+    // （スマホでは w-full で画面幅いっぱい−px-4、タブレット以上は 560px。
+    //   420px だと PC で細長く見えるという指摘があり広げた）
     return (
-        <Card className="w-full max-w-[420px] rounded-2xl border-0 bg-white shadow-xl">
+        <Card className="w-full max-w-[440px] rounded-2xl border-0 bg-white shadow-xl md:max-w-[560px]">
             <CardHeader>
                 <Header label={headerLabel} />
             </CardHeader>
