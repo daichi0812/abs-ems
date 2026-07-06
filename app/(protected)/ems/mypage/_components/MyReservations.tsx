@@ -137,8 +137,8 @@ export function MyReservations() {
         barEvents,
         matrix,
         isDesktop
-          ? { headH: 26, laneH: 26, minH: 96 }
-          : { headH: 18, laneH: 20, minH: 58 }
+          ? { headH: 26, laneH: 26, minH: 96, maxLanes: 4 }
+          : { headH: 18, laneH: 20, minH: 58, maxLanes: 3 }
       ),
     [barEvents, matrix, isDesktop]
   );
@@ -179,7 +179,7 @@ export function MyReservations() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_380px] md:items-start">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
       {/* 自分の予定カレンダー */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between px-1">

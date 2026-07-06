@@ -107,7 +107,7 @@ export default function ManagerPage() {
       </div>
 
       {/* PC: 2ペイン */}
-      <div className="hidden gap-5 md:grid md:grid-cols-[minmax(0,380px)_1fr]">
+      <div className="hidden gap-5 md:grid md:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <div>{form}</div>
         <div>{isLoading ? <ListSkeleton /> : list}</div>
       </div>

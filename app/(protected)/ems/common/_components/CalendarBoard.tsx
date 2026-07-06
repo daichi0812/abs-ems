@@ -77,8 +77,8 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         barEvents,
         matrix,
         isDesktop
-          ? { headH: 26, laneH: 26, minH: 104 }
-          : { headH: 20, laneH: 20, minH: 62 }
+          ? { headH: 26, laneH: 26, minH: 104, maxLanes: 6 }
+          : { headH: 20, laneH: 20, minH: 62, maxLanes: 4 }
       ),
     [barEvents, matrix, isDesktop]
   );
@@ -193,7 +193,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
       {view === "month" ? (
         // grid-cols-1（minmax(0,1fr)）を明示しないと、モバイルでトラックが
         // コンテンツ幅に広がり画面からはみ出す
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
           <div className="rounded-2xl bg-white p-4 shadow-sm">
             <MemberChips
               members={members}
