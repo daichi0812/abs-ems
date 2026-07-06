@@ -4,6 +4,7 @@ import axios from "axios";
 import { useState } from "react";
 import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
+import { compressImage } from "@/lib/image-compress";
 import type { Tag } from "./use-tags";
 
 export interface UseEquipmentRegistrationParams {
@@ -46,7 +47,9 @@ export const useEquipmentRegistration = ({
       let blob: { url: string } | null = null;
 
       if (inputFileRef.current?.files && inputFileRef.current.files.length > 0) {
-        const file = inputFileRef.current.files[0];
+        // スマホ写真の原寸（数MB）をそのまま置くと全部員がサムネイル表示のために
+        // 原寸を落とすことになるため、アップロード前に縮小する（失敗時は原本のまま）
+        const file = await compressImage(inputFileRef.current.files[0]);
         const responseVercel = await fetch(`/api/upload?filename=${file.name}`, {
           method: "POST",
           body: file,

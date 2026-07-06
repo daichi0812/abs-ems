@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
 import { managerAuthHeaders } from "@/lib/manager-auth";
+import { compressImage } from "@/lib/image-compress";
 import type { Tag as Tags } from "@/types/domain";
 
 export interface UseEquipmentUpdateParams {
@@ -42,9 +43,11 @@ export const useEquipmentUpdate = ({
 
       if (imageFile) {
         try {
-          const responseVercel = await fetch(`/api/upload?filename=${imageFile.name}`, {
+          // 新規登録側と同じく、アップロード前にブラウザで縮小する（失敗時は原本のまま）
+          const uploadFile = await compressImage(imageFile);
+          const responseVercel = await fetch(`/api/upload?filename=${uploadFile.name}`, {
             method: "POST",
-            body: imageFile,
+            body: uploadFile,
             headers: managerAuthHeaders(),
           });
           const responseText = await responseVercel.text();
