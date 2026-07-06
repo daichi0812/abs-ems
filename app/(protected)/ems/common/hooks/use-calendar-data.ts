@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAndCache, getCachedData } from "@/lib/client-cache";
-import { getTextColorForBackground } from "@/lib/calendar-event-rendering";
+import { getTextColorForBackground } from "@/lib/calendar/event-rendering";
 import { dayIndexToDateString } from "@/lib/calendar/date-grid";
 
 export interface CalendarEvent {

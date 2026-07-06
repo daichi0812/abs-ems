@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTextColorForBackground } from "./calendar-event-rendering";
+import { getTextColorForBackground } from "./event-rendering";
 
 describe("getTextColorForBackground", () => {
   it("returns white text on dark background", () => {
