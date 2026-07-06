@@ -44,7 +44,7 @@ describe("useReserveActions", () => {
       body: JSON.stringify({ isRenting: 2 }),
     });
     expect(refetch).toHaveBeenCalledTimes(1);
-    expect(toastSuccess).toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith("貸し出しを開始しました");
   });
 
   it("giveBack: PATCHes isRenting=4", async () => {
@@ -103,5 +103,75 @@ describe("useReserveActions", () => {
 
     expect(ok).toBe(false);
     expect(toastError).toHaveBeenCalledWith("キャンセルに失敗しました");
+  });
+
+  it("borrowMany: PATCHes every id, toasts the count, refetches once", async () => {
+    fetchMock.mockResolvedValue({ ok: true } as Response);
+
+    const { result } = renderHook(() => useReserveActions({ refetch }));
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.borrowMany([1, 2, 3]);
+    });
+
+    expect(ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/reserves/2",
+      expect.objectContaining({ method: "PATCH" })
+    );
+    expect(refetch).toHaveBeenCalledTimes(1);
+    expect(toastSuccess).toHaveBeenCalledWith("3件の貸し出しを開始しました");
+  });
+
+  it("cancelMany: DELETEs every id and toasts the count", async () => {
+    fetchMock.mockResolvedValue({ ok: true } as Response);
+
+    const { result } = renderHook(() => useReserveActions({ refetch }));
+    await act(async () => {
+      await result.current.cancelMany([4, 5]);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(toastSuccess).toHaveBeenCalledWith("2件の予約をキャンセルしました");
+  });
+
+  it("giveBackMany: partial failure toasts the fail count, still refetches, returns false", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "貸出中の予約ではありません。" }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "貸出中の予約ではありません。" }),
+      } as Response);
+
+    const { result } = renderHook(() => useReserveActions({ refetch }));
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.giveBackMany([1, 2, 3]);
+    });
+
+    expect(ok).toBe(false);
+    expect(toastError).toHaveBeenCalledWith("2件は返却できませんでした");
+    expect(refetch).toHaveBeenCalledTimes(1); // 1件は成功しているので一覧は更新する
+  });
+
+  it("bulk single failure surfaces the API error message verbatim", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "貸出期間外か、すでに貸出中です。" }),
+      } as Response);
+
+    const { result } = renderHook(() => useReserveActions({ refetch }));
+    await act(async () => {
+      await result.current.borrowMany([1, 2]);
+    });
+
+    expect(toastError).toHaveBeenCalledWith("貸出期間外か、すでに貸出中です。");
   });
 });
