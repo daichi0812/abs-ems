@@ -28,7 +28,9 @@ export const useEquipmentActions = ({ refetchEquipments }: UseEquipmentActionsPa
       headers: managerAuthHeaders(),
     });
     if (!res.ok) {
-      toast.error("機材の削除に失敗しました");
+      // 「貸出中の機材は削除できません」等、API の具体的な理由をそのまま見せる
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      toast.error(body?.error ?? "機材の削除に失敗しました");
       return false;
     }
     await refetchEquipments();

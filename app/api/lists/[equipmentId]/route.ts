@@ -88,10 +88,26 @@ export async function DELETE(request: Request, { params }: Params) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
 
-        // PUT と同じく事前確認なしで削除し、対象なしは P2025 で 404 に落とす。
-        const deleteEquipment = await db.list.delete({
-            where: { id: equipmentId }
+        // 貸出中・滞納（機材が部員の手元にある）の機材は削除させない。
+        // 削除すると「機材は手元にあるのに記録が消えた」状態になり在庫管理が壊れる。
+        const activeCount = await db.reserve.count({
+            where: { list_id: equipmentId, isRenting: { in: [2, 3] } },
         });
+        if (activeCount > 0) {
+            return NextResponse.json(
+                { error: '貸出中の機材は削除できません。返却された後に削除してください。' },
+                { status: 409 }
+            );
+        }
+
+        // 機材だけ消すと予約が孤児化し、部員のマイページに「#42」のような
+        // 機材名なしの予約が残り続けるため、関連予約もまとめて削除する
+        //（Reserve.list_id は FK なしの Int? なので DB 側の cascade は効かない）。
+        // 対象なしは P2025 で 404 に落とす。
+        const [, deleteEquipment] = await db.$transaction([
+            db.reserve.deleteMany({ where: { list_id: equipmentId } }),
+            db.list.delete({ where: { id: equipmentId } }),
+        ]);
 
         return NextResponse.json(deleteEquipment, { status: 200 });
     } catch (error) {

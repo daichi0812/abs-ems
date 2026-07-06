@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { categoryColor, tint } from "@/lib/category-colors";
+import { dayIndexToDateString, todayJstDayIndex } from "@/lib/calendar/date-grid";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,16 +24,32 @@ export function EquipmentListPanel({
   onEdit,
   onDelete,
   gridCols = 1,
+  editingId = null,
 }: {
   equipments: Equipment[];
   categories: CategoryOption[];
   onEdit: (id: number) => void;
   onDelete: (id: number) => Promise<boolean>;
   gridCols?: 1 | 2;
+  /** 編集ページへ遷移中の機材ID（該当ボタンにスピナーを出す） */
+  editingId?: number | null;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("すべて");
   const [pendingDelete, setPendingDelete] = useState<Equipment | null>(null);
+  // 削除対象に今後の予約が何件あるか（null = 取得中）。警告なしで消すと
+  // 部員の予約が黙って取り消されるため、ダイアログで件数を見せる
+  const [pendingReserveCount, setPendingReserveCount] = useState<number | null>(null);
+
+  const openDelete = (eq: Equipment) => {
+    setPendingDelete(eq);
+    setPendingReserveCount(null);
+    const from = dayIndexToDateString(todayJstDayIndex());
+    fetch(`/api/reserves?list_id=${eq.id}&from=${from}`)
+      .then((r) => r.json())
+      .then((d) => setPendingReserveCount(Array.isArray(d) ? d.length : 0))
+      .catch(() => setPendingReserveCount(0));
+  };
 
   const catById = useMemo(() => {
     const m = new Map<string, CategoryOption>();
@@ -111,17 +128,23 @@ export function EquipmentListPanel({
               <button
                 type="button"
                 onClick={() => onEdit(eq.id)}
+                disabled={editingId != null}
                 aria-label={`${eq.name}を編集`}
-                className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border-[1.5px] border-line bg-white hover:border-brand"
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border-[1.5px] border-line bg-white hover:border-brand disabled:opacity-60"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475467" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
+                {editingId === eq.id ? (
+                  // 遷移中の表示。無反応に見えて連打されるのを防ぐ
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-brand" />
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475467" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </svg>
+                )}
               </button>
               <button
                 type="button"
-                onClick={() => setPendingDelete(eq)}
+                onClick={() => openDelete(eq)}
                 aria-label={`${eq.name}を削除`}
                 className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] border-[1.5px] border-[#FEE4E2] bg-[#FFF5F4] hover:bg-[#FEE4E2]"
               >
@@ -141,7 +164,11 @@ export function EquipmentListPanel({
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>「{pendingDelete?.name}」を削除</AlertDialogTitle>
-            <AlertDialogDescription>この操作は取り消せません。</AlertDialogDescription>
+            <AlertDialogDescription>
+              {pendingReserveCount != null && pendingReserveCount > 0
+                ? `この機材には今後の予約が ${pendingReserveCount}件 あり、削除すると予約も取り消されます。この操作は取り消せません。`
+                : "この操作は取り消せません。"}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>

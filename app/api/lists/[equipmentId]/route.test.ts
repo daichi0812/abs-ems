@@ -1,17 +1,32 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findUniqueMock, updateMock, deleteMock, currentUserMock, hasManagerAccessMock } =
-  vi.hoisted(() => ({
-    findUniqueMock: vi.fn(),
-    updateMock: vi.fn(),
-    deleteMock: vi.fn(),
-    currentUserMock: vi.fn(),
-    hasManagerAccessMock: vi.fn(),
-  }));
+const {
+  findUniqueMock,
+  updateMock,
+  deleteMock,
+  reserveCountMock,
+  reserveDeleteManyMock,
+  transactionMock,
+  currentUserMock,
+  hasManagerAccessMock,
+} = vi.hoisted(() => ({
+  findUniqueMock: vi.fn(),
+  updateMock: vi.fn(),
+  deleteMock: vi.fn(),
+  reserveCountMock: vi.fn(),
+  reserveDeleteManyMock: vi.fn(),
+  transactionMock: vi.fn(),
+  currentUserMock: vi.fn(),
+  hasManagerAccessMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({
-  db: { list: { findUnique: findUniqueMock, update: updateMock, delete: deleteMock } },
+  db: {
+    list: { findUnique: findUniqueMock, update: updateMock, delete: deleteMock },
+    reserve: { count: reserveCountMock, deleteMany: reserveDeleteManyMock },
+    $transaction: transactionMock,
+  },
 }));
 // GET はログイン必須。PUT/DELETE の hasManagerAccess 経由で currentRole も参照されうるため両方出す。
 vi.mock("@/lib/auth", () => ({
@@ -41,6 +56,12 @@ beforeEach(() => {
   findUniqueMock.mockReset();
   updateMock.mockReset();
   deleteMock.mockReset();
+  reserveCountMock.mockReset();
+  reserveCountMock.mockResolvedValue(0);
+  reserveDeleteManyMock.mockReset();
+  transactionMock.mockReset();
+  // db.$transaction([...]) は各操作の Promise を解決した配列を返す想定
+  transactionMock.mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops));
   currentUserMock.mockReset();
   hasManagerAccessMock.mockReset();
   hasManagerAccessMock.mockResolvedValue(true);
@@ -108,13 +129,29 @@ describe("PUT /api/lists/[equipmentId]", () => {
 });
 
 describe("DELETE /api/lists/[equipmentId]", () => {
-  it("deletes without a pre-check query", async () => {
+  it("deletes the equipment together with its reserves (orphan cleanup)", async () => {
     deleteMock.mockResolvedValue({ id: 5 });
+    reserveDeleteManyMock.mockResolvedValue({ count: 2 });
 
     const res = await DELETE(deleteRequest(), params);
 
     expect(res.status).toBe(200);
     expect(findUniqueMock).not.toHaveBeenCalled();
+    // 機材だけ消すと予約が孤児化（マイページに「#5」表示）するため、まとめて削除する
+    expect(reserveDeleteManyMock).toHaveBeenCalledWith({ where: { list_id: 5 } });
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 409 and does not delete while the equipment is on loan (isRenting 2/3)", async () => {
+    reserveCountMock.mockResolvedValue(1);
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(409);
+    expect(reserveCountMock).toHaveBeenCalledWith({
+      where: { list_id: 5, isRenting: { in: [2, 3] } },
+    });
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("maps P2025 (record not found) to 404", async () => {
