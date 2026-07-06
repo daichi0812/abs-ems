@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { currentUser } from '@/lib/auth';
+import { requireUser } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 import { parseDateOnly, todayJstAsUtcMidnight } from '@/lib/jst-date';
@@ -9,10 +9,8 @@ export async function GET(request: Request) {
         // ログイン必須。middleware 一枚依存をやめる defense-in-depth（DELETE と同じ currentUser パターン）。
         // 予約データはログイン部員間で共有される設計（共通/機材別カレンダーが全予約を氏名付きで表示）なので、
         // ここで本人の予約だけに絞る self-scope はしない（絞るとカレンダーが壊れる）。認証のみ・フィルタは維持。
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
 
         // ?user_id= / ?list_id= の完全一致フィルタ（日付演算はしないのでタイムゾーン安全）。
         // ?from= / ?to=（YYYY-MM-DD）は期間の重なりフィルタ:
@@ -70,10 +68,9 @@ export async function POST(request: Request) {
     try {
         // 予約作成もログイン必須。user_id は body ではなくセッションから導出し、body の
         // user_id は信頼しない（他人になりすました予約作成を防ぐ integrity 対策）。
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
+        const user = auth;
 
         const data = await request.json();
         const { list_id, start, end, isRenting } = data;

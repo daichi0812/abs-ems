@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
-import { hasManagerAccess } from '@/lib/api-auth';
-import { currentUser } from '@/lib/auth';
+import { requireManager, requireUser } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
 import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 import { NextResponse } from 'next/server';
@@ -15,10 +14,8 @@ interface Params {
 export async function GET(request: Request, { params }: Params) {
     try {
         // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
 
         const equipmentId = parseInt((await params).equipmentId, 10);
 
@@ -42,9 +39,8 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
-    if (!(await hasManagerAccess(request))) {
-        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-    }
+    const denied = await requireManager(request);
+    if (denied) return denied;
 
     const data = await request.json();
     const { name, detail, image, tag_id } = data;
@@ -79,9 +75,8 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-    if (!(await hasManagerAccess(request))) {
-        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-    }
+    const denied = await requireManager(request);
+    if (denied) return denied;
 
     try {
         const equipmentId = parseInt((await params).equipmentId, 10);

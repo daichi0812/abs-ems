@@ -10,6 +10,8 @@ const { hasManagerAccessMock, transactionMock, updateMock } = vi.hoisted(() => (
 vi.mock("@/lib/api-auth", () => ({
   hasManagerAccess: (req: Request) => hasManagerAccessMock(req),
 }));
+// route-helpers 経由で @/lib/auth（next-auth）が読み込まれるのを避ける。PATCH は requireManager のみ使う。
+vi.mock("@/lib/auth", () => ({ currentUser: vi.fn() }));
 
 vi.mock("@/lib/db", () => ({
   db: {

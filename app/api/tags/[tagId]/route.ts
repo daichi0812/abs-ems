@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { hasManagerAccess } from "@/lib/api-auth";
+import { requireManager } from "@/lib/route-helpers";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -9,9 +9,8 @@ interface Params {
 }
 
 export async function PUT(request: Request, { params }: Params) {
-    if (!(await hasManagerAccess(request))) {
-        return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
-    }
+    const denied = await requireManager(request);
+    if (denied) return denied;
 
     const tag = await request.json();
     try {
@@ -25,9 +24,8 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-    if (!(await hasManagerAccess(request))) {
-        return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
-    }
+    const denied = await requireManager(request);
+    if (denied) return denied;
 
     try {
         const { tagId } = await params;

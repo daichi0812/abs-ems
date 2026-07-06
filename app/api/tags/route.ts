@@ -1,15 +1,12 @@
 import { db } from '@/lib/db';
-import { hasManagerAccess } from '@/lib/api-auth';
-import { currentUser } from '@/lib/auth';
+import { requireManager, requireUser } from '@/lib/route-helpers';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
     try {
         // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
 
         // 並び順は sortOrder 昇順（同値は id 昇順で安定化）。
         const tags = await db.tag.findMany({
@@ -24,9 +21,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    if (!(await hasManagerAccess(request))) {
-        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-    }
+    const denied = await requireManager(request);
+    if (denied) return denied;
 
     try {
         const tag = await request.json();

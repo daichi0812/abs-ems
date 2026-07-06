@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { currentUser } from '@/lib/auth';
+import { requireUser } from '@/lib/route-helpers';
 import { db } from '@/lib/db';
 
 // プロフィールアイコンのアップロード。機材画像の /api/upload と違い管理操作では
@@ -14,10 +14,9 @@ import { db } from '@/lib/db';
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
-  const user = await currentUser();
-  if (!user?.id) {
-    return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (auth instanceof NextResponse) return auth;
+  const user = auth;
 
   const contentType = req.headers.get('content-type') ?? '';
   if (!contentType.startsWith('image/')) {
