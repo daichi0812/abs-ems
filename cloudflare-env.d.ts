@@ -17,6 +17,8 @@ interface AbsEmsR2Bucket {
     value: ArrayBuffer | ArrayBufferView | ReadableStream | Blob | string | null,
     options?: { httpMetadata?: { contentType?: string; cacheControl?: string } },
   ): Promise<unknown>;
+  // アバター差し替え時の旧オブジェクト削除に使う
+  delete(key: string): Promise<void>;
 }
 
 // Email Sending バインディング（wrangler.jsonc の send_email）。

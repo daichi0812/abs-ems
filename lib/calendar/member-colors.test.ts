@@ -56,6 +56,32 @@ describe("memberColorMap", () => {
     }
   });
 
+  it("overrides（本人選択の色）はハッシュ割り当てより優先される", () => {
+    const overrides = new Map([["川崎蒼汰", "#12B76A"]]);
+    const map = memberColorMap(["川崎蒼汰", "星野琉生"], [], overrides);
+    expect(map.get("川崎蒼汰")).toBe("#12B76A");
+  });
+
+  it("overrides が使った色は自動割り当ての空き探索から除外される", () => {
+    // パレット16色を使い切る人数構成で、選択者の色が自動勢と重複しないこと
+    const autoNames = Array.from({ length: 15 }, (_, i) => `部員${i}`);
+    const overrides = new Map([["選択者", "#2563EB"]]);
+    const map = memberColorMap([...autoNames, "選択者"], [], overrides);
+    const autoColors = autoNames.map((n) => map.get(n));
+    expect(autoColors).not.toContain("#2563EB");
+    expect(new Set([...autoColors, "#2563EB"]).size).toBe(16);
+  });
+
+  it("同じ色を選んだ二人はどちらもその色になる（本人の選択を尊重）", () => {
+    const overrides = new Map([
+      ["A", "#EF4444"],
+      ["B", "#EF4444"],
+    ]);
+    const map = memberColorMap(["A", "B"], [], overrides);
+    expect(map.get("A")).toBe("#EF4444");
+    expect(map.get("B")).toBe("#EF4444");
+  });
+
   it("優先リスト（表示中の月の部員）は履歴が何人いても互いに異なる色になる", () => {
     // 卒業生など履歴上の名前が一意枠(16色)を食いつぶしても、
     // いま表示している月の部員同士は同色にならないことを固定する

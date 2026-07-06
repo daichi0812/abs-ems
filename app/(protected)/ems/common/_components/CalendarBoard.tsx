@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useCalendarData,
+  prefetchCalendarWindow,
   type CalendarEvent,
 } from "@/app/(protected)/ems/common/hooks/use-calendar-data";
 import {
@@ -30,7 +31,6 @@ function eventInterval(ev: CalendarEvent) {
 }
 
 export function CalendarBoard({ initialView = "month" }: { initialView?: View }) {
-  const { allEvents, isFetching, isError, refetch } = useCalendarData();
   const todayIdx = todayJstDayIndex();
   // PC では行高を上げてカレンダーを画面の高さに合わせて大きく見せる
   const isDesktop = useIsDesktop();
@@ -58,10 +58,50 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     [viewYear, viewMonth0]
   );
 
-  // 絞り込みチップは「表示中の月グリッドに予約が掛かる部員」だけに絞る
-  // （全期間の部員を並べるとチップが縦に膨らむうえ、選んでも何も起きない）。
   const gridStartIdx = matrix.weeks[0][0].dayIndex;
   const gridEndIdx = matrix.weeks[matrix.weeks.length - 1][6].dayIndex;
+
+  // ガント: 既定は「今日の3日前から14日窓」。1週間単位で前後に送れる
+  //（固定窓だと来週末より先の空きが確認できず、月表示への切替に気づかないと詰む）。
+  const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
+  const ganttDayCount = 14;
+  const ganttWindowStart = todayIdx - 3 + ganttWeekOffset * 7;
+  const ganttWindowEnd = ganttWindowStart + ganttDayCount - 1;
+
+  // データは「いま画面に必要な窓」だけ取得する（月表示=月グリッド、ガント=14日窓）。
+  // 窓の外の予約はサーバー側で絞られるため、履歴が増えても取得・描画コストは一定。
+  const {
+    allEvents,
+    memberColors,
+    memberImages,
+    isFetching,
+    isError,
+    isWindowLoading,
+    isWindowError,
+    refetch,
+  } = useCalendarData(
+      view === "month" ? gridStartIdx : ganttWindowStart,
+      view === "month" ? gridEndIdx : ganttWindowEnd
+    );
+
+  // 月送りの待ちを実質ゼロにするため、表示が落ち着いたら前後の月グリッドを裏で温める
+  useEffect(() => {
+    if (view !== "month" || isFetching) return;
+    const prevMonth = buildMonthMatrix(
+      viewMonth0 === 0 ? viewYear - 1 : viewYear,
+      viewMonth0 === 0 ? 11 : viewMonth0 - 1
+    );
+    const nextMonth = buildMonthMatrix(
+      viewMonth0 === 11 ? viewYear + 1 : viewYear,
+      viewMonth0 === 11 ? 0 : viewMonth0 + 1
+    );
+    for (const m of [prevMonth, nextMonth]) {
+      prefetchCalendarWindow(m.weeks[0][0].dayIndex, m.weeks[m.weeks.length - 1][6].dayIndex);
+    }
+  }, [view, viewYear, viewMonth0, isFetching]);
+
+  // 絞り込みチップは「表示中の月グリッドに予約が掛かる部員」だけに絞る
+  // （全期間の部員を並べるとチップが縦に膨らむうえ、選んでも何も起きない）。
   const members = useMemo(() => {
     const set = new Set<string>();
     allEvents.forEach((e) => {
@@ -78,13 +118,20 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   }, [members, memberFilter]);
 
   // 「色＝人」の前提を守るため、素のハッシュ色（少人数でも高確率で衝突する）ではなく
-  // 重複しない割り当てを使う。表示中の月の部員（members）を優先して割り当てることで、
+  // 重複しない割り当てを使う。本人が設定ページで選んだ色（memberColors）を最優先し、
+  // 未選択の部員は表示中の月の部員（members）を優先して割り当てることで、
   // 履歴上の部員が16人を超えても「いま見えている月」の中では一意性が守られる。
   // チップ・詳細カードも同じ割り当てを共有する。
   const memberColorOf = useMemo(() => {
-    const map = memberColorMap(allEvents.map((e) => e.name), members);
+    const map = memberColorMap(allEvents.map((e) => e.name), members, memberColors);
     return (name: string | null | undefined) => (name && map.get(name)) || "#667085";
-  }, [allEvents, members]);
+  }, [allEvents, members, memberColors]);
+
+  // 本人が設定したアイコン画像（チップ・詳細カード・ガントのバーで使う）
+  const memberImageOf = useMemo(
+    () => (name: string | null | undefined) => (name ? memberImages.get(name) : undefined),
+    [memberImages]
+  );
 
   const barEvents = useMemo<CalendarBarEvent<CalendarEvent>[]>(
     () =>
@@ -115,12 +162,6 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     [barEvents, matrix, isDesktop]
   );
 
-  // ガント: 既定は「今日の3日前から14日窓」。1週間単位で前後に送れる
-  //（固定窓だと来週末より先の空きが確認できず、月表示への切替に気づかないと詰む）。
-  const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
-  const ganttDayCount = 14;
-  const ganttWindowStart = todayIdx - 3 + ganttWeekOffset * 7;
-  const ganttWindowEnd = ganttWindowStart + ganttDayCount - 1;
   const ganttRows = useMemo<GanttRow<CalendarEvent>[]>(() => {
     const byEquip = new Map<string, GanttRow<CalendarEvent>>();
     allEvents.forEach((ev) => {
@@ -142,12 +183,13 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         endIdx,
         color: memberColorOf(ev.name),
         initial: memberInitial(ev.name),
+        image: memberImageOf(ev.name),
         label: `〜${formatRange(endIdx, endIdx)}`,
         data: ev,
       });
     });
     return [...byEquip.values()];
-  }, [allEvents, ganttWindowStart, ganttWindowEnd, memberColorOf]);
+  }, [allEvents, ganttWindowStart, ganttWindowEnd, memberColorOf, memberImageOf]);
 
   const selectedEvent = allEvents.find((e) => e.id === selectedKey) ?? null;
   const detail = selectedEvent
@@ -299,16 +341,38 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         )}
       </div>
 
+      {/* 窓の切り替え（月送り・週送り）に失敗しても、表示中のデータは残っているため
+          全画面エラーにはせずインラインで再試行を出す */}
+      {isWindowError && (
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-[#FEE4E2] bg-[#FFF5F4] py-2 pl-3.5 pr-2 text-[12.5px] font-bold text-danger">
+          この期間の予約を読み込めませんでした
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="ml-3 h-8 flex-none rounded-lg px-2.5 text-xs font-bold text-danger hover:bg-danger/10"
+          >
+            再試行
+          </button>
+        </div>
+      )}
+
       {view === "month" ? (
         // grid-cols-1（minmax(0,1fr)）を明示しないと、モバイルでトラックが
         // コンテンツ幅に広がり画面からはみ出す
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div
+            className={cn(
+              "rounded-2xl bg-white p-4 shadow-sm transition-opacity",
+              // 窓の取得中は前の窓を出したまま淡くする（前後月はプリフェッチ済みのため稀）
+              isWindowLoading && "opacity-60"
+            )}
+          >
             <MemberChips
               members={members}
               value={memberFilter}
               onChange={setMemberFilter}
               colorOf={memberColorOf}
+              imageOf={memberImageOf}
               className="mb-3"
             />
             <MonthGrid<CalendarEvent>
@@ -323,7 +387,11 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           </div>
           <div ref={detailRef} className="md:sticky md:top-24 md:self-start scroll-mt-20">
             {detail ? (
-              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
+              <EventDetailPopover
+                detail={detail}
+                color={memberColorOf(detail.who)}
+                image={memberImageOf(detail.who)}
+              />
             ) : (
               <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center text-[12.5px] text-ink-faint">
                 バーをタップすると
@@ -334,7 +402,12 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl bg-white p-3 shadow-sm">
+        <div
+          className={cn(
+            "rounded-2xl bg-white p-3 shadow-sm transition-opacity",
+            isWindowLoading && "opacity-60"
+          )}
+        >
           {ganttRows.length === 0 ? (
             <p className="py-10 text-center text-[12.5px] text-ink-faint">
               この期間に貸出中の機材はありません
@@ -350,7 +423,11 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           )}
           {detail && (
             <div ref={detailRef} className="mt-3 scroll-mt-20">
-              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
+              <EventDetailPopover
+                detail={detail}
+                color={memberColorOf(detail.who)}
+                image={memberImageOf(detail.who)}
+              />
             </div>
           )}
         </div>

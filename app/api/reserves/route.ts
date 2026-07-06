@@ -2,18 +2,7 @@ import { db } from '@/lib/db';
 import { currentUser } from '@/lib/auth';
 import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
-import { todayJstAsUtcMidnight } from '@/lib/jst-date';
-
-// YYYY-MM-DD を UTC 深夜0時の Date として厳密にパースする。
-// 正規表現だけだと「2026-13-01」（Invalid Date → Prisma が例外 → 500）や
-// 「2026-02-30」（3月2日へ静かに繰り上がる）が素通りするため、
-// 逆変換の一致まで確認して暦として実在する日付だけを受け付ける。
-function parseDateOnly(value: string): Date | null {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-    const date = new Date(`${value}T00:00:00Z`);
-    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(value)) return null;
-    return date;
-}
+import { parseDateOnly, todayJstAsUtcMidnight } from '@/lib/jst-date';
 
 export async function GET(request: Request) {
     try {

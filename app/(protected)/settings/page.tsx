@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -11,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { settings as saveAccount } from "@/actions/settings";
+import { compressImage } from "@/lib/image-compress";
+import { MEMBER_PALETTE } from "@/lib/calendar/member-colors";
 import { useUserSettings } from "./hooks/use-user-settings";
 import { AccountSection } from "./_components/AccountSection";
 
@@ -57,6 +60,59 @@ export default function SettingsPage() {
     });
   };
 
+  // アイコン画像: 選択→クライアント圧縮→アップロード→セッション更新。
+  // 保存ボタンは挟まず、ファイルを選んだ時点で反映する（失敗時はトーストで通知）。
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const onAvatarSelected = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("画像ファイルを選択してください");
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      // アバターは最大64pxの丸表示なので512pxで十分（機材画像の1600pxより強めに縮める）
+      const compressed = await compressImage(file, {
+        maxEdgePx: 512,
+        recompressThresholdBytes: 100 * 1024,
+      });
+      const res = await fetch("/api/upload/avatar", {
+        method: "POST",
+        headers: { "Content-Type": compressed.type || "application/octet-stream" },
+        body: compressed,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "アイコンの更新に失敗しました");
+        return;
+      }
+      await update({});
+      toast.success("アイコンを更新しました");
+    } catch {
+      toast.error("アイコンの更新に失敗しました");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // テーマカラー: スワッチをタップした時点で保存する（null = 自動割り当てへ戻す）
+  const [savingColor, startColorSave] = useTransition();
+  const onSelectColor = (color: (typeof MEMBER_PALETTE)[number] | null) => {
+    if (color === (user?.color ?? null)) return;
+    startColorSave(async () => {
+      const result = await saveAccount({
+        color,
+        role: (user?.role as UserRole) || UserRole.USER,
+      });
+      if (result.error) toast.error(result.error);
+      if (result.success) {
+        await update({});
+        toast.success("テーマカラーを保存しました");
+      }
+    });
+  };
+
   const roleLabel = role === UserRole.ADMIN ? "放送部・管理者" : "放送部・部員";
 
   return (
@@ -77,12 +133,74 @@ export default function SettingsPage() {
         {/* プロフィール */}
         <section className="rounded-2xl bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3.5">
-            <div className="flex h-16 w-16 flex-none items-center justify-center rounded-full bg-brand text-2xl font-black text-white">
-              {initialOf(user?.name)}
-            </div>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              aria-label="アイコン画像を変更"
+              className="relative h-16 w-16 flex-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              {user?.image ? (
+                <Image
+                  src={user.image}
+                  alt=""
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <span
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-2xl font-black text-white"
+                  style={user?.color ? { background: user.color } : undefined}
+                >
+                  {initialOf(user?.name)}
+                </span>
+              )}
+              <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink text-white">
+                {avatarUploading ? (
+                  <svg
+                    className="h-3 w-3 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                )}
+              </span>
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // 同じファイルを選び直しても change が発火するようにリセットする
+                e.target.value = "";
+                void onAvatarSelected(file);
+              }}
+            />
             <div className="min-w-0">
               <p className="m-0 truncate text-[17px] font-black text-ink">{user?.name ?? "ゲスト"}</p>
               <p className="m-0 mt-0.5 text-xs text-ink-muted">{roleLabel}</p>
+              <p className="m-0 mt-1 text-[11px] text-ink-faint">タップしてアイコンを変更</p>
             </div>
           </div>
           <p className="m-0 mb-2 mt-4 text-xs font-bold text-ink-muted">表示名</p>
@@ -99,6 +217,61 @@ export default function SettingsPage() {
           >
             {savingName ? "保存中…" : "プロフィールを保存"}
           </button>
+
+          {/* テーマカラー（カレンダーの「色＝人」で自分の予約バーに使う色） */}
+          <p className="m-0 mb-1 mt-5 text-xs font-bold text-ink-muted">テーマカラー</p>
+          <p className="m-0 mb-2.5 text-[11.5px] leading-snug text-ink-faint">
+            カレンダーであなたの予約バーに使われる色。「自動」はメンバー構成から自動で割り当てます
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={savingColor}
+              onClick={() => onSelectColor(null)}
+              aria-pressed={user?.color == null}
+              className={cn(
+                "flex h-9 items-center rounded-full border-[1.5px] px-3.5 text-xs font-bold transition-colors",
+                user?.color == null
+                  ? "border-ink bg-ink text-white"
+                  : "border-line bg-white text-ink-sub"
+              )}
+            >
+              自動
+            </button>
+            {MEMBER_PALETTE.map((c) => {
+              const selected = user?.color === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  disabled={savingColor}
+                  onClick={() => onSelectColor(c)}
+                  aria-label={`テーマカラー ${c}`}
+                  aria-pressed={selected}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full border-2 transition-transform",
+                    selected ? "scale-110 border-ink" : "border-transparent"
+                  )}
+                  style={{ background: c }}
+                >
+                  {selected && (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#fff"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         {/* 通知 */}
