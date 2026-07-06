@@ -1,30 +1,32 @@
-import { Poppins } from "next/font/google";
-
-import { cn } from "@/lib/utils";
-
-const font = Poppins({
-    subsets: ["latin"],
-    weight: ["600"],
-})
+import Image from "next/image";
 
 interface HeaderProps {
     label: string;
 };
 
+// 認証カード共通のヘッダー。旧テンプレートの「🔐 Auth」（Poppins）から
+// アプリのアイコン + ロゴタイプへ差し替え（UI刷新後のデザインに合わせる）。
 export const Header = ({
     label,
 }: HeaderProps) => {
     return (
-        <div className="w-full flex flex-col gap-y-4 items-center justify-center">
-            <h1 className={cn(
-                "text-3xl font-semibold",
-                font.className,
-            )}>
-                🔐 Auth
-            </h1>
-            <p className="text-muted-foreground text-sm">
-                {label}
-            </p>
+        <div className="flex w-full flex-col items-center justify-center gap-y-3">
+            <Image
+                src="/ABS-EMS512_rounded.png"
+                alt=""
+                width={56}
+                height={56}
+                priority
+                className="h-14 w-14"
+            />
+            <div className="text-center">
+                <h1 className="m-0 text-xl font-black tracking-wide text-ink">
+                    ABS EMS
+                </h1>
+                <p className="m-0 mt-1 text-sm text-ink-muted">
+                    {label}
+                </p>
+            </div>
         </div>
     )
 }
