@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
 import { getTextColorForBackground } from "@/lib/calendar-event-rendering";
 
 export interface CalendarEvent {
@@ -46,47 +47,37 @@ interface Reserve {
   isRenting: number;
 }
 
+// 共有カレンダーのデータ。4エンドポイントは互いに独立なので並行取得され、
+// /api/lists・/api/tags・/api/users のキャッシュは他画面のフックと共有される
+// （タブを行き来しても再マウントで即表示→裏で再検証。use-cached-endpoint 参照）。
 export const useCalendarData = () => {
-  const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
-  const [isFetching, setIsFetching] = useState<boolean>(true);
-  const [isError, setIsError] = useState<boolean>(false);
+  const users = useCachedEndpoint<User>("/api/users");
+  const lists = useCachedEndpoint<List>("/api/lists");
+  const tags = useCachedEndpoint<Tag>("/api/tags");
+  // カレンダーは過去の予約履歴も表示するため、期間フィルタは付けない
+  const reserves = useCachedEndpoint<Reserve>("/api/reserves");
 
-  const fetchReservesData = async () => {
-    setIsFetching(true);
-    setIsError(false);
-    try {
-    // 4つのAPIは互いに独立なので並列取得する（従来は直列awaitでウォーターフォールになっていた）。
-    // 各APIはログイン必須になり得るため、401/500 の非配列ボディでも .reduce/.map が
-    // クラッシュしないよう Array.isArray で空配列にフォールバックする（他フックと同じ防御水準）。
-    const [reservesListsData1, reservesListsData2, tags, reservesData] = await Promise.all([
-      fetch("/api/users").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as User[]),
-      fetch("/api/lists").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as List[]),
-      fetch("/api/tags").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as Tag[]),
-      fetch("/api/reserves").then((res) => res.json()).then((d) => (Array.isArray(d) ? d : []) as Reserve[]),
-    ]);
-
+  const allEvents = useMemo<CalendarEvent[]>(() => {
     // ユーザーIDをキーにして名前をマッピング
-    const idToNameMap1: { [key: string]: string } = reservesListsData1.reduce((map, item) => {
-      map[item.id] = item.name;
-      return map;
-    }, {} as { [key: string]: string });
+    const idToNameMap1: { [key: string]: string } = {};
+    users.data.forEach((u) => {
+      idToNameMap1[u.id] = u.name;
+    });
 
     // IDをキーにして機材名と色をマッピング
     const idToNameMap2: { [key: string]: string } = {};
-    const idToColorMap: { [key: string]: string } = {};
     const idTolistId: { [key: number]: number } = {};
-
-    reservesListsData2.forEach((item) => {
+    lists.data.forEach((item) => {
       idToNameMap2[item.id] = item.name;
       idTolistId[item.id] = item.tag_id;
     });
 
-    tags.forEach((tag) => {
+    const idToColorMap: { [key: string]: string } = {};
+    tags.data.forEach((tag) => {
       idToColorMap[tag.id] = tag.color;
     });
 
-    // 新しいイベントの一時配列を作成
-    const newEvents: CalendarEvent[] = reservesData.map((item) => {
+    return reserves.data.map((item) => {
       // end は「利用最終日（inclusive）」をそのまま保持する。
       // 旧実装は FullCalendar の排他的 end 用に +1 日していたが、自作カレンダー
       // エンジン（lib/calendar）は inclusive-end 前提のため補正しない。
@@ -109,21 +100,16 @@ export const useCalendarData = () => {
         textColor,
       };
     });
+  }, [users.data, lists.data, tags.data, reserves.data]);
 
-    setAllEvents(newEvents);
-    } catch (error) {
-      // 1本でも fetch が失敗すると以前は isFetching が下りず、無限スケルトンのまま
-      // 固まっていた。エラーとして返し、呼び出し側で再試行できるようにする。
-      console.error("Error fetching calendar data:", error);
-      setIsError(true);
-    } finally {
-      setIsFetching(false);
-    }
+  const sources = [users, lists, tags, reserves];
+  // 1本でも初回未完了ならスケルトン（キャッシュ表示中の裏再検証では false のまま）
+  const isFetching = sources.some((s) => s.isLoading);
+  // 全画面エラーは「初回ロードに失敗した」ときだけ。取得済み表示は維持する
+  const isError = sources.some((s) => s.isError) && !sources.every((s) => s.hasLoaded);
+  const refetch = async () => {
+    await Promise.all(sources.map((s) => s.refetch()));
   };
 
-  useEffect(() => {
-    fetchReservesData();
-  }, []);
-
-  return { allEvents, isFetching, isError, refetch: fetchReservesData };
+  return { allEvents, isFetching, isError, refetch };
 };

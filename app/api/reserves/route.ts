@@ -15,12 +15,23 @@ export async function GET(request: Request) {
         }
 
         // ?user_id= / ?list_id= の完全一致フィルタ（日付演算はしないのでタイムゾーン安全）。
+        // ?from= / ?to=（YYYY-MM-DD）は期間の重なりフィルタ:
+        //   from … end >= from（from 以降に掛かる予約。予約ウィザードの空き判定用）
+        //   to   … start <= to
+        // 保存値は「JST日付の UTC 00:00」なので、パラメータも同じ座標系に変換して比較する。
         // クエリ無し = 空 where = 全件 で従来の挙動を維持する（後方互換）。
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('user_id');
         const listIdParam = searchParams.get('list_id');
+        const fromParam = searchParams.get('from');
+        const toParam = searchParams.get('to');
 
-        const where: { user_id?: string; list_id?: number } = {};
+        const where: {
+            user_id?: string;
+            list_id?: number;
+            start?: { lte: Date };
+            end?: { gte: Date };
+        } = {};
         // 存在判定は !== null。?user_id= (空文字) は該当0件として扱い、全件漏洩を防ぐ。
         if (userId !== null) {
             where.user_id = userId;
@@ -31,6 +42,19 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: 'list_id が不正です。' }, { status: 400 });
             }
             where.list_id = listId;
+        }
+        const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+        if (fromParam !== null) {
+            if (!DATE_ONLY.test(fromParam)) {
+                return NextResponse.json({ error: 'from が不正です。' }, { status: 400 });
+            }
+            where.end = { gte: new Date(`${fromParam}T00:00:00Z`) };
+        }
+        if (toParam !== null) {
+            if (!DATE_ONLY.test(toParam)) {
+                return NextResponse.json({ error: 'to が不正です。' }, { status: 400 });
+            }
+            where.start = { lte: new Date(`${toParam}T00:00:00Z`) };
         }
 
         const reserves = await db.reserve.findMany({ where });

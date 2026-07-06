@@ -1,11 +1,14 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCalendarData } from "./use-calendar-data";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 

@@ -1,11 +1,18 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useReserves } from "./use-reserves";
+import { clearClientCache } from "@/lib/client-cache";
+import { dayIndexToDateString, todayJstDayIndex } from "@/lib/calendar/date-grid";
+
+// 空き判定に過去の予約は不要なので、フックは「今日(JST)以降」で絞って取得する
+const RESERVES_URL = `/api/reserves?from=${dayIndexToDateString(todayJstDayIndex())}`;
 
 const fetchMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -22,7 +29,7 @@ describe("useReserves", () => {
     expect(result.current.reserves).toEqual([]);
   });
 
-  it("fetches /api/reserves on mount and stores result", async () => {
+  it("fetches today-onward reserves on mount and stores result", async () => {
     const data = [
       { id: 1, user_id: "u1", start: "2026-01-01", end: "2026-01-02", list_id: 1 },
     ];
@@ -32,7 +39,7 @@ describe("useReserves", () => {
 
     await waitFor(() => expect(result.current.reserves).toHaveLength(1));
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/reserves");
+    expect(fetchMock).toHaveBeenCalledWith(RESERVES_URL);
     expect(result.current.reserves).toEqual(data);
   });
 
