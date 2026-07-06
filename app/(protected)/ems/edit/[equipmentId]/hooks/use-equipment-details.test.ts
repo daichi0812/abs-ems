@@ -52,4 +52,37 @@ describe("useEquipmentDetails", () => {
 
     await waitFor(() => expect(consoleErrorSpy).toHaveBeenCalled());
   });
+
+  it("exposes isLoading until the fetch settles (空フォームの先出し・入力上書きの防止)", async () => {
+    fetchMock.mockResolvedValue({ json: async () => ({ name: "Camera" }) });
+
+    const { result } = renderHook(() => useEquipmentDetails({ equipmentId: "1" }));
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isError).toBe(false);
+  });
+
+  it("reports isError on an HTTP error body instead of silently emptying the form", async () => {
+    // 404/500 の {error} ボディをパースすると undefined が入り無言の空フォームになっていた
+    fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: "not found" }) });
+
+    const { result } = renderHook(() => useEquipmentDetails({ equipmentId: "1" }));
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("recovers via refetch after a failure", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("network"));
+
+    const { result } = renderHook(() => useEquipmentDetails({ equipmentId: "1" }));
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    fetchMock.mockResolvedValue({ json: async () => ({ name: "Camera" }) });
+    await result.current.refetch();
+
+    await waitFor(() => expect(result.current.isError).toBe(false));
+    expect(result.current.equipmentName).toBe("Camera");
+  });
 });

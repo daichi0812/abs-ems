@@ -84,7 +84,9 @@ export function EquipmentForm({
         className="hidden"
       />
 
-      <p className="m-0 mb-2 mt-4 text-xs font-bold text-ink-muted">カテゴリ</p>
+      <p className="m-0 mb-2 mt-4 text-xs font-bold text-ink-muted">
+        カテゴリ <RequiredBadge />
+      </p>
       <div className="flex flex-wrap gap-1.5">
         {categories.map((c) => {
           const on = selectedTagName === c.name;
@@ -110,7 +112,9 @@ export function EquipmentForm({
         })}
       </div>
 
-      <p className="m-0 mb-2 mt-4 text-xs font-bold text-ink-muted">機材名</p>
+      <p className="m-0 mb-2 mt-4 text-xs font-bold text-ink-muted">
+        機材名 <RequiredBadge />
+      </p>
       <input
         value={name}
         onChange={(e) => onName(e.target.value)}
@@ -134,6 +138,24 @@ export function EquipmentForm({
       >
         {isSubmitting ? "処理中…" : submitLabel}
       </button>
+      {/* ボタンが押せない理由を明示する（灰色のまま理由が分からない状態を防ぐ） */}
+      {!canSubmit && !isSubmitting && (
+        <p className="m-0 mt-2 text-center text-[11.5px] text-ink-faint">
+          {name.trim() === "" && selectedTagName === ""
+            ? "機材名の入力とカテゴリの選択が必要です"
+            : name.trim() === ""
+              ? "機材名を入力してください"
+              : "カテゴリを選択してください"}
+        </p>
+      )}
     </div>
+  );
+}
+
+function RequiredBadge() {
+  return (
+    <span className="ml-0.5 rounded bg-[#FEF3F2] px-1 py-px text-[10px] font-bold text-danger">
+      必須
+    </span>
   );
 }
