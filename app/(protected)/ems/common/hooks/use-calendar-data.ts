@@ -21,7 +21,7 @@ export interface CalendarEvent {
 
 // /api/calendar のレスポンス（4テーブルを1リクエストに集約。route.ts 参照）
 interface CalendarPayload {
-  users: { id: string; name: string | null }[];
+  users: { id: string; name: string | null; color?: string | null; image?: string | null }[];
   lists: { id: number; name: string | null; tag_id: number | null }[];
   tags: { id: number; name: string | null; color: string }[];
   reserves: {
@@ -172,6 +172,24 @@ export const useCalendarData = (fromIdx: number, toIdx: number) => {
     });
   }, [payload]);
 
+  // 部員ごとの本人設定（設定ページのテーマカラー・アイコン）。イベントと同じく名前キー。
+  // 色は memberColorMap の overrides に渡してハッシュ割り当てより優先させる
+  const memberColors = useMemo(() => {
+    const map = new Map<string, string>();
+    payload?.users.forEach((u) => {
+      if (u.name && u.color) map.set(u.name, u.color);
+    });
+    return map;
+  }, [payload]);
+
+  const memberImages = useMemo(() => {
+    const map = new Map<string, string>();
+    payload?.users.forEach((u) => {
+      if (u.name && u.image) map.set(u.name, u.image);
+    });
+    return map;
+  }, [payload]);
+
   // 1度も何も表示できていない取得中だけスケルトン（窓の切り替え中は前の窓を出し続ける）
   const isFetching = payload === null && !isError;
   // 全画面エラーは「表示できるデータが何も無い」ときだけ
@@ -185,6 +203,8 @@ export const useCalendarData = (fromIdx: number, toIdx: number) => {
 
   return {
     allEvents,
+    memberColors,
+    memberImages,
     isFetching,
     isError: isErrorExposed,
     isWindowLoading,

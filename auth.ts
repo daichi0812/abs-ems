@@ -91,6 +91,10 @@ export const {
         session.user.name = token.name;
         session.user.email = token.email as string;
         session.user.isOAuth = token.isOAuth as boolean;
+        // アイコンとテーマカラー（設定ページで本人が変更できる）。
+        // token 側は lib/jwt-refresh.ts が DB から反映する
+        session.user.image = (token.picture as string | null | undefined) ?? null;
+        session.user.color = (token.color as string | null | undefined) ?? null;
       }
 
       /* 更新されたセッションを返す */

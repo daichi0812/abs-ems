@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { dayIndexToUtcDate, DOW_LABELS } from "@/lib/calendar/date-grid";
 
@@ -9,6 +10,8 @@ export interface GanttBar<T = unknown> {
   endIdx: number; // inclusive
   color: string;
   initial?: string;
+  /** 本人設定のアイコン画像。あればイニシャルの代わりに表示する */
+  image?: string;
   label?: string;
   data?: T;
 }
@@ -132,10 +135,20 @@ export function EquipmentGantt<T = unknown>({
                       background: bar.color,
                     }}
                   >
-                    {bar.initial && (
-                      <span className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full bg-white/30 text-[9px] font-bold text-white">
-                        {bar.initial}
-                      </span>
+                    {bar.image ? (
+                      <Image
+                        src={bar.image}
+                        alt=""
+                        width={18}
+                        height={18}
+                        className="h-[18px] w-[18px] flex-none rounded-full object-cover"
+                      />
+                    ) : (
+                      bar.initial && (
+                        <span className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full bg-white/30 text-[9px] font-bold text-white">
+                          {bar.initial}
+                        </span>
+                      )
                     )}
                     {bar.label && (
                       <span className="truncate text-[9px] font-bold text-white">{bar.label}</span>

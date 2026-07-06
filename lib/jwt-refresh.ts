@@ -38,6 +38,10 @@ export async function refreshJwtToken({ token, user, trigger }: JwtParams) {
   token.email = existingUser.email;
   token.role = existingUser.role;
   token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
+  // アイコンは JWT 標準の picture クレームに載せる（session.user.image の元）。
+  // テーマカラーともども、設定ページでの変更後は update({}) 経由でここに反映される。
+  token.picture = existingUser.image;
+  token.color = existingUser.color;
   token.refreshedAt = Date.now();
 
   return token;

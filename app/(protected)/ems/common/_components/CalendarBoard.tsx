@@ -70,8 +70,16 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
 
   // データは「いま画面に必要な窓」だけ取得する（月表示=月グリッド、ガント=14日窓）。
   // 窓の外の予約はサーバー側で絞られるため、履歴が増えても取得・描画コストは一定。
-  const { allEvents, isFetching, isError, isWindowLoading, isWindowError, refetch } =
-    useCalendarData(
+  const {
+    allEvents,
+    memberColors,
+    memberImages,
+    isFetching,
+    isError,
+    isWindowLoading,
+    isWindowError,
+    refetch,
+  } = useCalendarData(
       view === "month" ? gridStartIdx : ganttWindowStart,
       view === "month" ? gridEndIdx : ganttWindowEnd
     );
@@ -110,13 +118,20 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   }, [members, memberFilter]);
 
   // 「色＝人」の前提を守るため、素のハッシュ色（少人数でも高確率で衝突する）ではなく
-  // 重複しない割り当てを使う。表示中の月の部員（members）を優先して割り当てることで、
+  // 重複しない割り当てを使う。本人が設定ページで選んだ色（memberColors）を最優先し、
+  // 未選択の部員は表示中の月の部員（members）を優先して割り当てることで、
   // 履歴上の部員が16人を超えても「いま見えている月」の中では一意性が守られる。
   // チップ・詳細カードも同じ割り当てを共有する。
   const memberColorOf = useMemo(() => {
-    const map = memberColorMap(allEvents.map((e) => e.name), members);
+    const map = memberColorMap(allEvents.map((e) => e.name), members, memberColors);
     return (name: string | null | undefined) => (name && map.get(name)) || "#667085";
-  }, [allEvents, members]);
+  }, [allEvents, members, memberColors]);
+
+  // 本人が設定したアイコン画像（チップ・詳細カード・ガントのバーで使う）
+  const memberImageOf = useMemo(
+    () => (name: string | null | undefined) => (name ? memberImages.get(name) : undefined),
+    [memberImages]
+  );
 
   const barEvents = useMemo<CalendarBarEvent<CalendarEvent>[]>(
     () =>
@@ -168,12 +183,13 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         endIdx,
         color: memberColorOf(ev.name),
         initial: memberInitial(ev.name),
+        image: memberImageOf(ev.name),
         label: `〜${formatRange(endIdx, endIdx)}`,
         data: ev,
       });
     });
     return [...byEquip.values()];
-  }, [allEvents, ganttWindowStart, ganttWindowEnd, memberColorOf]);
+  }, [allEvents, ganttWindowStart, ganttWindowEnd, memberColorOf, memberImageOf]);
 
   const selectedEvent = allEvents.find((e) => e.id === selectedKey) ?? null;
   const detail = selectedEvent
@@ -356,6 +372,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
               value={memberFilter}
               onChange={setMemberFilter}
               colorOf={memberColorOf}
+              imageOf={memberImageOf}
               className="mb-3"
             />
             <MonthGrid<CalendarEvent>
@@ -370,7 +387,11 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           </div>
           <div ref={detailRef} className="md:sticky md:top-24 md:self-start scroll-mt-20">
             {detail ? (
-              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
+              <EventDetailPopover
+                detail={detail}
+                color={memberColorOf(detail.who)}
+                image={memberImageOf(detail.who)}
+              />
             ) : (
               <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center text-[12.5px] text-ink-faint">
                 バーをタップすると
@@ -402,7 +423,11 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           )}
           {detail && (
             <div ref={detailRef} className="mt-3 scroll-mt-20">
-              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
+              <EventDetailPopover
+                detail={detail}
+                color={memberColorOf(detail.who)}
+                image={memberImageOf(detail.who)}
+              />
             </div>
           )}
         </div>

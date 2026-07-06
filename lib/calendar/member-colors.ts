@@ -1,8 +1,9 @@
 // 予約者（部員）ごとの安定した色割り当て。
-// 月カレンダーは「色＝人」で予約バーを塗る（UI刷新案 3a）。DB に部員色が無いため、
-// 名前をキーに固定パレットへ決定的に写像する（同じ名前は常に同じ色）。
+// 月カレンダーは「色＝人」で予約バーを塗る（UI刷新案 3a）。
+// 本人が設定ページで選んだ色（User.color）があればそれを最優先し、
+// 未選択の部員は名前をキーに固定パレットへ決定的に写像する（同じ名前は常に同じ色）。
 
-const MEMBER_PALETTE = [
+export const MEMBER_PALETTE = [
   "#2563EB", // blue
   "#12B76A", // green
   "#F79009", // orange
@@ -47,13 +48,25 @@ export function memberColor(name: string | null | undefined): string {
  * （卒業生など履歴上の名前が一意枠を食いつぶすのを防ぐ）。
  * 各グループ内は名前昇順で割り当てるため、同じメンバー集合なら結果は安定
  * （メンバーが増減すると他の人の色が変わり得るのは一意性とのトレードオフ）。
+ *
+ * overrides には「本人が設定ページで選んだ色（User.color）」を渡す。該当者は
+ * 無条件でその色になり、使ったパレット枠は自動割り当ての空き探索から除外する
+ * （自動勢が本人選択の色に重ならないように。選択者同士の同色は本人の意思なので許容）。
  */
 export function memberColorMap(
   names: (string | null | undefined)[],
-  priorityNames: (string | null | undefined)[] = []
+  priorityNames: (string | null | undefined)[] = [],
+  overrides?: ReadonlyMap<string, string>
 ): Map<string, string> {
   const map = new Map<string, string>();
   const used = new Set<number>();
+  if (overrides) {
+    for (const [name, color] of overrides) {
+      map.set(name, color);
+      const idx = (MEMBER_PALETTE as readonly string[]).indexOf(color);
+      if (idx >= 0) used.add(idx);
+    }
+  }
   const assign = (list: (string | null | undefined)[]) => {
     const unique = [...new Set(list.filter((n): n is string => !!n))].sort();
     for (const name of unique) {

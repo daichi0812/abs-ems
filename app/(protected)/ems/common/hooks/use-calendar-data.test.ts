@@ -113,6 +113,26 @@ describe("useCalendarData", () => {
     expect(result.current.allEvents[0].backgroundColor).toBe("#3788D8");
   });
 
+  it("exposes member colors and images keyed by name (unset entries omitted)", async () => {
+    fetchMock.mockResolvedValue(
+      okResponse(
+        payload({
+          users: [
+            { id: "u1", name: "Taro", color: "#2563EB", image: "https://img.example/a.jpg" },
+            { id: "u2", name: "Jiro", color: null, image: null },
+          ],
+        })
+      )
+    );
+    const { result } = renderHook(() => useCalendarData(JAN_FROM, JAN_TO));
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+
+    expect(result.current.memberColors.get("Taro")).toBe("#2563EB");
+    expect(result.current.memberColors.has("Jiro")).toBe(false);
+    expect(result.current.memberImages.get("Taro")).toBe("https://img.example/a.jpg");
+    expect(result.current.memberImages.has("Jiro")).toBe(false);
+  });
+
   it("handles empty reserves response", async () => {
     fetchMock.mockResolvedValue(okResponse(payload({ reserves: [] })));
     const { result } = renderHook(() => useCalendarData(JAN_FROM, JAN_TO));
