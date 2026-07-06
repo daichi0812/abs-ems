@@ -18,6 +18,7 @@ import {
   dayIndexToDateString,
 } from "@/lib/calendar/date-grid";
 import { categoryColor, categoryIconPath } from "@/lib/category-colors";
+import { flattenNewlines } from "@/lib/text";
 import type { DayRange } from "@/components/calendar/RangeMiniCalendar";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -85,7 +86,7 @@ export function BookingWizard() {
             return {
               id: e.id,
               name: e.name,
-              detail: e.detail ?? "",
+              detail: flattenNewlines(e.detail ?? ""),
               image: e.image ?? "",
               free,
               sub: free
