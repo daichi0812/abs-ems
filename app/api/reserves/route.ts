@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { currentUser } from '@/lib/auth';
+import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 import moment from 'moment-timezone';
 
@@ -136,6 +137,9 @@ export async function POST(request: Request) {
         if (result.conflict) {
             return NextResponse.json({ error: 'この期間にはすでに予約が入っています。' }, { status: 409 });
         }
+
+        // 予約確定を本人へメール通知（notifyReservationEvents 尊重）。レスポンスは待たせない。
+        notifyInBackground(notifyReservationCreated(result.reserve));
 
         return NextResponse.json(result.reserve, { status: 201 });
     } catch (error) {

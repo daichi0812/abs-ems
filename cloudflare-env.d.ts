@@ -36,6 +36,10 @@ declare global {
   interface CloudflareEnv {
     IMAGES_BUCKET: AbsEmsR2Bucket;
     EMAIL: AbsEmsSendEmail;
+    // worker.ts の scheduled ハンドラが内部 cron エンドポイントを叩くときに使う。
+    // AUTH_URL は wrangler.jsonc の vars、CRON_SECRET は wrangler secret で投入。
+    AUTH_URL?: string;
+    CRON_SECRET?: string;
   }
 }
 

@@ -3,7 +3,9 @@
   // ビルドは `opennextjs-cloudflare build` が .open-next/ を生成する。
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "abs-ems",
-  "main": ".open-next/worker.js",
+  // カスタムエントリ（worker.ts）。OpenNext 生成の .open-next/worker.js(fetch) を再利用しつつ
+  // scheduled ハンドラ（返却リマインダー cron）を足すため、既定の .open-next/worker.js から差し替え。
+  "main": "worker.ts",
   // nodejs_compat: node:crypto 等（jose/bcrypt/Prisma）に必要
   // compatibility_date は FinalizationRegistry(>=2025-05-05) と process.env 反映のため新しめに
   "compatibility_date": "2025-05-05",
@@ -50,6 +52,11 @@
       "allowed_sender_addresses": ["noreply@abs-ems.forgeonics.com"]
     }
   ],
+  // 返却リマインダー cron。00:00 UTC = 09:00 JST に毎日発火し、worker.ts の scheduled が
+  // /api/cron/return-reminders を叩く。保護用の CRON_SECRET は `wrangler secret put CRON_SECRET` で投入。
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  },
   "observability": {
     "enabled": true
   }

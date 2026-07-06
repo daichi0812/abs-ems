@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { hasManagerAccess } from '@/lib/api-auth';
 import { currentUser } from '@/lib/auth';
+import { notifyInBackground, notifyNewEquipment } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
 
         const { name, detail, image, tag_id } = data;
 
-        await db.list.create({
+        const created = await db.list.create({
             data: {
                 name: name,
                 detail: detail,
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
                 tag_id: tag_id,
             },
         });
+
+        // 新機材の追加を notifyNewEquipment 有効な部員へ一斉通知（レスポンスは待たせない）。
+        notifyInBackground(notifyNewEquipment(created));
 
         return new Response(JSON.stringify({ message: 'データが正常に追加されました。' }), {
             status: 201,
