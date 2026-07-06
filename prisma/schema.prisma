@@ -139,6 +139,9 @@ model Reserve {
   end       DateTime?
   list_id   Int?
   isRenting Int? @default(0)
+  // 返却リマインダー（cron）の二重送信防止。最後に通知した「返却期限日」を
+  // JST 日付の UTC 00:00 で記録する。cron が同日に複数回発火してもこの列で弾く。
+  remindedOn DateTime? @map("reminded_on")
 
   // POST の重複(期間重なり)チェック route.ts の findFirst({ list_id, start<=E, end>=S }) と
   // ?list_id= フィルタに効く。等値 list_id を先頭、範囲 start を第2列に。

@@ -1,20 +1,28 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { deleteManyMock, updateManyMock, findManyMock, findFirstMock, currentUserMock } =
-  vi.hoisted(() => ({
-    deleteManyMock: vi.fn(),
-    updateManyMock: vi.fn(),
-    findManyMock: vi.fn(),
-    findFirstMock: vi.fn(),
-    currentUserMock: vi.fn(),
-  }));
+const {
+  deleteManyMock,
+  updateManyMock,
+  findManyMock,
+  findFirstMock,
+  findUniqueMock,
+  currentUserMock,
+} = vi.hoisted(() => ({
+  deleteManyMock: vi.fn(),
+  updateManyMock: vi.fn(),
+  findManyMock: vi.fn(),
+  findFirstMock: vi.fn(),
+  findUniqueMock: vi.fn(),
+  currentUserMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({
   db: {
     reserve: {
       findMany: findManyMock,
       findFirst: findFirstMock,
+      findUnique: findUniqueMock,
       deleteMany: deleteManyMock,
       updateMany: updateManyMock,
     },
@@ -22,6 +30,12 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/auth", () => ({
   currentUser: () => currentUserMock(),
+}));
+
+// 通知はバックグラウンド副作用なので、ルートの契約テストでは無効化する。
+vi.mock("@/lib/notify", () => ({
+  notifyInBackground: vi.fn(),
+  notifyReservationCancelled: vi.fn(),
 }));
 
 import { DELETE, GET, PATCH } from "./route";
@@ -42,6 +56,7 @@ beforeEach(() => {
   updateManyMock.mockReset();
   findManyMock.mockReset();
   findFirstMock.mockReset();
+  findUniqueMock.mockReset();
   currentUserMock.mockReset();
 });
 
