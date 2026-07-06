@@ -9,16 +9,29 @@ const RECOMPRESS_THRESHOLD_BYTES = 300 * 1024; // これ以下は十分軽いの
 const MAX_EDGE_PX = 1600;
 const JPEG_QUALITY = 0.85;
 
-export async function compressImage(file: File): Promise<File> {
+export interface CompressImageOptions {
+  /** 長辺の上限（px）。アバターなど小さい表示しかしない用途で下げる */
+  maxEdgePx?: number;
+  /** このサイズ以下は再圧縮しない（既定 300KB）。小さい表示用途では下げる */
+  recompressThresholdBytes?: number;
+}
+
+export async function compressImage(
+  file: File,
+  options: CompressImageOptions = {}
+): Promise<File> {
+  const maxEdgePx = options.maxEdgePx ?? MAX_EDGE_PX;
+  const recompressThresholdBytes =
+    options.recompressThresholdBytes ?? RECOMPRESS_THRESHOLD_BYTES;
   try {
     if (!file.type.startsWith("image/")) return file;
     // GIF はアニメーション、SVG はベクタ情報が失われるため対象外
     if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
-    if (file.size <= RECOMPRESS_THRESHOLD_BYTES) return file;
+    if (file.size <= recompressThresholdBytes) return file;
     if (typeof createImageBitmap !== "function") return file;
 
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_EDGE_PX / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxEdgePx / Math.max(bitmap.width, bitmap.height));
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
 

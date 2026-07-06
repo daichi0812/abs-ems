@@ -34,7 +34,8 @@ export async function GET(request: Request) {
 
         // 同一リクエスト内なので4クエリとも lib/db.ts が集約した1接続に乗る
         const [users, lists, tags, reserves] = await Promise.all([
-            db.user.findMany({ select: { id: true, name: true } }),
+            // color/image は本人設定のテーマカラー・アイコン（カレンダーの色とチップ表示に使う）
+            db.user.findMany({ select: { id: true, name: true, color: true, image: true } }),
             db.list.findMany({ select: { id: true, name: true, tag_id: true } }),
             db.tag.findMany({ select: { id: true, name: true, color: true }, orderBy: { sortOrder: 'asc' } }),
             db.reserve.findMany({

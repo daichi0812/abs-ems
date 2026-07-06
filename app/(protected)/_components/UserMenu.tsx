@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -103,9 +104,21 @@ export const UserMenu = () => {
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label="ユーザーメニュー"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-[13px] font-bold text-white outline-none ring-offset-navy focus-visible:ring-2 focus-visible:ring-white/60"
+          className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-brand text-[13px] font-bold text-white outline-none ring-offset-navy focus-visible:ring-2 focus-visible:ring-white/60"
+          // アイコン未設定ならテーマカラー（設定ページで選択）をイニシャルの背景にする
+          style={!user?.image && user?.color ? { background: user.color } : undefined}
         >
-          {initialOf(user?.name)}
+          {user?.image ? (
+            <Image
+              src={user.image}
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          ) : (
+            initialOf(user?.name)
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-52" align="end">
           <DropdownMenuLabel className="truncate">

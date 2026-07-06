@@ -1,10 +1,16 @@
 import { UserRole } from "@prisma/client";
 import * as z from "zod";
 
+import { MEMBER_PALETTE } from "@/lib/calendar/member-colors";
+
 export const SettingsSchema = z.object({
     name: z.optional(z.string()),
     isTwoFactorEnabled: z.optional(z.boolean()),
     role: z.enum([UserRole.ADMIN, UserRole.USER]),
+    // カレンダーのテーマカラー。パレット外の任意色は受け付けない
+    // （「色＝人」の視認性とダーク文字色の判定をパレット前提で保っているため）。
+    // null は「自動（名前ハッシュ）」へ戻す
+    color: z.optional(z.nullable(z.enum(MEMBER_PALETTE))),
     email: z.optional(z.string().email()),
     password: z.optional(z.string().min(10, {
         message: "10文字以上のパスワードにしてください"

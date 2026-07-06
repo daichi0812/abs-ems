@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { memberColor, memberInitial } from "@/lib/calendar/member-colors";
 
@@ -16,6 +17,8 @@ export interface MemberChipsProps {
   collapseLimit?: number;
   /** バー側と同じ色割り当て（memberColorMap）を使う場合に渡す。省略時はハッシュ色 */
   colorOf?: (name: string) => string;
+  /** 本人設定のアイコン画像。返り値があればイニシャルの代わりに表示する */
+  imageOf?: (name: string) => string | undefined;
 }
 
 export function MemberChips({
@@ -25,16 +28,24 @@ export function MemberChips({
   className,
   collapseLimit = 10,
   colorOf = memberColor,
+  imageOf,
 }: MemberChipsProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const items: { name: string | null; label: string; initial: string; color: string }[] = [
+  const items: {
+    name: string | null;
+    label: string;
+    initial: string;
+    color: string;
+    image?: string;
+  }[] = [
     { name: null, label: "すべて", initial: "全", color: "#475467" },
     ...members.map((name) => ({
       name,
       label: name,
       initial: memberInitial(name),
       color: colorOf(name),
+      image: imageOf?.(name),
     })),
   ];
 
@@ -65,12 +76,22 @@ export function MemberChips({
               on ? "border-ink bg-ink" : "border-line bg-white"
             )}
           >
-            <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
-              style={{ background: it.color }}
-            >
-              {it.initial}
-            </span>
+            {it.image ? (
+              <Image
+                src={it.image}
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5 flex-none rounded-full object-cover"
+              />
+            ) : (
+              <span
+                className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                style={{ background: it.color }}
+              >
+                {it.initial}
+              </span>
+            )}
             <span className={cn("text-[11.5px] font-bold", on ? "text-white" : "text-ink-sub")}>
               {it.label}
             </span>

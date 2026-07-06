@@ -6,6 +6,8 @@ export type ExtendedUser = DefaultSession["user"] & {
     role: UserRole
     isTwoFactorEnabled: boolean;
     isOAuth: boolean;
+    // カレンダー「色＝人」のテーマカラー（#RRGGBB）。null は自動割り当て
+    color: string | null;
 }
 
 declare module "next-auth" {
