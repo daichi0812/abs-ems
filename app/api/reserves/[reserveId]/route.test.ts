@@ -1,29 +1,47 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { deleteManyMock, findManyMock, currentUserMock } = vi.hoisted(() => ({
-  deleteManyMock: vi.fn(),
-  findManyMock: vi.fn(),
-  currentUserMock: vi.fn(),
-}));
+const { deleteManyMock, updateManyMock, findManyMock, findFirstMock, currentUserMock } =
+  vi.hoisted(() => ({
+    deleteManyMock: vi.fn(),
+    updateManyMock: vi.fn(),
+    findManyMock: vi.fn(),
+    findFirstMock: vi.fn(),
+    currentUserMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db", () => ({
-  db: { reserve: { findMany: findManyMock, deleteMany: deleteManyMock } },
+  db: {
+    reserve: {
+      findMany: findManyMock,
+      findFirst: findFirstMock,
+      deleteMany: deleteManyMock,
+      updateMany: updateManyMock,
+    },
+  },
 }));
 vi.mock("@/lib/auth", () => ({
   currentUser: () => currentUserMock(),
 }));
 
-import { DELETE, GET } from "./route";
+import { DELETE, GET, PATCH } from "./route";
 
 const deleteRequest = () =>
   new Request("http://localhost/api/reserves/5", { method: "DELETE" });
 const getRequest = () => new Request("http://localhost/api/reserves/5");
+const patchRequest = (body: unknown) =>
+  new Request("http://localhost/api/reserves/5", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 const params = { params: Promise.resolve({ reserveId: "5" }) };
 
 beforeEach(() => {
   deleteManyMock.mockReset();
+  updateManyMock.mockReset();
   findManyMock.mockReset();
+  findFirstMock.mockReset();
   currentUserMock.mockReset();
 });
 
@@ -48,6 +66,92 @@ describe("GET /api/reserves/[reserveId]", () => {
   });
 });
 
+describe("PATCH /api/reserves/[reserveId]", () => {
+  it("returns 401 when unauthenticated", async () => {
+    currentUserMock.mockResolvedValue(undefined);
+
+    const res = await PATCH(patchRequest({ isRenting: 2 }), params);
+
+    expect(res.status).toBe(401);
+    expect(updateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a transition other than borrow(2) / return(4)", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+
+    for (const isRenting of [0, 1, 3, "2", undefined]) {
+      const res = await PATCH(patchRequest({ isRenting }), params);
+      expect(res.status).toBe(400);
+    }
+    expect(updateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("borrows only the user's own reserve within the rental period", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    const res = await PATCH(patchRequest({ isRenting: 2 }), params);
+
+    expect(res.status).toBe(200);
+    const where = updateManyMock.mock.calls[0][0].where;
+    expect(where).toMatchObject({
+      id: 5,
+      user_id: "u1",
+      isRenting: { in: [0, 1] },
+    });
+    // 期間内チェック（start <= 今日(JST) <= end）が where に含まれる
+    expect(where.start.lte).toBeInstanceOf(Date);
+    expect(where.end.gte).toBeInstanceOf(Date);
+    expect(updateManyMock.mock.calls[0][0].data).toEqual({ isRenting: 2 });
+  });
+
+  it("returns 409 when borrow matched nothing but the reserve exists (out of period / already rented)", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+    updateManyMock.mockResolvedValue({ count: 0 });
+    findFirstMock.mockResolvedValue({ id: 5, isRenting: 2 });
+
+    const res = await PATCH(patchRequest({ isRenting: 2 }), params);
+
+    expect(res.status).toBe(409);
+  });
+
+  it("returns 404 when the reserve is missing or someone else's", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+    updateManyMock.mockResolvedValue({ count: 0 });
+    findFirstMock.mockResolvedValue(null);
+
+    const res = await PATCH(patchRequest({ isRenting: 2 }), params);
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns a rented reserve (2|3 -> 4) without a period restriction", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    const res = await PATCH(patchRequest({ isRenting: 4 }), params);
+
+    expect(res.status).toBe(200);
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: 5, user_id: "u1", isRenting: { in: [2, 3] } },
+      data: { isRenting: 4 },
+    });
+  });
+
+  it("lets an ADMIN transition any reserve", async () => {
+    currentUserMock.mockResolvedValue({ id: "admin1", role: "ADMIN" });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    const res = await PATCH(patchRequest({ isRenting: 4 }), params);
+
+    expect(res.status).toBe(200);
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: 5, isRenting: { in: [2, 3] } },
+      data: { isRenting: 4 },
+    });
+  });
+});
+
 describe("DELETE /api/reserves/[reserveId]", () => {
   it("returns 401 when unauthenticated", async () => {
     currentUserMock.mockResolvedValue(undefined);
@@ -58,7 +162,7 @@ describe("DELETE /api/reserves/[reserveId]", () => {
     expect(deleteManyMock).not.toHaveBeenCalled();
   });
 
-  it("scopes deletion to the requesting user's own reserves", async () => {
+  it("scopes deletion to the user's own un-rented (0|1) reserves", async () => {
     currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
     deleteManyMock.mockResolvedValue({ count: 1 });
 
@@ -66,7 +170,7 @@ describe("DELETE /api/reserves/[reserveId]", () => {
 
     expect(res.status).toBe(200);
     expect(deleteManyMock).toHaveBeenCalledWith({
-      where: { id: 5, user_id: "u1" },
+      where: { id: 5, user_id: "u1", isRenting: { in: [0, 1] } },
     });
   });
 
@@ -80,9 +184,22 @@ describe("DELETE /api/reserves/[reserveId]", () => {
     expect(deleteManyMock).toHaveBeenCalledWith({ where: { id: 5 } });
   });
 
+  it("returns 409 when the reserve exists but is rented or already returned", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+    deleteManyMock.mockResolvedValue({ count: 0 });
+    findFirstMock.mockResolvedValue({ id: 5, isRenting: 2 });
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("貸出中・返却済みの予約は削除できません。");
+  });
+
   it("returns 404 when nothing was deleted (missing or someone else's reserve)", async () => {
     currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
     deleteManyMock.mockResolvedValue({ count: 0 });
+    findFirstMock.mockResolvedValue(null);
 
     const res = await DELETE(deleteRequest(), params);
 

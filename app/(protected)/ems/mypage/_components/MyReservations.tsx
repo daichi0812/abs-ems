@@ -17,31 +17,58 @@ import { buildMonthWeeks, type CalendarBarEvent } from "@/lib/calendar/build-mon
 import { categoryColor } from "@/lib/category-colors";
 import { MonthGrid } from "@/components/calendar/MonthGrid";
 import { StatusBadge, type StatusTone } from "@/components/shared/status-badge";
-import { CategoryChip } from "@/components/shared/category-chip";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useReserveActions } from "@/app/(protected)/ems/mypage/hooks/use-reserve-actions";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
+
+interface GroupedItem {
+  reserveId: number;
+  listId: number;
+  name: string;
+  color: string;
+  isRenting: number; // 0:予約中 / 1:受取可 / 2:貸出中 / 3:滞納 / 4:返却済
+}
 
 interface Grouped {
   key: string;
   startIdx: number;
   endIdx: number;
-  items: { id: number; name: string; color: string }[];
-  maxRenting: number;
+  items: GroupedItem[];
 }
 
-// isRenting（0予約中/1受取可/2貸出中/3滞納）をバッジに写像。グループ内の最も進んだ状態を採用。
-function badgeOf(maxRenting: number, active: boolean): { tone: StatusTone; label: string } {
-  if (maxRenting >= 3) return { tone: "danger", label: "滞納" };
-  if (maxRenting === 2) return { tone: "danger", label: "貸出中" };
-  if (maxRenting === 1 || active) return { tone: "info", label: "受取可" };
+// グループ全体の状態バッジ。滞納 > 貸出中 > 返却済（全件） > 受取可 > 予約済 の優先順。
+// 滞納は isRenting=3 のほか「貸出中のまま期限超過」も日付から導出する。
+function badgeOf(g: Grouped, todayIdx: number): { tone: StatusTone; label: string } {
+  const states = g.items.map((it) => it.isRenting ?? 0);
+  const active = g.startIdx <= todayIdx && g.endIdx >= todayIdx;
+  const overdue = states.includes(3) || (states.includes(2) && g.endIdx < todayIdx);
+  if (overdue) return { tone: "danger", label: "滞納" };
+  if (states.includes(2)) return { tone: "danger", label: "貸出中" };
+  if (states.length > 0 && states.every((s) => s === 4))
+    return { tone: "success", label: "返却済" };
+  if (states.includes(1) || active) return { tone: "info", label: "受取可" };
   return { tone: "neutral", label: "予約済" };
 }
 
 export function MyReservations() {
   const router = useRouter();
   const user = useCurrentUser();
-  const { filteredData } = useMyReserves({ userId: user?.id });
+  const { filteredData, refetch } = useMyReserves({ userId: user?.id });
   const { equipments, isLoading: eqLoading } = useEquipments();
   const { categories } = useCategories();
+  const { pendingId, borrow, giveBack, cancel } = useReserveActions({ refetch });
+  const [cancelTarget, setCancelTarget] = useState<GroupedItem | null>(null);
+  const isDesktop = useIsDesktop();
 
   const todayIdx = todayJstDayIndex();
   const now = new Date();
@@ -70,11 +97,16 @@ export function MyReservations() {
       const key = `${startIdx}-${endIdx}`;
       let g = map.get(key);
       if (!g) {
-        g = { key, startIdx, endIdx, items: [], maxRenting: 0 };
+        g = { key, startIdx, endIdx, items: [] };
         map.set(key, g);
       }
-      g.items.push({ id: r.list_id, name: nameOfList(r.list_id), color: colorOfList(r.list_id) });
-      g.maxRenting = Math.max(g.maxRenting, r.isRenting ?? 0);
+      g.items.push({
+        reserveId: r.id,
+        listId: r.list_id,
+        name: nameOfList(r.list_id),
+        color: colorOfList(r.list_id),
+        isRenting: r.isRenting ?? 0,
+      });
     });
     return [...map.values()].sort((a, b) => a.startIdx - b.startIdx || a.endIdx - b.endIdx);
   }, [filteredData, nameOfList, colorOfList]);
@@ -95,8 +127,15 @@ export function MyReservations() {
     [groups]
   );
   const weeks = useMemo(
-    () => buildMonthWeeks(barEvents, matrix, { headH: 18, laneH: 20, minH: 58 }),
-    [barEvents, matrix]
+    () =>
+      buildMonthWeeks(
+        barEvents,
+        matrix,
+        isDesktop
+          ? { headH: 26, laneH: 26, minH: 96 }
+          : { headH: 18, laneH: 20, minH: 58 }
+      ),
+    [barEvents, matrix, isDesktop]
   );
 
   // カードのセクション分け（利用中/今後/終了）
@@ -135,7 +174,7 @@ export function MyReservations() {
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-[1fr_360px] md:items-start">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_380px] md:items-start">
       {/* 自分の予定カレンダー */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between px-1">
@@ -150,7 +189,7 @@ export function MyReservations() {
             </button>
           </div>
         </div>
-        <MonthGrid weeks={weeks} />
+        <MonthGrid weeks={weeks} barHeight={isDesktop ? 22 : 18} />
         {groups.length === 0 && (
           <p className="mt-3 text-center text-[11.5px] text-ink-faint">まだ予約はありません</p>
         )}
@@ -176,7 +215,7 @@ export function MyReservations() {
               <div className="flex flex-col gap-2.5">
                 {sec.items.map((g) => {
                   const active = g.startIdx <= todayIdx && g.endIdx >= todayIdx;
-                  const badge = badgeOf(g.maxRenting, active);
+                  const badge = badgeOf(g, todayIdx);
                   const days = g.endIdx - g.startIdx + 1;
                   return (
                     <div
@@ -194,10 +233,62 @@ export function MyReservations() {
                         </div>
                         <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {g.items.map((it) => (
-                          <CategoryChip key={it.id} name={it.name} color={it.color} />
-                        ))}
+                      <div className="flex flex-col gap-1.5">
+                        {g.items.map((it) => {
+                          const canBorrow = active && it.isRenting <= 1;
+                          const canReturn = it.isRenting === 2 || it.isRenting === 3;
+                          const canCancel = it.isRenting <= 1;
+                          const pending = pendingId === it.reserveId;
+                          return (
+                            <div
+                              key={it.reserveId}
+                              className="flex items-center gap-2 rounded-xl bg-surface px-2.5 py-1.5"
+                            >
+                              <span
+                                className="h-2 w-2 flex-none rounded-full"
+                                style={{ background: it.color }}
+                              />
+                              <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold">
+                                {it.name}
+                              </span>
+                              {it.isRenting === 4 && (
+                                <span className="text-[10.5px] font-semibold text-ink-faint">
+                                  返却済
+                                </span>
+                              )}
+                              {canBorrow && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => borrow(it.reserveId)}
+                                  className="h-7 flex-none rounded-lg bg-brand px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+                                >
+                                  {pending ? "…" : "借りる"}
+                                </button>
+                              )}
+                              {canReturn && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => giveBack(it.reserveId)}
+                                  className="h-7 flex-none rounded-lg border-[1.5px] border-brand px-2.5 text-[11px] font-bold text-brand transition-colors hover:bg-brand-faint disabled:opacity-50"
+                                >
+                                  {pending ? "…" : "返却"}
+                                </button>
+                              )}
+                              {canCancel && (
+                                <button
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={() => setCancelTarget(it)}
+                                  className="h-7 flex-none rounded-lg px-2 text-[11px] font-bold text-danger transition-colors hover:bg-[#FEF3F2] disabled:opacity-50"
+                                >
+                                  キャンセル
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -207,6 +298,35 @@ export function MyReservations() {
           ))
         )}
       </div>
+
+      {/* キャンセル確認 */}
+      <AlertDialog
+        open={cancelTarget != null}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+      >
+        <AlertDialogContent className="max-w-[360px] rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">
+              予約をキャンセルしますか？
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[12.5px]">
+              「{cancelTarget?.name}」の予約を取り消します。この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>戻る</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-danger hover:bg-danger/90"
+              onClick={() => {
+                if (cancelTarget) void cancel(cancelTarget.reserveId);
+                setCancelTarget(null);
+              }}
+            >
+              キャンセルする
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

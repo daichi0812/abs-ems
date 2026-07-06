@@ -60,15 +60,11 @@ export function ConfirmPanel({
         )}
       </div>
 
-      <div className="my-3 rounded-xl bg-brand-faint px-3 py-2.5 text-[11.5px] leading-relaxed text-[#175CD3]">
-        受け渡し・返却は部室で行います。長期利用は事前に管理者へ連絡してください。
-      </div>
-
       <button
         type="button"
         disabled={!canSubmit}
         onClick={onSubmit}
-        className="h-12 w-full rounded-xl bg-brand text-[15px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(46,144,250,.5)] transition-colors hover:bg-brand-dark disabled:opacity-40 disabled:shadow-none"
+        className="mt-3 h-12 w-full rounded-xl bg-brand text-[15px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(46,144,250,.5)] transition-colors hover:bg-brand-dark disabled:opacity-40 disabled:shadow-none"
       >
         {isSubmitting ? "予約中…" : "この内容で予約する"}
       </button>

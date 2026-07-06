@@ -12,6 +12,8 @@ export interface MonthGridProps<T> {
   selectedKey?: string | number | null;
   isDimmed?: (bar: PositionedBar<T>) => boolean;
   className?: string;
+  /** バーの高さ(px)。buildMonthWeeks の laneH と揃えて調整する（既定18） */
+  barHeight?: number;
 }
 
 export function MonthGrid<T = unknown>({
@@ -20,12 +22,13 @@ export function MonthGrid<T = unknown>({
   selectedKey,
   isDimmed,
   className,
+  barHeight = 18,
 }: MonthGridProps<T>) {
   return (
     <div className={className}>
       <div className="mb-1 grid grid-cols-7">
         {DOW_LABELS.map((d) => (
-          <span key={d} className="text-center text-[10px] text-ink-faint">
+          <span key={d} className="text-center text-[10px] text-ink-faint md:text-[11.5px]">
             {d}
           </span>
         ))}
@@ -42,7 +45,7 @@ export function MonthGrid<T = unknown>({
                 <div
                   key={day.dayIndex}
                   className={cn(
-                    "border-r border-line/60 pt-[3px] text-center text-[10px] last:border-r-0",
+                    "border-r border-line/60 pt-[3px] text-center text-[10px] last:border-r-0 md:pt-1.5 md:text-[11.5px]",
                     !day.inMonth && "text-line-strong",
                     day.inMonth && !day.isToday && "text-ink-muted",
                     day.isToday && "font-bold text-brand"
@@ -66,13 +69,13 @@ export function MonthGrid<T = unknown>({
                     left: `${bar.leftPct}%`,
                     width: `${bar.widthPct}%`,
                     top: bar.top,
-                    height: 18,
+                    height: barHeight,
                     background: bar.color,
                     opacity: dimmed ? 0.16 : 1,
                     outline: selected ? "2px solid #101828" : "none",
                   }}
                 >
-                  <span className="truncate text-[8.5px] font-bold text-white">
+                  <span className="truncate text-[8.5px] font-bold text-white md:text-[10.5px]">
                     {bar.label}
                   </span>
                 </button>
