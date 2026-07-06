@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Noto_Sans_JP } from "next/font/google";
 import Script from "next/script";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { ChakraProvider } from '@chakra-ui/react'
 
-const inter = Inter({ subsets: ["latin"] });
+// UI刷新案の指定フォント。JP グリフを含むため subsets はプリロード対象の latin のみ、
+// 日本語のプリロードは無効化（ビルド警告と過剰なプリロードを避ける）。
+const notoSansJP = Noto_Sans_JP({
+  subsets: ["latin"],
+  weight: ["400", "500", "700", "900"],
+  variable: "--font-noto-sans-jp",
+  display: "swap",
+  preload: false,
+});
 
 export const metadata: Metadata = {
   title: "ABS EMS",
@@ -26,15 +33,15 @@ export default async function RootLayout({
 
   return (
     <SessionProvider session={session}>
-      <html lang="ja">
+      <html lang="ja" className={notoSansJP.variable}>
         {/* headタグとその中にアイコンやテーマカラー、manifestを記述する */}
         <head>
           <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#F5F5F8" />
+          <meta name="theme-color" content="#10243E" />
         </head>
-        <body className={inter.className}>
+        <body className={notoSansJP.className}>
           <Toaster />
-          <ChakraProvider>{children}</ChakraProvider>
+          {children}
           {/* Cloudflare Web Analytics（旧 Vercel Speed Insights の代替）。
               token は全訪問者に配る公開値（ダッシュボードのサイト設定と対応）。
               beacon は SPA のルート遷移も自動計測する。next dev では読み込まない。 */}
@@ -42,7 +49,7 @@ export default async function RootLayout({
             <Script
               strategy="afterInteractive"
               src="https://static.cloudflareinsights.com/beacon.min.js"
-              data-cf-beacon='{"token": "511cfa581a144ba7bba2ec62e4d2271e"}'
+              data-cf-beacon='{"token": "c1b5d038f286402eb590a0a7dd180c43"}'
             />
           )}
         </body>

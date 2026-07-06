@@ -5,20 +5,28 @@ vi.mock("axios", () => ({
   default: { put: vi.fn() },
 }));
 
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
+}));
+
 import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagEditing } from "./use-tag-editing";
 
 const refetchTags = vi.fn(async () => {});
-const alertMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
   vi.mocked(axios.put).mockReset();
   refetchTags.mockClear();
-  alertMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
   consoleErrorSpy.mockClear();
-  vi.stubGlobal("alert", alertMock);
 });
 
 afterEach(() => {
@@ -58,22 +66,24 @@ describe("useTagEditing - state", () => {
 });
 
 describe("useTagEditing - saveEdit", () => {
-  it("alerts when name is empty/whitespace", async () => {
+  it("toasts error and returns false when name is empty/whitespace", async () => {
     const { result } = renderHook(() => useTagEditing({ refetchTags }));
 
     act(() => {
       result.current.startEdit(5, "   ", "#fff");
     });
 
+    let ok: boolean | undefined;
     await act(async () => {
-      await result.current.saveEdit(5);
+      ok = await result.current.saveEdit(5);
     });
 
-    expect(alertMock).toHaveBeenCalledWith("カテゴリ名を入力してください.");
+    expect(toastError).toHaveBeenCalledWith("カテゴリ名を入力してください");
     expect(axios.put).not.toHaveBeenCalled();
+    expect(ok).toBe(false);
   });
 
-  it("PUTs the tag and refetches on success", async () => {
+  it("PUTs the tag, refetches, and returns true on success", async () => {
     vi.mocked(axios.put).mockResolvedValue({ status: 200 } as never);
 
     const { result } = renderHook(() => useTagEditing({ refetchTags }));
@@ -82,8 +92,9 @@ describe("useTagEditing - saveEdit", () => {
       result.current.startEdit(5, "Audio", "#ff0000");
     });
 
+    let ok: boolean | undefined;
     await act(async () => {
-      await result.current.saveEdit(5);
+      ok = await result.current.saveEdit(5);
     });
 
     expect(axios.put).toHaveBeenCalledWith(
@@ -94,12 +105,13 @@ describe("useTagEditing - saveEdit", () => {
       },
       { headers: managerAuthHeaders() },
     );
-    expect(alertMock).toHaveBeenCalledWith("カテゴリが更新されました.");
+    expect(toastSuccess).toHaveBeenCalledWith("カテゴリを更新しました");
     expect(refetchTags).toHaveBeenCalledOnce();
     expect(result.current.editTagId).toBeNull();
+    expect(ok).toBe(true);
   });
 
-  it("alerts on PUT failure", async () => {
+  it("toasts error and returns false on PUT failure", async () => {
     vi.mocked(axios.put).mockRejectedValue(new Error("server"));
 
     const { result } = renderHook(() => useTagEditing({ refetchTags }));
@@ -108,11 +120,13 @@ describe("useTagEditing - saveEdit", () => {
       result.current.startEdit(5, "Audio", "#ff0000");
     });
 
+    let ok: boolean | undefined;
     await act(async () => {
-      await result.current.saveEdit(5);
+      ok = await result.current.saveEdit(5);
     });
 
-    expect(alertMock).toHaveBeenCalledWith("カテゴリの更新に失敗しました.");
+    expect(toastError).toHaveBeenCalledWith("カテゴリの更新に失敗しました");
     expect(consoleErrorSpy).toHaveBeenCalled();
+    expect(ok).toBe(false);
   });
 });

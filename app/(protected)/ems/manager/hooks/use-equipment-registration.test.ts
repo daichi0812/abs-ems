@@ -5,6 +5,15 @@ vi.mock("axios", () => ({
   default: { post: vi.fn() },
 }));
 
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
+}));
+
 import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentRegistration } from "./use-equipment-registration";
@@ -34,6 +43,8 @@ beforeEach(() => {
   refetchEquipments.mockClear();
   resetImage.mockClear();
   alertMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
   fetchMock.mockReset();
   vi.stubGlobal("alert", alertMock);
   vi.stubGlobal("fetch", fetchMock);
@@ -114,7 +125,7 @@ describe("useEquipmentRegistration - submit", () => {
       },
       { headers: managerAuthHeaders() },
     );
-    expect(alertMock).toHaveBeenCalledWith("機材登録が完了しました");
+    expect(toastSuccess).toHaveBeenCalledWith("機材登録が完了しました");
     expect(refetchEquipments).toHaveBeenCalledOnce();
     expect(resetImage).toHaveBeenCalled();
   });
@@ -167,7 +178,7 @@ describe("useEquipmentRegistration - submit", () => {
       await result.current.submit();
     });
 
-    expect(alertMock).toHaveBeenCalledWith("機材登録ができません");
+    expect(toastError).toHaveBeenCalledWith("機材登録ができません");
     expect(refetchEquipments).not.toHaveBeenCalled();
   });
 });

@@ -26,8 +26,28 @@ model User {
   accounts      Account[]
   isTwoFactorEnabled Boolean @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
- 
+  settings      UserSettings?
+
   @@map("users")
+}
+
+enum CalendarView {
+  MONTH
+  GANTT
+}
+
+model UserSettings {
+  id                      String       @id @default(cuid())
+  userId                  String       @unique @map("user_id")
+  user                    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifyReturnReminder    Boolean      @default(true)  @map("notify_return_reminder")
+  notifyReservationEvents Boolean      @default(true)  @map("notify_reservation_events")
+  notifyNewEquipment      Boolean      @default(false) @map("notify_new_equipment")
+  lineNotifyEnabled       Boolean      @default(false) @map("line_notify_enabled")
+  lineUserId              String?      @unique @map("line_user_id")
+  calendarDefaultView     CalendarView @default(MONTH) @map("calendar_default_view")
+
+  @@map("user_settings")
 }
 
 model Account {
@@ -112,7 +132,8 @@ model Reserve {
 }
 
 model Tag {
-  id      Int  @id @default(autoincrement())
-  name    String?
-  color   String @default("#3788D8")
+  id        Int  @id @default(autoincrement())
+  name      String?
+  color     String @default("#3788D8")
+  sortOrder Int    @default(0) @map("sort_order")
 }

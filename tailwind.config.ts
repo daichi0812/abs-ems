@@ -18,7 +18,47 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          "var(--font-noto-sans-jp)",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "system-ui",
+          "sans-serif",
+        ],
+      },
       colors: {
+        // デザイントークン（UI刷新案）。静的に使う色は名前付きで、
+        // カテゴリ色や部員色など動的な色は lib/category-colors.ts / inline style で扱う。
+        navy: {
+          DEFAULT: "#10243E", // ヘッダー・強調カード・トースト
+          soft: "#1B3A5C",
+        },
+        surface: "#F7F8FA", // ページ背景
+        brand: {
+          DEFAULT: "#2E90FA", // プライマリブルー
+          dark: "#1570CD",
+          tint: "#EAF3FE", // 選択・今日ハイライト
+          faint: "#F0F6FF",
+        },
+        ink: {
+          DEFAULT: "#101828", // 本文テキスト
+          sub: "#475467",
+          muted: "#667085",
+          faint: "#98A2B3",
+        },
+        line: {
+          DEFAULT: "#E4E7EC", // 枠線
+          soft: "#F2F4F7",
+          strong: "#D0D5DD",
+        },
+        danger: "#D92D20",
+        success: "#12B76A",
+        warning: {
+          DEFAULT: "#F79009",
+          gold: "#FDB022",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

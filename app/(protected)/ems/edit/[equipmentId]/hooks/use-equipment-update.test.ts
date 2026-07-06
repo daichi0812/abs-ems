@@ -12,6 +12,15 @@ vi.mock("@/app/(protected)/ems/manager/useGetImageUrl", () => ({
   useGetImageUrl: () => ({ imageUrl: "data:image/png;base64,xxx" }),
 }));
 
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
+}));
+
 import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentUpdate } from "./use-equipment-update";
@@ -25,7 +34,8 @@ const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 beforeEach(() => {
   vi.mocked(axios.put).mockReset();
   onSuccess.mockClear();
-  alertMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
   fetchMock.mockReset();
   consoleLogSpy.mockClear();
   consoleErrorSpy.mockClear();
@@ -103,7 +113,7 @@ describe("useEquipmentUpdate - submit", () => {
       },
       { headers: { "Content-Type": "application/json", ...managerAuthHeaders() } },
     );
-    expect(alertMock).toHaveBeenCalledWith("機材情報が更新されました");
+    expect(toastSuccess).toHaveBeenCalledWith("機材情報を更新しました");
     expect(onSuccess).toHaveBeenCalled();
   });
 
@@ -155,7 +165,7 @@ describe("useEquipmentUpdate - submit", () => {
       await result.current.submit();
     });
 
-    expect(alertMock).toHaveBeenCalledWith("画像のアップロードに失敗しました");
+    expect(toastError).toHaveBeenCalledWith("画像のアップロードに失敗しました");
     expect(axios.put).not.toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
   });
@@ -169,7 +179,7 @@ describe("useEquipmentUpdate - submit", () => {
       await result.current.submit();
     });
 
-    expect(alertMock).toHaveBeenCalledWith("機材情報の更新に失敗しました");
+    expect(toastError).toHaveBeenCalledWith("機材情報の更新に失敗しました");
     expect(onSuccess).not.toHaveBeenCalled();
   });
 });

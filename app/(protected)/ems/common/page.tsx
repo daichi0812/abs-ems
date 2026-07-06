@@ -1,19 +1,17 @@
-"use client"
+import { CalendarBoard } from "./_components/CalendarBoard";
+import { getUserSettings } from "@/actions/user-settings";
 
-import CommonCalendar from '../../_components/calendar/CommonCalendar'
-import Header from '@/app/(protected)/_components/Header'
-import React from 'react'
+const CommonPage = async () => {
+  // カレンダー初期表示（月/ガント）はユーザー設定に従う。
+  const settings = await getUserSettings();
+  const initialView = settings.calendarDefaultView === "GANTT" ? "gantt" : "month";
 
-const CommonPage = () => {
-    return (
-        <div className='bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]
-            from-sky-400 to-blue-800 min-h-full pb-3'>
-            <Header />
-            <div className="bg-[#F5F5F8] mx-2 rounded-lg mb-3 py-2 px-2 shadow-md md:w-[80%] md:mx-auto">
-                <CommonCalendar />
-            </div>
-        </div>
-    )
-}
+  return (
+    <div>
+      <h1 className="mb-3 text-lg font-black text-ink">カレンダー</h1>
+      <CalendarBoard initialView={initialView} />
+    </div>
+  );
+};
 
-export default CommonPage
+export default CommonPage;

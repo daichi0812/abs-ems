@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 
 export interface UseTagEditingParams {
@@ -30,10 +31,10 @@ export const useTagEditing = ({ refetchTags }: UseTagEditingParams) => {
     setEditTagId(null);
   };
 
-  const saveEdit = async (id: number) => {
+  const saveEdit = async (id: number): Promise<boolean> => {
     if (!editTagName.trim()) {
-      alert("カテゴリ名を入力してください.");
-      return;
+      toast.error("カテゴリ名を入力してください");
+      return false;
     }
     try {
       await axios.put(
@@ -44,12 +45,14 @@ export const useTagEditing = ({ refetchTags }: UseTagEditingParams) => {
         },
         { headers: managerAuthHeaders() },
       );
-      alert("カテゴリが更新されました.");
+      toast.success("カテゴリを更新しました");
       setEditTagId(null);
       await refetchTags();
+      return true;
     } catch (err) {
       console.error("カテゴリの更新に失敗しました.", err);
-      alert("カテゴリの更新に失敗しました.");
+      toast.error("カテゴリの更新に失敗しました");
+      return false;
     }
   };
 

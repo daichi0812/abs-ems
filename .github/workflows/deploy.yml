@@ -4,6 +4,9 @@
 #   CLOUDFLARE_API_TOKEN     … Cloudflare ダッシュボードで「Edit Cloudflare Workers」テンプレートから作成
 #   NEXT_PUBLIC_API_KEY      … ビルド時インライン（Vercel 本番と同値）
 #   NEXT_PUBLIC_MANAGER_KEY  … ビルド時インライン ＋ Worker 側 runtime secret と同値にすること
+#   DATABASE_URL             … 本番 Neon (logicode-auth)。prisma migrate deploy 専用。
+#                              ローカル .env は dev DB (abs-ems) を指すため、本番への
+#                              スキーマ適用はこのワークフローだけが行う
 #
 # 実行時 secrets（AUTH_SECRET / DATABASE_URL / GOOGLE_* / RESEND_API_KEY / NEXT_PUBLIC_MANAGER_KEY）は
 # `wrangler secret` で Worker に投入済みのものが使われる。ここでは扱わない。
@@ -35,6 +38,13 @@ jobs:
 
       - name: Run tests
         run: npx vitest run # クリーン環境で 336 テスト通過を確認済み（env 不要）
+
+      - name: Apply DB migrations (production)
+        # デプロイ前に未適用 migration を本番へ適用する。migration が無ければ no-op。
+        # 失敗時はデプロイ自体を中断する（スキーマとコードの不整合デプロイを防ぐ）。
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Build (OpenNext for Cloudflare)
         run: npx opennextjs-cloudflare build

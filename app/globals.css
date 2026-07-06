@@ -10,35 +10,37 @@
 
   @layer base {
     :root {
-      --background: 0 0% 100%;
-      --foreground: 222.2 84% 4.9%;
+      /* UI刷新案トークンを shadcn の CSS 変数へ写像。ページ背景=surface(#F7F8FA)、
+         カード=白、primary=ブルー(#2E90FA)、文字=ink(#101828)。 */
+      --background: 220 23% 97%;      /* #F7F8FA */
+      --foreground: 220 43% 11%;      /* #101828 */
 
       --card: 0 0% 100%;
-      --card-foreground: 222.2 84% 4.9%;
+      --card-foreground: 220 43% 11%;
 
       --popover: 0 0% 100%;
-      --popover-foreground: 222.2 84% 4.9%;
+      --popover-foreground: 220 43% 11%;
 
-      --primary: 222.2 47.4% 11.2%;
-      --primary-foreground: 210 40% 98%;
+      --primary: 211 95% 58%;         /* #2E90FA */
+      --primary-foreground: 0 0% 100%;
 
-      --secondary: 210 40% 96.1%;
-      --secondary-foreground: 222.2 47.4% 11.2%;
+      --secondary: 216 19% 96%;       /* #F2F4F7 */
+      --secondary-foreground: 220 43% 11%;
 
-      --muted: 210 40% 96.1%;
-      --muted-foreground: 215.4 16.3% 46.9%;
+      --muted: 216 19% 96%;           /* #F2F4F7 */
+      --muted-foreground: 221 13% 46%;/* #667085 */
 
-      --accent: 210 40% 96.1%;
-      --accent-foreground: 222.2 47.4% 11.2%;
+      --accent: 213 100% 97%;         /* #EAF3FE */
+      --accent-foreground: 211 68% 44%;/* #1570CD */
 
-      --destructive: 0 84.2% 60.2%;
-      --destructive-foreground: 210 40% 98%;
+      --destructive: 4 74% 49%;       /* #D92D20 */
+      --destructive-foreground: 0 0% 100%;
 
-      --border: 214.3 31.8% 91.4%;
-      --input: 214.3 31.8% 91.4%;
-      --ring: 222.2 84% 4.9%;
+      --border: 218 17% 91%;          /* #E4E7EC */
+      --input: 218 17% 91%;
+      --ring: 211 95% 58%;            /* #2E90FA */
 
-      --radius: 0.5rem;
+      --radius: 0.75rem;              /* 12px（カードは rounded-2xl/[18px] で個別指定） */
     }
 
     .dark {

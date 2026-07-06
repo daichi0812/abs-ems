@@ -7,19 +7,27 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+const toastSuccess = vi.fn();
+const toastError = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
+}));
+
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentActions } from "./use-equipment-actions";
 
 const refetchEquipments = vi.fn(async () => {});
-const confirmMock = vi.fn();
 const fetchMock = vi.fn();
 
 beforeEach(() => {
   pushMock.mockReset();
   refetchEquipments.mockClear();
-  confirmMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
   fetchMock.mockReset();
-  vi.stubGlobal("confirm", confirmMock);
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -54,34 +62,37 @@ describe("useEquipmentActions - edit", () => {
 });
 
 describe("useEquipmentActions - delete", () => {
-  it("does not call fetch or refetch when confirm is cancelled", async () => {
-    confirmMock.mockReturnValue(false);
-
-    const { result } = renderHook(() => useEquipmentActions({ refetchEquipments }));
-
-    await act(async () => {
-      await result.current.deleteEquipment(42);
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(refetchEquipments).not.toHaveBeenCalled();
-  });
-
-  it("issues DELETE and refetches when confirmed", async () => {
-    confirmMock.mockReturnValue(true);
+  it("issues DELETE, refetches, and toasts success", async () => {
     fetchMock.mockResolvedValue({ ok: true });
 
     const { result } = renderHook(() => useEquipmentActions({ refetchEquipments }));
 
+    let ok: boolean | undefined;
     await act(async () => {
-      await result.current.deleteEquipment(42);
+      ok = await result.current.deleteEquipment(42);
     });
 
-    expect(confirmMock).toHaveBeenCalledWith("本当に削除しますか？");
     expect(fetchMock).toHaveBeenCalledWith("/api/lists/42", {
       method: "DELETE",
       headers: managerAuthHeaders(),
     });
     expect(refetchEquipments).toHaveBeenCalledOnce();
+    expect(toastSuccess).toHaveBeenCalledWith("機材を削除しました");
+    expect(ok).toBe(true);
+  });
+
+  it("toasts error and does not refetch on failure", async () => {
+    fetchMock.mockResolvedValue({ ok: false });
+
+    const { result } = renderHook(() => useEquipmentActions({ refetchEquipments }));
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.deleteEquipment(7);
+    });
+
+    expect(refetchEquipments).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith("機材の削除に失敗しました");
+    expect(ok).toBe(false);
   });
 });
