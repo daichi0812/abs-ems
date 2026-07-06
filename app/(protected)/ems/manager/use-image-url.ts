@@ -1,4 +1,5 @@
-// useGetImageUrl.ts
+// use-image-url.ts
+// ローカル File を base64 data URL に変換してプレビュー表示に使う。
 
 import { useEffect, useState } from 'react';
 

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useMyReserves } from "@/app/(protected)/ems/mypage/hooks/use-my-reserves";
-import { useEquipments } from "@/app/(protected)/ems/_hooks/use-equipments";
+import { useEquipments } from "@/app/(protected)/ems/hooks/use-equipments";
 import { useCategories } from "@/app/(protected)/ems/equipment-list/hooks/use-categories";
 
 import {

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
 import { useMonthNav } from "@/hooks/use-month-nav";
-import { useEquipments } from "@/app/(protected)/ems/_hooks/use-equipments";
+import { useEquipments } from "@/app/(protected)/ems/hooks/use-equipments";
 import { useCategories } from "@/app/(protected)/ems/equipment-list/hooks/use-categories";
 import { useReserves } from "@/app/(protected)/ems/equipment-list/hooks/use-reserves";
 import { useCreateReservations } from "@/app/(protected)/ems/equipment-list/hooks/use-create-reservations";

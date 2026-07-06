@@ -6,7 +6,7 @@ import Link from "next/link";
 import { EquipmentForm } from "@/app/(protected)/ems/_components/EquipmentForm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEquipmentDetails } from "./hooks/use-equipment-details";
-import { useTagsList } from "../../_hooks/use-tags-list";
+import { useTagsList } from "../../hooks/use-tags-list";
 import { useEquipmentUpdate } from "./hooks/use-equipment-update";
 
 export default function EditPage() {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { EquipmentForm } from "@/app/(protected)/ems/_components/EquipmentForm";
 import { EquipmentListPanel } from "./_components/EquipmentListPanel";
-import { useEquipments } from "../_hooks/use-equipments";
+import { useEquipments } from "../hooks/use-equipments";
 import { useTags } from "./hooks/use-tags";
 import { useImageUpload } from "./hooks/use-image-upload";
 import { useEquipmentRegistration } from "./hooks/use-equipment-registration";
