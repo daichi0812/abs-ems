@@ -43,13 +43,14 @@ export default async function RootLayout({
           <Toaster />
           {children}
           {/* Cloudflare Web Analytics（旧 Vercel Speed Insights の代替）。
-              token は全訪問者に配る公開値（ダッシュボードのサイト設定と対応）。
+              token は全訪問者に配る公開値（forgeonics.com ゾーン連携サイトのもの。
+              ホスト名手入力で作ったサイトの token は ingest 側で有効化されず 503 になる）。
               beacon は SPA のルート遷移も自動計測する。next dev では読み込まない。 */}
           {process.env.NODE_ENV === "production" && (
             <Script
               strategy="afterInteractive"
               src="https://static.cloudflareinsights.com/beacon.min.js"
-              data-cf-beacon='{"token": "c1b5d038f286402eb590a0a7dd180c43"}'
+              data-cf-beacon='{"token": "4da583fec5f34da4bbbd3346ff51db8a"}'
             />
           )}
         </body>
