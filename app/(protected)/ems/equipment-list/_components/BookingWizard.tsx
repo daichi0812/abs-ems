@@ -209,7 +209,7 @@ export function BookingWizard() {
   return (
     <>
       {/* デスクトップ: 3カラム同時表示 */}
-      <div className="hidden md:grid md:grid-cols-[340px_1fr_320px] md:items-start md:gap-4">
+      <div className="hidden md:grid md:grid-cols-[340px_minmax(0,1fr)_320px] md:items-start md:gap-4">
         {periodPanel}
         <div>
           <div className="mb-3 flex items-center gap-2 px-1">

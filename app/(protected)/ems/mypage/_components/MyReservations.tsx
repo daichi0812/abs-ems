@@ -66,8 +66,13 @@ export function MyReservations() {
   const { filteredData, refetch } = useMyReserves({ userId: user?.id });
   const { equipments, isLoading: eqLoading } = useEquipments();
   const { categories } = useCategories();
-  const { pendingId, borrow, giveBack, cancel } = useReserveActions({ refetch });
-  const [cancelTarget, setCancelTarget] = useState<GroupedItem | null>(null);
+  const { pendingIds, borrow, borrowMany, giveBack, giveBackMany, cancel, cancelMany } =
+    useReserveActions({ refetch });
+  // キャンセル確認の対象。単体は items 1件、一括は複数件。
+  const [cancelTarget, setCancelTarget] = useState<{
+    items: GroupedItem[];
+    rangeText: string;
+  } | null>(null);
   const isDesktop = useIsDesktop();
 
   const todayIdx = todayJstDayIndex();
@@ -132,8 +137,8 @@ export function MyReservations() {
         barEvents,
         matrix,
         isDesktop
-          ? { headH: 26, laneH: 26, minH: 96 }
-          : { headH: 18, laneH: 20, minH: 58 }
+          ? { headH: 26, laneH: 26, minH: 96, maxLanes: 4 }
+          : { headH: 18, laneH: 20, minH: 58, maxLanes: 3 }
       ),
     [barEvents, matrix, isDesktop]
   );
@@ -174,7 +179,7 @@ export function MyReservations() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_380px] md:items-start">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_380px] md:items-start">
       {/* 自分の予定カレンダー */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between px-1">
@@ -217,6 +222,19 @@ export function MyReservations() {
                   const active = g.startIdx <= todayIdx && g.endIdx >= todayIdx;
                   const badge = badgeOf(g, todayIdx);
                   const days = g.endIdx - g.startIdx + 1;
+                  const rangeText = formatRange(g.startIdx, g.endIdx);
+                  // 一括操作の対象（2件以上あるときだけグループ操作行を出す）
+                  const borrowables = active
+                    ? g.items.filter((it) => it.isRenting <= 1)
+                    : [];
+                  const returnables = g.items.filter(
+                    (it) => it.isRenting === 2 || it.isRenting === 3
+                  );
+                  const cancellables = g.items.filter((it) => it.isRenting <= 1);
+                  const showBulk =
+                    borrowables.length >= 2 ||
+                    returnables.length >= 2 ||
+                    cancellables.length >= 2;
                   return (
                     <div
                       key={g.key}
@@ -226,7 +244,7 @@ export function MyReservations() {
                       <div className="mb-3 flex items-center gap-2.5">
                         <div className="min-w-0 flex-1">
                           <p className="m-0 text-[15px] font-extrabold">
-                            {formatRange(g.startIdx, g.endIdx)}{" "}
+                            {rangeText}{" "}
                             <span className="text-[11px] font-semibold text-ink-faint">{days}日間</span>
                           </p>
                           <p className="m-0 mt-0.5 text-[11px] text-ink-muted">機材 {g.items.length}件</p>
@@ -238,7 +256,7 @@ export function MyReservations() {
                           const canBorrow = active && it.isRenting <= 1;
                           const canReturn = it.isRenting === 2 || it.isRenting === 3;
                           const canCancel = it.isRenting <= 1;
-                          const pending = pendingId === it.reserveId;
+                          const pending = pendingIds.includes(it.reserveId);
                           return (
                             <div
                               key={it.reserveId}
@@ -280,7 +298,7 @@ export function MyReservations() {
                                 <button
                                   type="button"
                                   disabled={pending}
-                                  onClick={() => setCancelTarget(it)}
+                                  onClick={() => setCancelTarget({ items: [it], rangeText })}
                                   className="h-7 flex-none rounded-lg px-2 text-[11px] font-bold text-danger transition-colors hover:bg-[#FEF3F2] disabled:opacity-50"
                                 >
                                   キャンセル
@@ -290,6 +308,51 @@ export function MyReservations() {
                           );
                         })}
                       </div>
+
+                      {/* 同一期間のまとめて操作（対象が2件以上あるときだけ） */}
+                      {showBulk && (
+                        <div className="mt-2.5 flex items-center gap-1.5 border-t border-line-soft pt-2.5">
+                          <span className="text-[10.5px] font-bold text-ink-faint">
+                            まとめて
+                          </span>
+                          {borrowables.length >= 2 && (
+                            <button
+                              type="button"
+                              disabled={pendingIds.length > 0}
+                              onClick={() =>
+                                borrowMany(borrowables.map((it) => it.reserveId))
+                              }
+                              className="h-7 rounded-lg bg-brand px-2.5 text-[11px] font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+                            >
+                              借りる（{borrowables.length}件）
+                            </button>
+                          )}
+                          {returnables.length >= 2 && (
+                            <button
+                              type="button"
+                              disabled={pendingIds.length > 0}
+                              onClick={() =>
+                                giveBackMany(returnables.map((it) => it.reserveId))
+                              }
+                              className="h-7 rounded-lg border-[1.5px] border-brand px-2.5 text-[11px] font-bold text-brand transition-colors hover:bg-brand-faint disabled:opacity-50"
+                            >
+                              返却（{returnables.length}件）
+                            </button>
+                          )}
+                          {cancellables.length >= 2 && (
+                            <button
+                              type="button"
+                              disabled={pendingIds.length > 0}
+                              onClick={() =>
+                                setCancelTarget({ items: cancellables, rangeText })
+                              }
+                              className="h-7 rounded-lg px-2 text-[11px] font-bold text-danger transition-colors hover:bg-[#FEF3F2] disabled:opacity-50"
+                            >
+                              キャンセル（{cancellables.length}件）
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -310,7 +373,12 @@ export function MyReservations() {
               予約をキャンセルしますか？
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[12.5px]">
-              「{cancelTarget?.name}」の予約を取り消します。この操作は元に戻せません。
+              {cancelTarget?.items.length === 1
+                ? `「${cancelTarget.items[0].name}」の予約を取り消します。`
+                : `${cancelTarget?.rangeText} の予約 ${cancelTarget?.items.length}件（${cancelTarget?.items
+                    .map((it) => it.name)
+                    .join("・")}）を取り消します。`}
+              この操作は元に戻せません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -318,7 +386,10 @@ export function MyReservations() {
             <AlertDialogAction
               className="bg-danger hover:bg-danger/90"
               onClick={() => {
-                if (cancelTarget) void cancel(cancelTarget.reserveId);
+                if (cancelTarget) {
+                  const ids = cancelTarget.items.map((it) => it.reserveId);
+                  void (ids.length === 1 ? cancel(ids[0]) : cancelMany(ids));
+                }
                 setCancelTarget(null);
               }}
             >
