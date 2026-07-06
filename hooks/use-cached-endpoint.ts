@@ -36,6 +36,9 @@ export function useCachedEndpoint<T>(url: string): CachedEndpointResult<T> {
         const json = await res.json();
         return Array.isArray(json) ? (json as T[]) : [];
       });
+      // 応答待ちの間に URL が切り替わっていたら反映しない
+      // （旧URLの遅い応答が新URLの表示を上書きするレースを防ぐ。キャッシュには保存済み）
+      if (urlRef.current !== url) return;
       setData(fresh);
       setIsError(false);
       hasLoadedRef.current = true;
@@ -43,9 +46,10 @@ export function useCachedEndpoint<T>(url: string): CachedEndpointResult<T> {
     } catch (error) {
       // 失敗を握りつぶすと空データの誤表示が恒久化するため、エラーとして呼び出し側へ返す
       console.error(`Error fetching ${url}:`, error);
+      if (urlRef.current !== url) return;
       setIsError(true);
     } finally {
-      setIsLoading(false);
+      if (urlRef.current === url) setIsLoading(false);
     }
   }, [url]);
 
