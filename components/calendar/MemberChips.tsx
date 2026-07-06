@@ -35,7 +35,7 @@ export function MemberChips({
     })),
   ];
 
-  const overflow = items.length > collapseLimit;
+  let overflow = items.length > collapseLimit;
   let shown = items;
   if (overflow && !expanded) {
     shown = items.slice(0, collapseLimit);
@@ -44,6 +44,8 @@ export function MemberChips({
       const selected = items.find((it) => it.name === value);
       if (selected) shown = [...shown, selected];
     }
+    // 選択中チップの補完で結局全員が表示されるケースでは「他0人」ボタンを出さない
+    if (shown.length === items.length) overflow = false;
   }
 
   return (

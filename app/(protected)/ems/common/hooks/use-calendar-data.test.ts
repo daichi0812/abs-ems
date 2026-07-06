@@ -130,4 +130,35 @@ describe("useCalendarData", () => {
 
     expect(result.current.allEvents).toEqual([]);
   });
+
+  it("stops the skeleton and reports isError when a fetch rejects", async () => {
+    // 以前は fetch 失敗で isFetching が下りず無限スケルトンになっていた（回帰防止）
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockRejectedValue(new Error("network down"));
+
+    const { result } = renderHook(() => useCalendarData());
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.allEvents).toEqual([]);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("recovers after a successful refetch", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+
+    const { result } = renderHook(() => useCalendarData());
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    fetchMock.mockResolvedValue({ json: async () => [] });
+    await result.current.refetch();
+
+    await waitFor(() => expect(result.current.isError).toBe(false));
+    expect(result.current.isFetching).toBe(false);
+    consoleErrorSpy.mockRestore();
+  });
 });
