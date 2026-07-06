@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
 import type { Tag as Tags } from "@/types/domain";
 
 export interface UseTagsListOptions {
@@ -8,27 +9,13 @@ export interface UseTagsListOptions {
   sortById?: boolean;
 }
 
+// カテゴリ一覧。/api/tags のキャッシュは use-categories / use-tags と共有される。
 export const useTagsList = (options: UseTagsListOptions = {}) => {
   const { sortById = false } = options;
-  const [tags, setTags] = useState<Tags[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const refetch = async () => {
-    try {
-      const response = await fetch("/api/tags");
-      const data: Tags[] = await response.json();
-      const next = sortById ? [...data].sort((a, b) => a.id - b.id) : data;
-      setTags(next);
-    } catch (err) {
-      console.error("カテゴリ一覧の取得に失敗しました", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refetch();
-  }, []);
-
+  const { data, isLoading, refetch } = useCachedEndpoint<Tags>("/api/tags");
+  const tags = useMemo(
+    () => (sortById ? [...data].sort((a, b) => a.id - b.id) : data),
+    [data, sortById]
+  );
   return { tags, isLoading, refetch };
 };

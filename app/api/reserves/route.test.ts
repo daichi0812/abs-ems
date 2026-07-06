@@ -1,5 +1,4 @@
 // @vitest-environment node
-import moment from "moment-timezone";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
@@ -41,8 +40,14 @@ const postRequest = (body: Record<string, unknown>) =>
   });
 
 // バリデーションはJSTの「今日」を基準にするため、期待値も同じ式で計算してTZ非依存にする
+// （日本にDSTはないので「ms加算→JSTで整形」は日単位の加算と等価）
 const jstDate = (offsetDays: number) =>
-  moment().tz("Asia/Tokyo").add(offsetDays, "days").format("YYYY-MM-DD");
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000));
 
 const validBody = () => ({
   user_id: "u1",
@@ -165,7 +170,7 @@ describe("POST /api/reserves", () => {
     // JST の (今日+1) 00:00 は UTC では前日 15:00
     const startJstDay = jstDate(1);
     const endJstDay = jstDate(2);
-    const startIso = moment.tz(startJstDay, "Asia/Tokyo").toISOString();
+    const startIso = new Date(`${startJstDay}T00:00:00+09:00`).toISOString();
 
     const res = await POST(
       postRequest({ user_id: "u1", list_id: 1, start: startIso, end: endJstDay }),
@@ -236,6 +241,57 @@ describe("GET /api/reserves", () => {
 
   it("returns 400 for a decimal list_id and does not query", async () => {
     const res = await GET(getRequest("?list_id=2.5"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  // 期間フィルタ（保存値は「JST日付の UTC 00:00」なので同じ座標系で比較する）
+  it("filters by from (end >= from) for availability queries", async () => {
+    await GET(getRequest("?from=2026-07-06"));
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { end: { gte: new Date("2026-07-06T00:00:00Z") } },
+    });
+  });
+
+  it("filters by to (start <= to)", async () => {
+    await GET(getRequest("?to=2026-07-31"));
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { start: { lte: new Date("2026-07-31T00:00:00Z") } },
+    });
+  });
+
+  it("combines from/to with user_id", async () => {
+    await GET(getRequest("?user_id=u1&from=2026-07-01&to=2026-07-31"));
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: {
+        user_id: "u1",
+        end: { gte: new Date("2026-07-01T00:00:00Z") },
+        start: { lte: new Date("2026-07-31T00:00:00Z") },
+      },
+    });
+  });
+
+  it("returns 400 for a malformed from and does not query", async () => {
+    const res = await GET(getRequest("?from=2026/07/06"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a calendar-invalid from (month 13) instead of 500", async () => {
+    // 正規表現は桁数しか見ないため、Invalid Date が Prisma まで届いて 500 になっていた
+    const res = await GET(getRequest("?from=2026-13-01"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a rollover date (Feb 30) instead of silently shifting to Mar 2", async () => {
+    const res = await GET(getRequest("?from=2026-02-30"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a malformed to and does not query", async () => {
+    const res = await GET(getRequest("?to=notadate"));
     expect(res.status).toBe(400);
     expect(findManyMock).not.toHaveBeenCalled();
   });

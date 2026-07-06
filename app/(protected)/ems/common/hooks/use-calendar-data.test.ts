@@ -1,11 +1,14 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCalendarData } from "./use-calendar-data";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -18,19 +21,19 @@ afterEach(() => {
 const setupHappyPath = () => {
   // /api/users（Prisma User の形: キーは id）
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ id: "u1", name: "Taro" }],
+    ok: true, json: async () => [{ id: "u1", name: "Taro" }],
   });
   // /api/lists
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 10 }],
+    ok: true, json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 10 }],
   });
   // /api/tags
   fetchMock.mockResolvedValueOnce({
-    json: async () => [{ id: 10, name: "Audio", color: "#ff0000" }],
+    ok: true, json: async () => [{ id: 10, name: "Audio", color: "#ff0000" }],
   });
   // /api/reserves
   fetchMock.mockResolvedValueOnce({
-    json: async () => [
+    ok: true, json: async () => [
       {
         id: 100,
         user_id: "u1",
@@ -45,7 +48,7 @@ const setupHappyPath = () => {
 
 describe("useCalendarData", () => {
   it("starts with empty events and isFetching=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useCalendarData());
     expect(result.current.allEvents).toEqual([]);
     expect(result.current.isFetching).toBe(true);
@@ -95,13 +98,13 @@ describe("useCalendarData", () => {
   });
 
   it("falls back to default color when tag color is missing", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "u1", name: "Taro" }] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [{ id: "u1", name: "Taro" }] });
     fetchMock.mockResolvedValueOnce({
-      json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 999 }],
+      ok: true, json: async () => [{ id: 1, name: "Camera", detail: "", image: "", usable: true, tag_id: 999 }],
     });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] }); // no tags
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] }); // no tags
     fetchMock.mockResolvedValueOnce({
-      json: async () => [
+      ok: true, json: async () => [
         {
           id: 100,
           user_id: "u1",
@@ -120,14 +123,65 @@ describe("useCalendarData", () => {
   });
 
   it("handles empty reserves response", async () => {
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
-    fetchMock.mockResolvedValueOnce({ json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useCalendarData());
     await waitFor(() => expect(result.current.isFetching).toBe(false));
 
     expect(result.current.allEvents).toEqual([]);
+  });
+
+  it("stops the skeleton and reports isError when a fetch rejects", async () => {
+    // 以前は fetch 失敗で isFetching が下りず無限スケルトンになっていた（回帰防止）
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockRejectedValue(new Error("network down"));
+
+    const { result } = renderHook(() => useCalendarData());
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.allEvents).toEqual([]);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("does not flip to isError when a revalidation fails after data has loaded", async () => {
+    // 取得済みデータがあるのに再検証（タブ復帰・操作後）の失敗で全画面エラーへ
+    // 乗っ取られないための契約（isError は「初回ロード失敗」専用）
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    setupHappyPath();
+
+    const { result } = renderHook(() => useCalendarData());
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+    expect(result.current.allEvents).toHaveLength(1);
+
+    fetchMock.mockRejectedValue(new Error("network down"));
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.isError).toBe(false);
+    expect(result.current.allEvents).toHaveLength(1);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("recovers after a successful refetch", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
+
+    const { result } = renderHook(() => useCalendarData());
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
+    await result.current.refetch();
+
+    await waitFor(() => expect(result.current.isError).toBe(false));
+    expect(result.current.isFetching).toBe(false);
+    consoleErrorSpy.mockRestore();
   });
 });

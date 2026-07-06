@@ -1,16 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("axios", () => ({
-  default: { patch: vi.fn() },
-}));
-
 const toastError = vi.fn();
 vi.mock("sonner", () => ({
   toast: { error: (...a: unknown[]) => toastError(...a) },
 }));
 
-import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagReorder } from "./use-tag-reorder";
 import type { Tag } from "@/types/domain";
@@ -23,12 +18,14 @@ const tags: Tag[] = [
 
 const refetchTags = vi.fn(async () => {});
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+const fetchMock = vi.fn();
 
 beforeEach(() => {
-  vi.mocked(axios.patch).mockReset();
+  fetchMock.mockReset();
   refetchTags.mockClear();
   toastError.mockReset();
   consoleErrorSpy.mockClear();
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
@@ -42,7 +39,7 @@ describe("useTagReorder", () => {
   });
 
   it("moveDown swaps optimistically and PATCHes the new order", async () => {
-    vi.mocked(axios.patch).mockResolvedValue({ status: 200 } as never);
+    fetchMock.mockResolvedValue({ ok: true });
     const { result } = renderHook(() => useTagReorder({ tags, refetchTags }));
 
     await act(async () => {
@@ -50,11 +47,14 @@ describe("useTagReorder", () => {
     });
 
     expect(result.current.order.map((t) => t.id)).toEqual([2, 1, 3]);
-    expect(axios.patch).toHaveBeenCalledWith(
-      "/api/tags/reorder",
-      { orderedIds: [2, 1, 3] },
-      { headers: managerAuthHeaders() },
-    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/tags/reorder");
+    expect(init.method).toBe("PATCH");
+    expect(init.headers).toEqual({
+      "Content-Type": "application/json",
+      ...managerAuthHeaders(),
+    });
+    expect(JSON.parse(init.body)).toEqual({ orderedIds: [2, 1, 3] });
     expect(refetchTags).toHaveBeenCalled();
   });
 
@@ -66,11 +66,11 @@ describe("useTagReorder", () => {
     });
 
     expect(result.current.order.map((t) => t.id)).toEqual([1, 2, 3]);
-    expect(axios.patch).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rolls back via refetch and toasts on PATCH failure", async () => {
-    vi.mocked(axios.patch).mockRejectedValue(new Error("server"));
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
     const { result } = renderHook(() => useTagReorder({ tags, refetchTags }));
 
     await act(async () => {

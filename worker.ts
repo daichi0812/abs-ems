@@ -7,6 +7,12 @@
  * .open-next/worker.js はビルド時（opennextjs-cloudflare build）に生成されるので、
  * 型チェック時点では存在しないことがある。生成物の有無で挙動が変わらないよう
  * @ts-ignore で握る（@ts-expect-error は生成物が残っていると「未使用」で失敗する）。
+ *
+ * 注意: このファイルは tsconfig.json の exclude に入れてある。@ts-ignore はエラーを
+ * 握るだけで module 解決自体は行われるため、.open-next が残っていると 6MB 超の
+ * バンドル済み handler.mjs まで型検査対象に入り、tsc / next build がスタック
+ * オーバーフローで落ちる。このファイル自体は wrangler(esbuild) がデプロイ時に
+ * 別途コンパイルする。
  */
 // @ts-ignore .open-next/worker.js はビルド時に生成される
 import worker from './.open-next/worker.js';

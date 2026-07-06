@@ -82,7 +82,7 @@ describe("useEquipmentActions - delete", () => {
   });
 
   it("toasts error and does not refetch on failure", async () => {
-    fetchMock.mockResolvedValue({ ok: false });
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
 
     const { result } = renderHook(() => useEquipmentActions({ refetchEquipments }));
 
@@ -94,5 +94,22 @@ describe("useEquipmentActions - delete", () => {
     expect(refetchEquipments).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith("機材の削除に失敗しました");
     expect(ok).toBe(false);
+  });
+
+  it("surfaces the API error message (e.g. on-loan block) on failure", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "貸出中の機材は削除できません。返却された後に削除してください。" }),
+    });
+
+    const { result } = renderHook(() => useEquipmentActions({ refetchEquipments }));
+
+    await act(async () => {
+      await result.current.deleteEquipment(7);
+    });
+
+    expect(toastError).toHaveBeenCalledWith(
+      "貸出中の機材は削除できません。返却された後に削除してください。"
+    );
   });
 });

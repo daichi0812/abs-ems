@@ -54,13 +54,16 @@ export function ConfirmPanel({
                 </span>
               )}
               <span className="flex-1 truncate text-[13.5px] font-bold">{c.name}</span>
+              {/* 見た目は26pxの丸のまま、タップ領域だけ44px相当に広げる（行の高さは -my で相殺） */}
               <button
                 type="button"
                 onClick={() => onRemove(c.id)}
                 aria-label={`${c.name}を外す`}
-                className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full bg-[#EAECF0] text-[13px] text-ink-muted"
+                className="-my-2 -mr-1.5 flex h-11 w-11 flex-none items-center justify-center"
               >
-                ×
+                <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#EAECF0] text-[13px] text-ink-muted">
+                  ×
+                </span>
               </button>
             </div>
           ))

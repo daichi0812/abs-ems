@@ -48,9 +48,11 @@ export function EquipmentGantt<T = unknown>({
   const days = Array.from({ length: dayCount }, (_, i) => {
     const dayIndex = windowStartIdx + i;
     const d = dayIndexToUtcDate(dayIndex);
+    const dayOfMonth = d.getUTCDate();
     return {
       dayIndex,
-      dayOfMonth: d.getUTCDate(),
+      // 先頭列と月初は「M/D」で月を示す（窓が月境界をまたぐと日数字だけでは迷子になる）
+      label: i === 0 || dayOfMonth === 1 ? `${d.getUTCMonth() + 1}/${dayOfMonth}` : `${dayOfMonth}`,
       dow: DOW_LABELS[(((dayIndex + 4) % 7) + 7) % 7],
       isToday: dayIndex === todayIdx,
     };
@@ -75,7 +77,7 @@ export function EquipmentGantt<T = unknown>({
                 {d.dow}
               </p>
               <p className={cn("m-0 text-[11.5px] font-bold", d.isToday ? "text-brand-dark" : "text-ink")}>
-                {d.dayOfMonth}
+                {d.label}
               </p>
             </div>
           ))}

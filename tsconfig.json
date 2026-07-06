@@ -37,6 +37,14 @@
   ],
   "exclude": [
     "node_modules",
-    "worker-configuration.d.ts"
+    "worker-configuration.d.ts",
+    // 生成物と、その生成物を import する worker.ts（wrangler が別途コンパイルする入口）。
+    // worker.ts を含めると .open-next/worker.js の module 解決を経由して 6MB 超の
+    // バンドル済み handler.mjs まで型検査対象に入り、tsc / next build が
+    // 「Maximum call stack size exceeded」で落ちる（.open-next が存在するときだけ再現）。
+    ".open-next",
+    ".wrangler",
+    "public/sw.js",
+    "worker.ts"
   ]
 }

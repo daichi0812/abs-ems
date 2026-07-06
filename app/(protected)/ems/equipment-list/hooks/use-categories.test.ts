@@ -1,11 +1,14 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCategories } from "./use-categories";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -17,7 +20,7 @@ afterEach(() => {
 
 describe("useCategories", () => {
   it("starts with empty categories and isLoading=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useCategories());
     expect(result.current.categories).toEqual([]);
     expect(result.current.isLoading).toBe(true);
@@ -25,7 +28,7 @@ describe("useCategories", () => {
 
   it("fetches /api/tags on mount and stores result", async () => {
     fetchMock.mockResolvedValue({
-      json: async () => [
+      ok: true, json: async () => [
         { id: "1", name: "Audio", color: "#ff0000" },
         { id: "2", name: "Video", color: "#00ff00" },
       ],
@@ -53,7 +56,7 @@ describe("useCategories", () => {
 
   it("falls back to empty categories on a non-array (401/500) body", async () => {
     // /api/tags が認証ゲートで {error} を返しても .map がクラッシュしないことを固定
-    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ error: "認証されていません。" }) });
 
     const { result } = renderHook(() => useCategories());
 

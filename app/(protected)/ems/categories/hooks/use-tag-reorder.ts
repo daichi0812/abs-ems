@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { managerAuthHeaders } from "@/lib/manager-auth";
@@ -24,11 +23,13 @@ export const useTagReorder = ({ tags, refetchTags }: UseTagReorderParams) => {
   const persist = async (next: Tag[]) => {
     setIsSaving(true);
     try {
-      await axios.patch(
-        "/api/tags/reorder",
-        { orderedIds: next.map((t) => t.id) },
-        { headers: managerAuthHeaders() },
-      );
+      const res = await fetch("/api/tags/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        body: JSON.stringify({ orderedIds: next.map((t) => t.id) }),
+      });
+      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await refetchTags();
     } catch (err) {
       console.error("並び順の更新に失敗しました", err);

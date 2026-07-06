@@ -38,13 +38,9 @@ export const NewPasswordForm = () => {
         }
     });
 
-    //コンソールとかにEmailとPasswordの情報を送るやつ
     const onSubmit = (values: z.infer<typeof NewPasswordSchema>) => {
-        console.log(values);
         setError("");
         setSuccess("");
-
-        // console.log(values)
 
         startTransition(() => {
             newPassword(values, token)
@@ -53,10 +49,6 @@ export const NewPasswordForm = () => {
                     setSuccess(data?.success);
                 })
         });
-
-        // APIを叩く時用
-        // axios.post("/your/api/route", values)
-        // .then
     }
 
     return (
@@ -82,7 +74,7 @@ export const NewPasswordForm = () => {
                                             {...field}
                                             disabled={isPending}
                                             className="text-[16px]"
-                                            placeholder="*****"
+                                            placeholder="10文字以上で入力"
                                             type="password"
                                         />
                                     </FormControl>

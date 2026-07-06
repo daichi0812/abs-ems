@@ -1,11 +1,14 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTagsList } from "./use-tags-list";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -17,7 +20,7 @@ afterEach(() => {
 
 describe("useTagsList", () => {
   it("starts with empty tags and isLoading=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useTagsList());
     expect(result.current.tags).toEqual([]);
     expect(result.current.isLoading).toBe(true);
@@ -29,7 +32,7 @@ describe("useTagsList", () => {
       { id: 1, name: "A", color: "#1" },
       { id: 2, name: "B", color: "#2" },
     ];
-    fetchMock.mockResolvedValue({ json: async () => data });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => data });
 
     const { result } = renderHook(() => useTagsList());
 
@@ -45,7 +48,7 @@ describe("useTagsList", () => {
       { id: 1, name: "A", color: "#1" },
       { id: 2, name: "B", color: "#2" },
     ];
-    fetchMock.mockResolvedValue({ json: async () => data });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => data });
 
     const { result } = renderHook(() => useTagsList({ sortById: true }));
 
@@ -66,7 +69,7 @@ describe("useTagsList", () => {
   });
 
   it("refetch re-runs the fetch", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useTagsList());
     await waitFor(() => expect(result.current.isLoading).toBe(false));

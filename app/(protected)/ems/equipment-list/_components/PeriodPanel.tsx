@@ -28,11 +28,12 @@ export function PeriodPanel({
     <div className="rounded-2xl bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between px-1">
         <span className="text-sm font-black">期間を選ぶ</span>
+        {/* 月送りはヘッダー行の高さを変えずに -my でタップ領域を40pxへ広げる */}
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={onPrevMonth}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
+            className="-my-1.5 flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
             aria-label="前の月"
           >
             ‹
@@ -41,7 +42,7 @@ export function PeriodPanel({
           <button
             type="button"
             onClick={onNextMonth}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
+            className="-my-1.5 flex h-10 w-10 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
             aria-label="次の月"
           >
             ›

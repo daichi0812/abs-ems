@@ -1,13 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("axios", () => {
-  const isAxiosError = vi.fn(() => false);
-  return {
-    default: { put: vi.fn(), isAxiosError },
-  };
-});
-
 vi.mock("@/app/(protected)/ems/manager/useGetImageUrl", () => ({
   useGetImageUrl: () => ({ imageUrl: "data:image/png;base64,xxx" }),
 }));
@@ -21,7 +14,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentUpdate } from "./use-equipment-update";
 
@@ -32,7 +24,6 @@ const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 beforeEach(() => {
-  vi.mocked(axios.put).mockReset();
   onSuccess.mockClear();
   toastSuccess.mockReset();
   toastError.mockReset();
@@ -94,7 +85,7 @@ describe("useEquipmentUpdate - file selection", () => {
 
 describe("useEquipmentUpdate - submit", () => {
   it("PUTs with current image URL when no new file selected", async () => {
-    vi.mocked(axios.put).mockResolvedValue({ data: {} } as never);
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
     const { result } = renderHook(() => useEquipmentUpdate(defaultParams()));
 
@@ -102,27 +93,33 @@ describe("useEquipmentUpdate - submit", () => {
       await result.current.submit();
     });
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(axios.put).toHaveBeenCalledWith(
-      "/api/lists/5",
-      {
-        name: "Camera",
-        detail: "DSLR",
-        image: "https://existing/img.png",
-        tag_id: 1,
-      },
-      { headers: { "Content-Type": "application/json", ...managerAuthHeaders() } },
-    );
+    // アップロード API へは行かず、/api/lists/5 への PUT 1回のみ
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/lists/5");
+    expect(init.method).toBe("PUT");
+    expect(init.headers).toEqual({
+      "Content-Type": "application/json",
+      ...managerAuthHeaders(),
+    });
+    expect(JSON.parse(init.body)).toEqual({
+      name: "Camera",
+      detail: "DSLR",
+      image: "https://existing/img.png",
+      tag_id: 1,
+    });
     expect(toastSuccess).toHaveBeenCalledWith("機材情報を更新しました");
     expect(onSuccess).toHaveBeenCalled();
   });
 
   it("uploads new file then PUTs with returned URL", async () => {
     const file = new File(["x"], "test.png", { type: "image/png" });
-    fetchMock.mockResolvedValue({
-      text: async () => JSON.stringify({ url: "https://blob/test.png" }),
-    });
-    vi.mocked(axios.put).mockResolvedValue({ data: {} } as never);
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ url: "https://blob/test.png" }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
 
     const { result } = renderHook(() => useEquipmentUpdate(defaultParams()));
 
@@ -136,17 +133,47 @@ describe("useEquipmentUpdate - submit", () => {
       await result.current.submit();
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=test.png", {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/upload?filename=test.png", {
       method: "POST",
       body: file,
       headers: managerAuthHeaders(),
     });
-    expect(axios.put).toHaveBeenCalledWith(
-      "/api/lists/5",
-      expect.objectContaining({ image: "https://blob/test.png" }),
-      expect.any(Object),
+    const [putUrl, putInit] = fetchMock.mock.calls[1];
+    expect(putUrl).toBe("/api/lists/5");
+    expect(putInit.method).toBe("PUT");
+    expect(JSON.parse(putInit.body)).toEqual(
+      expect.objectContaining({ image: "https://blob/test.png" })
     );
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("alerts and aborts when image upload responds with an error status", async () => {
+    // fetch は HTTP エラーで throw しないため、ok チェックが無いと {error} ボディをパースして
+    // image:undefined のまま PUT が成功し「古い画像のまま更新しました」になっていた（回帰防止）
+    const file = new File(["x"], "test.png", { type: "image/png" });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ error: "権限がありません。" }),
+    });
+
+    const { result } = renderHook(() => useEquipmentUpdate(defaultParams()));
+
+    act(() => {
+      result.current.onFileChange({
+        currentTarget: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(toastError).toHaveBeenCalledWith("画像のアップロードに失敗しました");
+    // アップロードの1回のみで、/api/lists への PUT には到達しない
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/upload?filename=test.png");
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it("alerts and aborts when image upload fails", async () => {
@@ -166,12 +193,18 @@ describe("useEquipmentUpdate - submit", () => {
     });
 
     expect(toastError).toHaveBeenCalledWith("画像のアップロードに失敗しました");
-    expect(axios.put).not.toHaveBeenCalled();
+    // fetch はアップロードで reject した1回のみで、/api/lists への PUT には到達しない
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/upload?filename=test.png");
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it("alerts on PUT failure", async () => {
-    vi.mocked(axios.put).mockRejectedValue(new Error("server"));
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: "server" }),
+    });
 
     const { result } = renderHook(() => useEquipmentUpdate(defaultParams()));
 

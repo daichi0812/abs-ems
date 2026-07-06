@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { UserRole } from "@prisma/client";
 
@@ -19,9 +19,18 @@ function initialOf(name?: string | null) {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const user = useCurrentUser();
   const role = useCurrentRole();
+  const { update } = useSession();
   const { settings, isLoading, patch } = useUserSettings();
+
+  // 戻る先を /ems/mypage に固定すると、カレンダー等から来た場合に文脈が失われる。
+  // 履歴があれば来た画面へ、なければ（直リンク・PWA起動直後）マイ予約へ。
+  const goBack = () => {
+    if (window.history.length > 1) router.back();
+    else router.push("/ems/mypage");
+  };
 
   const [name, setName] = useState("");
   const [savingName, startNameSave] = useTransition();
@@ -37,7 +46,14 @@ export default function SettingsPage() {
         role: (user?.role as UserRole) || UserRole.USER,
       });
       if (result.error) toast.error(result.error);
-      if (result.success) toast.success("プロフィールを保存しました");
+      if (result.success) {
+        // セッション(JWT)を更新しないと、このカードやヘッダーの表示名が旧名のまま残り
+        // 「保存に失敗した？」と見える（AccountSection の保存処理と同じパターン）。
+        // 引数なしの update() は GET になり jwt コールバックに trigger="update" が
+        // 渡らない（DB 再照会がスキップされる）ため、必ず update({}) で POST にする。
+        await update({});
+        toast.success("プロフィールを保存しました");
+      }
     });
   };
 
@@ -48,11 +64,11 @@ export default function SettingsPage() {
       {/* ネイビーヘッダー */}
       <div className="bg-navy px-4 pb-4 pt-5">
         <div className="mx-auto flex max-w-xl items-center gap-2.5">
-          <Link href="/ems/mypage" aria-label="戻る" className="text-white/90 hover:text-white">
+          <button type="button" onClick={goBack} aria-label="戻る" className="text-white/90 hover:text-white">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 5l-7 7 7 7" />
             </svg>
-          </Link>
+          </button>
           <span className="text-lg font-black tracking-wide text-white">設定</span>
         </div>
       </div>
@@ -90,7 +106,7 @@ export default function SettingsPage() {
         <div className="rounded-2xl bg-white px-4 shadow-sm">
           <ToggleRow
             title="返却期限のリマインド"
-            desc="期限の前日と当日にお知らせ"
+            desc="返却期限の当日朝にお知らせ"
             checked={settings.notifyReturnReminder}
             disabled={isLoading}
             onChange={(v) => patch({ notifyReturnReminder: v })}
@@ -164,11 +180,16 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* アカウント */}
-        <SectionLabel>アカウント</SectionLabel>
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <AccountSection />
-        </div>
+        {/* アカウント（メール・パスワード・2段階認証）。Google ログインのユーザーには
+            変更できる項目がなく AccountSection が null を返すため、見出しと空カードごと出さない */}
+        {user?.isOAuth !== true && (
+          <>
+            <SectionLabel>アカウント</SectionLabel>
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <AccountSection />
+            </div>
+          </>
+        )}
 
         {/* ログアウト */}
         <button

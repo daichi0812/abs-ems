@@ -32,7 +32,9 @@ export default async function RootLayout({
   //const user = await db.user.findMany
 
   return (
-    <SessionProvider session={session}>
+    // refetchOnWindowFocus はデフォルト有効だが、タブ復帰のたびに /api/auth/session への
+    // 往復（Worker 起動＋DBアクセス）が発生するため無効化。セッション情報は表示用途のみ。
+    <SessionProvider session={session} refetchOnWindowFocus={false}>
       <html lang="ja" className={notoSansJP.variable}>
         {/* headタグとその中にアイコンやテーマカラー、manifestを記述する */}
         <head>

@@ -1,10 +1,13 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEquipments } from "./use-equipments";
+import { clearClientCache } from "@/lib/client-cache";
 
 const fetchMock = vi.fn();
 
 beforeEach(() => {
+  // モジュールスコープのキャッシュがテスト間で漏れないように毎回破棄する
+  clearClientCache();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -15,7 +18,7 @@ afterEach(() => {
 
 describe("useEquipments", () => {
   it("starts with empty equipments and isLoading=true", () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
     const { result } = renderHook(() => useEquipments());
     expect(result.current.equipments).toEqual([]);
     expect(result.current.isLoading).toBe(true);
@@ -23,7 +26,7 @@ describe("useEquipments", () => {
 
   it("fetches /api/lists on mount and sorts by name", async () => {
     fetchMock.mockResolvedValue({
-      json: async () => [
+      ok: true, json: async () => [
         { id: 1, name: "Tripod", detail: "", image: "", tag_id: "1" },
         { id: 2, name: "Camera", detail: "", image: "", tag_id: "1" },
         { id: 3, name: "Mic", detail: "", image: "", tag_id: "1" },
@@ -41,7 +44,7 @@ describe("useEquipments", () => {
   });
 
   it("refetch re-runs the fetch", async () => {
-    fetchMock.mockResolvedValue({ json: async () => [] });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => [] });
 
     const { result } = renderHook(() => useEquipments());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -55,7 +58,7 @@ describe("useEquipments", () => {
   it("resolves the spinner and stays empty on a non-array (401/500) body", async () => {
     // /api/lists が認証ゲートで {error} を返しても .sort でハングせず、
     // 無限スピナーにならないことを固定（本来の不変条件）
-    fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ error: "認証されていません。" }) });
 
     const { result } = renderHook(() => useEquipments());
 

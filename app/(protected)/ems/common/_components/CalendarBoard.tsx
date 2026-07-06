@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useCalendarData,
@@ -13,7 +13,7 @@ import {
   formatRange,
 } from "@/lib/calendar/date-grid";
 import { buildMonthWeeks, type CalendarBarEvent } from "@/lib/calendar/build-month-weeks";
-import { memberColor, memberInitial } from "@/lib/calendar/member-colors";
+import { memberColorMap, memberInitial } from "@/lib/calendar/member-colors";
 import { daysLeftLabel } from "@/lib/calendar/reservation-labels";
 import { MonthGrid } from "@/components/calendar/MonthGrid";
 import { EquipmentGantt, type GanttRow } from "@/components/calendar/EquipmentGantt";
@@ -30,7 +30,7 @@ function eventInterval(ev: CalendarEvent) {
 }
 
 export function CalendarBoard({ initialView = "month" }: { initialView?: View }) {
-  const { allEvents, isFetching } = useCalendarData();
+  const { allEvents, isFetching, isError, refetch } = useCalendarData();
   const todayIdx = todayJstDayIndex();
   // PC では行高を上げてカレンダーを画面の高さに合わせて大きく見せる
   const isDesktop = useIsDesktop();
@@ -38,6 +38,15 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   const [view, setView] = useState<View>(initialView);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
+
+  // モバイルでは詳細カードがグリッドの下に積まれるため、バーをタップしても
+  // 画面外で「反応がない」ように見える。選択時にカードまでスクロールする。
+  const detailRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedKey != null && !isDesktop) {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedKey, isDesktop]);
 
   // 今日を含む月を初期表示。前後移動できる。
   const todayDate = new Date();
@@ -68,6 +77,15 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     if (memberFilter != null && !members.includes(memberFilter)) setMemberFilter(null);
   }, [members, memberFilter]);
 
+  // 「色＝人」の前提を守るため、素のハッシュ色（少人数でも高確率で衝突する）ではなく
+  // 重複しない割り当てを使う。表示中の月の部員（members）を優先して割り当てることで、
+  // 履歴上の部員が16人を超えても「いま見えている月」の中では一意性が守られる。
+  // チップ・詳細カードも同じ割り当てを共有する。
+  const memberColorOf = useMemo(() => {
+    const map = memberColorMap(allEvents.map((e) => e.name), members);
+    return (name: string | null | undefined) => (name && map.get(name)) || "#667085";
+  }, [allEvents, members]);
+
   const barEvents = useMemo<CalendarBarEvent<CalendarEvent>[]>(
     () =>
       allEvents.map((ev) => {
@@ -76,12 +94,12 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
           key: ev.id,
           startIdx,
           endIdx,
-          color: memberColor(ev.name),
+          color: memberColorOf(ev.name),
           label: ev.title,
           data: ev,
         };
       }),
-    [allEvents]
+    [allEvents, memberColorOf]
   );
 
   const weeks = useMemo(
@@ -91,20 +109,23 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         matrix,
         isDesktop
           ? { headH: 26, laneH: 26, minH: 104 }
-          : { headH: 20, laneH: 20, minH: 62 }
+          : // モバイルはレーン間隔を広げてバー(18px)のタップしやすさを確保する
+            { headH: 20, laneH: 22, minH: 64 }
       ),
     [barEvents, matrix, isDesktop]
   );
 
-  // ガント: 今日の3日前から14日窓
-  const ganttWindowStart = todayIdx - 3;
+  // ガント: 既定は「今日の3日前から14日窓」。1週間単位で前後に送れる
+  //（固定窓だと来週末より先の空きが確認できず、月表示への切替に気づかないと詰む）。
+  const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
   const ganttDayCount = 14;
+  const ganttWindowStart = todayIdx - 3 + ganttWeekOffset * 7;
+  const ganttWindowEnd = ganttWindowStart + ganttDayCount - 1;
   const ganttRows = useMemo<GanttRow<CalendarEvent>[]>(() => {
-    const winEnd = ganttWindowStart + ganttDayCount - 1;
     const byEquip = new Map<string, GanttRow<CalendarEvent>>();
     allEvents.forEach((ev) => {
       const { startIdx, endIdx } = eventInterval(ev);
-      if (endIdx < ganttWindowStart || startIdx > winEnd) return;
+      if (endIdx < ganttWindowStart || startIdx > ganttWindowEnd) return;
       let row = byEquip.get(ev.title);
       if (!row) {
         row = {
@@ -119,14 +140,14 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         key: ev.id,
         startIdx,
         endIdx,
-        color: memberColor(ev.name),
+        color: memberColorOf(ev.name),
         initial: memberInitial(ev.name),
         label: `〜${formatRange(endIdx, endIdx)}`,
         data: ev,
       });
     });
     return [...byEquip.values()];
-  }, [allEvents, ganttWindowStart]);
+  }, [allEvents, ganttWindowStart, ganttWindowEnd, memberColorOf]);
 
   const selectedEvent = allEvents.find((e) => e.id === selectedKey) ?? null;
   const detail = selectedEvent
@@ -151,12 +172,37 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     setViewMonth0((m) => (m === 11 ? 0 : m + 1));
     if (viewMonth0 === 11) setViewYear((y) => y + 1);
   };
+  const isCurrentMonth =
+    viewYear === todayDate.getFullYear() && viewMonth0 === todayDate.getMonth();
+  const goToday = () => {
+    setSelectedKey(null);
+    setViewYear(todayDate.getFullYear());
+    setViewMonth0(todayDate.getMonth());
+  };
 
   if (isFetching) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-9 w-44" />
         <Skeleton className="h-[360px] w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+        <p className="text-sm font-bold text-ink">カレンダーを読み込めませんでした。</p>
+        <p className="mt-1 text-[12.5px] text-ink-faint">
+          通信環境を確認して、もう一度お試しください。
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-4 h-10 rounded-xl bg-brand px-5 text-sm font-bold text-white"
+        >
+          再試行
+        </button>
       </div>
     );
   }
@@ -180,8 +226,58 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
             </button>
           ))}
         </div>
+        {view === "gantt" && (
+          <div className="ml-auto flex items-center gap-1">
+            {ganttWeekOffset !== 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKey(null);
+                  setGanttWeekOffset(0);
+                }}
+                className="flex h-8 items-center rounded-lg px-2.5 text-xs font-bold text-brand hover:bg-line-soft"
+              >
+                今日
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedKey(null);
+                setGanttWeekOffset((o) => o - 1);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
+              aria-label="前の週"
+            >
+              ‹
+            </button>
+            <span className="min-w-[104px] text-center text-xs font-black">
+              {formatRange(ganttWindowStart, ganttWindowEnd)}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedKey(null);
+                setGanttWeekOffset((o) => o + 1);
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-muted hover:bg-line-soft"
+              aria-label="次の週"
+            >
+              ›
+            </button>
+          </div>
+        )}
         {view === "month" && (
           <div className="ml-auto flex items-center gap-1">
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                onClick={goToday}
+                className="flex h-8 items-center rounded-lg px-2.5 text-xs font-bold text-brand hover:bg-line-soft"
+              >
+                今日
+              </button>
+            )}
             <button
               type="button"
               onClick={goPrevMonth}
@@ -212,6 +308,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
               members={members}
               value={memberFilter}
               onChange={setMemberFilter}
+              colorOf={memberColorOf}
               className="mb-3"
             />
             <MonthGrid<CalendarEvent>
@@ -224,9 +321,9 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
               }
             />
           </div>
-          <div className="md:sticky md:top-24 md:self-start">
+          <div ref={detailRef} className="md:sticky md:top-24 md:self-start scroll-mt-20">
             {detail ? (
-              <EventDetailPopover detail={detail} />
+              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
             ) : (
               <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center text-[12.5px] text-ink-faint">
                 バーをタップすると
@@ -252,8 +349,8 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
             />
           )}
           {detail && (
-            <div className="mt-3">
-              <EventDetailPopover detail={detail} />
+            <div ref={detailRef} className="mt-3 scroll-mt-20">
+              <EventDetailPopover detail={detail} color={memberColorOf(detail.who)} />
             </div>
           )}
         </div>

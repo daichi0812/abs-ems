@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useState } from "react";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 
@@ -36,14 +35,16 @@ export const useTagCreation = ({ existingTags, refetchTags }: UseTagCreationPara
     }
 
     try {
-      await axios.post(
-        "/api/tags",
-        {
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        body: JSON.stringify({
           name: addTagName,
           color: editTagColor,
-        },
-        { headers: managerAuthHeaders() },
-      );
+        }),
+      });
+      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     } catch (error) {
       console.error("Error creating tag:", error);
       alert("カテゴリの作成に失敗しました.");

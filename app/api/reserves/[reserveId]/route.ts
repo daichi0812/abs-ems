@@ -3,7 +3,7 @@ import { currentUser } from '@/lib/auth';
 import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
 import { UserRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
-import moment from 'moment-timezone';
+import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 
 interface Params {
     params: Promise<{ reserveId: string }>;
@@ -60,7 +60,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
         if (isRenting === 2) {
             // 借りる: 貸出期間内（JST 今日が start〜end、保存値は「JST日付のUTC 00:00」）のみ。
-            const todayJst = new Date(moment().tz('Asia/Tokyo').format('YYYY-MM-DD') + 'T00:00:00Z');
+            const todayJst = todayJstAsUtcMidnight();
             const result = await db.reserve.updateMany({
                 where: {
                     id: reserveId,

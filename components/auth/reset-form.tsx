@@ -34,13 +34,9 @@ export const ResetForm = () => {
         }
     });
 
-    //コンソールとかにEmailとPasswordの情報を送るやつ
     const onSubmit = (values: z.infer<typeof ResetSchema>) => {
-        console.log(values);
         setError("");
         setSuccess("");
-
-        // console.log(values)
 
         startTransition(() => {
             reset(values)
@@ -49,10 +45,6 @@ export const ResetForm = () => {
                     setSuccess(data?.success);
                 })
         });
-
-        // APIを叩く時用
-        // axios.post("/your/api/route", values)
-        // .then
     }
 
     return (
@@ -72,7 +64,7 @@ export const ResetForm = () => {
                             name="email"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email</FormLabel>
+                                    <FormLabel>メールアドレス</FormLabel>
                                     <FormControl>
                                         <Input
                                             {...field}

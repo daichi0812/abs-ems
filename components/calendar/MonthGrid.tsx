@@ -64,7 +64,8 @@ export function MonthGrid<T = unknown>({
                   key={bar.key}
                   type="button"
                   onClick={() => onBarClick?.(bar)}
-                  className="absolute flex items-center overflow-hidden rounded-[5px] px-1.5 text-left transition-opacity"
+                  // before はタップ領域の拡張（見た目は変えずレーン間隔ぶんまで当たり判定を広げる）
+                  className="absolute flex items-center rounded-[5px] px-1.5 text-left transition-opacity before:absolute before:inset-x-0 before:-inset-y-[2px] before:content-['']"
                   style={{
                     left: `${bar.leftPct}%`,
                     width: `${bar.widthPct}%`,
@@ -75,7 +76,9 @@ export function MonthGrid<T = unknown>({
                     outline: selected ? "2px solid #101828" : "none",
                   }}
                 >
-                  <span className="truncate text-[8.5px] font-bold text-white md:text-[10.5px]">
+                  {/* 親の overflow-hidden はタップ領域拡張(before)を切ってしまうため、
+                      はみ出し制御はラベル側の min-w-0 + truncate で行う */}
+                  <span className="min-w-0 flex-1 truncate text-[8.5px] font-bold text-white md:text-[10.5px]">
                     {bar.label}
                   </span>
                 </button>
