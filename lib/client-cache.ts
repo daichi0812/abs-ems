@@ -10,31 +10,63 @@
 // 古いデータが表示され続けることはない。
 
 const cache = new Map<string, unknown>();
-const inflight = new Map<string, Promise<unknown>>();
+
+interface InflightEntry {
+  promise: Promise<{ data: unknown; ticket: number }>;
+  ticket: number;
+}
+const inflight = new Map<string, InflightEntry>();
+
+// リクエストの世代番号。「古いリクエストの遅い応答」が新しい結果を
+// 上書きしないよう、キャッシュへの書き込みは ticket の新しい順を保証する。
+let seq = 0;
+const lastWrittenTicket = new Map<string, number>();
 
 export function getCachedData<T>(key: string): T | undefined {
   return cache.get(key) as T | undefined;
 }
 
-export async function fetchAndCache<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  const pending = inflight.get(key);
-  if (pending) return pending as Promise<T>;
+export interface FetchAndCacheOptions {
+  /**
+   * 進行中の同一キーのリクエストに相乗りせず、必ず新規リクエストを発行する。
+   * 予約作成・返却・並べ替えなど「変更した直後の再取得」で使う。
+   * 相乗りすると、変更前にサーバーへ届いた GET の結果（変更前のスナップショット）を
+   * 受け取ってしまい、変更が巻き戻ったように見える。
+   */
+  force?: boolean;
+}
 
-  const p = (async () => {
+export async function fetchAndCache<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  options: FetchAndCacheOptions = {}
+): Promise<{ data: T; ticket: number }> {
+  if (!options.force) {
+    const pending = inflight.get(key);
+    if (pending) return pending.promise as Promise<{ data: T; ticket: number }>;
+  }
+
+  const ticket = ++seq;
+  const promise = (async () => {
     try {
       const data = await fetcher();
-      cache.set(key, data);
-      return data;
+      // 自分より新しいリクエストが書き込み済みなら、古い応答で上書きしない
+      if ((lastWrittenTicket.get(key) ?? 0) < ticket) {
+        cache.set(key, data);
+        lastWrittenTicket.set(key, ticket);
+      }
+      return { data, ticket };
     } finally {
-      inflight.delete(key);
+      if (inflight.get(key)?.ticket === ticket) inflight.delete(key);
     }
   })();
-  inflight.set(key, p);
-  return p;
+  inflight.set(key, { promise, ticket });
+  return promise;
 }
 
 /** テスト用: モジュールスコープのキャッシュと進行中リクエストを破棄する */
 export function clearClientCache() {
   cache.clear();
   inflight.clear();
+  lastWrittenTicket.clear();
 }

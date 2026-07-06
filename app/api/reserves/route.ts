@@ -4,6 +4,17 @@ import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 
+// YYYY-MM-DD を UTC 深夜0時の Date として厳密にパースする。
+// 正規表現だけだと「2026-13-01」（Invalid Date → Prisma が例外 → 500）や
+// 「2026-02-30」（3月2日へ静かに繰り上がる）が素通りするため、
+// 逆変換の一致まで確認して暦として実在する日付だけを受け付ける。
+function parseDateOnly(value: string): Date | null {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const date = new Date(`${value}T00:00:00Z`);
+    if (Number.isNaN(date.getTime()) || !date.toISOString().startsWith(value)) return null;
+    return date;
+}
+
 export async function GET(request: Request) {
     try {
         // ログイン必須。middleware 一枚依存をやめる defense-in-depth（DELETE と同じ currentUser パターン）。
@@ -43,18 +54,19 @@ export async function GET(request: Request) {
             }
             where.list_id = listId;
         }
-        const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
         if (fromParam !== null) {
-            if (!DATE_ONLY.test(fromParam)) {
+            const from = parseDateOnly(fromParam);
+            if (!from) {
                 return NextResponse.json({ error: 'from が不正です。' }, { status: 400 });
             }
-            where.end = { gte: new Date(`${fromParam}T00:00:00Z`) };
+            where.end = { gte: from };
         }
         if (toParam !== null) {
-            if (!DATE_ONLY.test(toParam)) {
+            const to = parseDateOnly(toParam);
+            if (!to) {
                 return NextResponse.json({ error: 'to が不正です。' }, { status: 400 });
             }
-            where.start = { lte: new Date(`${toParam}T00:00:00Z`) };
+            where.start = { lte: to };
         }
 
         const reserves = await db.reserve.findMany({ where });

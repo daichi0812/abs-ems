@@ -14,6 +14,14 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// 既定は素通し。縮小のロジック自体は lib/image-compress.test.ts が担う
+const { compressImageMock } = vi.hoisted(() => ({
+  compressImageMock: vi.fn(async (f: File) => f),
+}));
+vi.mock("@/lib/image-compress", () => ({
+  compressImage: (f: File) => compressImageMock(f),
+}));
+
 import axios from "axios";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentRegistration } from "./use-equipment-registration";
@@ -186,6 +194,43 @@ describe("useEquipmentRegistration - submit", () => {
 
     expect(toastError).toHaveBeenCalledWith("機材登録ができません");
     expect(refetchEquipments).not.toHaveBeenCalled();
+  });
+
+  it("uploads the compressed file with the compressed filename (name/body の整合)", async () => {
+    // compressImage は拡張子を .jpg に変えるため、filename= クエリと body が
+    // 同じ「縮小後ファイル」を指していることを固定する
+    const original = new File(["x".repeat(1024)], "photo.png", { type: "image/png" });
+    const compressed = new File(["y"], "photo.jpg", { type: "image/jpeg" });
+    compressImageMock.mockResolvedValueOnce(compressed);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://blob.example/photo.jpg" }),
+    });
+    vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
+
+    const params = { ...defaultParams, inputFileRef: makeInputRef([original]) };
+    const { result } = renderHook(() => useEquipmentRegistration(params));
+
+    act(() => {
+      result.current.setEquipmentName("Camera");
+      result.current.setSelectedTag("Audio");
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(compressImageMock).toHaveBeenCalledWith(original);
+    expect(fetchMock).toHaveBeenCalledWith("/api/upload?filename=photo.jpg", {
+      method: "POST",
+      body: compressed,
+      headers: managerAuthHeaders(),
+    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/api/lists",
+      expect.objectContaining({ image: "https://blob.example/photo.jpg" }),
+      expect.any(Object),
+    );
   });
 
   it("rejects submit when no existing category is selected", async () => {

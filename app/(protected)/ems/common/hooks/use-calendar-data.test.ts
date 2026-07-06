@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCalendarData } from "./use-calendar-data";
 import { clearClientCache } from "@/lib/client-cache";
@@ -144,6 +144,26 @@ describe("useCalendarData", () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.allEvents).toEqual([]);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("does not flip to isError when a revalidation fails after data has loaded", async () => {
+    // 取得済みデータがあるのに再検証（タブ復帰・操作後）の失敗で全画面エラーへ
+    // 乗っ取られないための契約（isError は「初回ロード失敗」専用）
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    setupHappyPath();
+
+    const { result } = renderHook(() => useCalendarData());
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+    expect(result.current.allEvents).toHaveLength(1);
+
+    fetchMock.mockRejectedValue(new Error("network down"));
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.isError).toBe(false);
+    expect(result.current.allEvents).toHaveLength(1);
     consoleErrorSpy.mockRestore();
   });
 

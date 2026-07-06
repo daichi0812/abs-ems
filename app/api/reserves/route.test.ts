@@ -277,6 +277,19 @@ describe("GET /api/reserves", () => {
     expect(findManyMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a calendar-invalid from (month 13) instead of 500", async () => {
+    // 正規表現は桁数しか見ないため、Invalid Date が Prisma まで届いて 500 になっていた
+    const res = await GET(getRequest("?from=2026-13-01"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a rollover date (Feb 30) instead of silently shifting to Mar 2", async () => {
+    const res = await GET(getRequest("?from=2026-02-30"));
+    expect(res.status).toBe(400);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for a malformed to and does not query", async () => {
     const res = await GET(getRequest("?to=notadate"));
     expect(res.status).toBe(400);

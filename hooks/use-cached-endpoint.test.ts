@@ -77,14 +77,85 @@ describe("useCachedEndpoint", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/reserves?user_id=u1");
   });
 
-  it("非配列ボディ（401/500 の {error}）は空配列にフォールバックする", async () => {
+  it("旧URLの遅い応答が後着しても、新URLの表示を上書きしない", async () => {
+    let resolveOld: ((v: unknown) => void) | undefined;
+    fetchMock.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveOld = resolve; })
+    );
+
+    const { result, rerender } = renderHook(({ url }) => useCachedEndpoint<{ id: string }>(url), {
+      initialProps: { url: "/api/reserves?user_id=" },
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "new" }] });
+    rerender({ url: "/api/reserves?user_id=u1" });
+    await waitFor(() => expect(result.current.data).toEqual([{ id: "new" }]));
+
+    // 旧URL（user_id=）の応答が遅れて届く
+    await act(async () => {
+      resolveOld!({ json: async () => [{ id: "old" }] });
+      await Promise.resolve();
+    });
+    expect(result.current.data).toEqual([{ id: "new" }]);
+  });
+
+  it("非配列ボディ（401/500 の {error}）はキャッシュせず isError にする", async () => {
+    // エラー応答を「正常な空配列」としてキャッシュすると、誤った空表示が
+    // タブセッション全体（他画面の同一エンドポイント）へ伝播するため、エラー扱いにする
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     fetchMock.mockResolvedValue({ json: async () => ({ error: "認証されていません。" }) });
 
     const { result } = renderHook(() => useCachedEndpoint("/api/lists"));
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.data).toEqual([]);
-    expect(result.current.isError).toBe(false);
+    expect(result.current.data).toEqual([]); // 表示用データは空のまま（.map 保護は維持）
+    expect(result.current.isError).toBe(true);
+    expect(result.current.hasLoaded).toBe(false);
+
+    // 復旧後の再マウントは正常データを取得できる（汚染キャッシュが残っていない）
+    fetchMock.mockResolvedValue({ json: async () => [{ id: 1 }] });
+    const second = renderHook(() => useCachedEndpoint<{ id: number }>("/api/lists"));
+    expect(second.result.current.isLoading).toBe(true); // [] が「既読」扱いになっていない
+    await waitFor(() => expect(second.result.current.data).toEqual([{ id: 1 }]));
+    consoleSpy.mockRestore();
+  });
+
+  it("HTTP エラーステータス（ok=false）はキャッシュせず isError にする", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockResolvedValue({ ok: false, status: 500, json: async () => [] });
+
+    const { result } = renderHook(() => useCachedEndpoint("/api/lists"));
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    consoleSpy.mockRestore();
+  });
+
+  it("refetch は進行中のリクエストに相乗りせず新規発行する（変更直後の巻き戻り防止）", async () => {
+    // 変更（POST/PATCH）成功後の refetch が「変更前に発行された GET」に相乗りすると、
+    // 変更前のスナップショットがキャッシュと画面に固定される
+    let resolveOld: ((v: unknown) => void) | undefined;
+    fetchMock.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveOld = resolve; })
+    );
+
+    const { result } = renderHook(() => useCachedEndpoint<{ id: string }>("/api/tags"));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    // 変更後の再取得は新規リクエストとして飛ぶ
+    fetchMock.mockResolvedValueOnce({ json: async () => [{ id: "after" }] });
+    await act(async () => {
+      await result.current.refetch();
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.data).toEqual([{ id: "after" }]);
+
+    // 変更前に発行された古い応答が後着しても、新しい結果を上書きしない
+    await act(async () => {
+      resolveOld!({ json: async () => [{ id: "before" }] });
+      await Promise.resolve();
+    });
+    expect(result.current.data).toEqual([{ id: "after" }]);
   });
 
   it("初回失敗は isError、再試行成功で回復する", async () => {
