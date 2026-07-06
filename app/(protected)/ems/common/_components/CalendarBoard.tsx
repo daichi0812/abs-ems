@@ -22,6 +22,7 @@ import { MemberChips } from "@/components/calendar/MemberChips";
 import { EventDetailPopover } from "@/components/calendar/EventDetailPopover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
+import { useMonthNav } from "@/hooks/use-month-nav";
 
 type View = "month" | "gantt";
 
@@ -48,10 +49,9 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     }
   }, [selectedKey, isDesktop]);
 
-  // 今日を含む月を初期表示。前後移動できる。
-  const todayDate = new Date();
-  const [viewYear, setViewYear] = useState(todayDate.getFullYear());
-  const [viewMonth0, setViewMonth0] = useState(todayDate.getMonth());
+  // 今日を含む月を初期表示。前後移動できる。月を移動したら選択を解除する。
+  const { viewYear, viewMonth0, isCurrentMonth, goPrevMonth, goNextMonth, goToday } =
+    useMonthNav(() => setSelectedKey(null));
 
   const matrix = useMemo(
     () => buildMonthMatrix(viewYear, viewMonth0),
@@ -203,24 +203,6 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         };
       })()
     : null;
-
-  const goPrevMonth = () => {
-    setSelectedKey(null);
-    setViewMonth0((m) => (m === 0 ? 11 : m - 1));
-    if (viewMonth0 === 0) setViewYear((y) => y - 1);
-  };
-  const goNextMonth = () => {
-    setSelectedKey(null);
-    setViewMonth0((m) => (m === 11 ? 0 : m + 1));
-    if (viewMonth0 === 11) setViewYear((y) => y + 1);
-  };
-  const isCurrentMonth =
-    viewYear === todayDate.getFullYear() && viewMonth0 === todayDate.getMonth();
-  const goToday = () => {
-    setSelectedKey(null);
-    setViewYear(todayDate.getFullYear());
-    setViewMonth0(todayDate.getMonth());
-  };
 
   if (isFetching) {
     return (

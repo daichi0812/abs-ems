@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 import { useCachedEndpoint } from "@/hooks/use-cached-endpoint";
+import { useMonthNav } from "@/hooks/use-month-nav";
 import { useEquipments } from "@/app/(protected)/ems/_hooks/use-equipments";
 import { useCategories } from "@/app/(protected)/ems/equipment-list/hooks/use-categories";
 import { useReserves } from "@/app/(protected)/ems/equipment-list/hooks/use-reserves";
@@ -52,9 +53,7 @@ export function BookingWizard() {
   const { data: users } = useCachedEndpoint<UserLite>("/api/users");
 
   const todayIdx = todayJstDayIndex();
-  const now = new Date();
-  const [viewYear, setViewYear] = useState(now.getFullYear());
-  const [viewMonth0, setViewMonth0] = useState(now.getMonth());
+  const { viewYear, viewMonth0, goPrevMonth, goNextMonth } = useMonthNav();
   const matrix = useMemo(() => buildMonthMatrix(viewYear, viewMonth0), [viewYear, viewMonth0]);
 
   const [range, setRange] = useState<DayRange>({ startIdx: null, endIdx: null });
@@ -173,15 +172,6 @@ export function BookingWizard() {
     setCart([]);
     setStep(1);
   };
-  const goPrevMonth = () => {
-    setViewMonth0((m) => (m === 0 ? 11 : m - 1));
-    if (viewMonth0 === 0) setViewYear((y) => y - 1);
-  };
-  const goNextMonth = () => {
-    setViewMonth0((m) => (m === 11 ? 0 : m + 1));
-    if (viewMonth0 === 11) setViewYear((y) => y + 1);
-  };
-
   const handleSubmit = async () => {
     if (cart.length === 0) return;
     const res = await createReservations(cart, startStr, endStr);

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useReserveActions } from "@/app/(protected)/ems/mypage/hooks/use-reserve-actions";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
+import { useMonthNav } from "@/hooks/use-month-nav";
 
 interface GroupedItem {
   reserveId: number;
@@ -89,9 +90,7 @@ export function MyReservations() {
   const isDesktop = useIsDesktop();
 
   const todayIdx = todayJstDayIndex();
-  const now = new Date();
-  const [viewYear, setViewYear] = useState(now.getFullYear());
-  const [viewMonth0, setViewMonth0] = useState(now.getMonth());
+  const { viewYear, viewMonth0, goPrevMonth, goNextMonth } = useMonthNav();
   const matrix = useMemo(() => buildMonthMatrix(viewYear, viewMonth0), [viewYear, viewMonth0]);
 
   const colorOfList = useMemo(() => {
@@ -198,15 +197,6 @@ export function MyReservations() {
       ),
     [groups, todayIdx]
   );
-
-  const goPrevMonth = () => {
-    setViewMonth0((m) => (m === 0 ? 11 : m - 1));
-    if (viewMonth0 === 0) setViewYear((y) => y - 1);
-  };
-  const goNextMonth = () => {
-    setViewMonth0((m) => (m === 11 ? 0 : m + 1));
-    if (viewMonth0 === 11) setViewYear((y) => y + 1);
-  };
 
   // 予約の取得完了前に判定すると、予約がある部員にも「予約はまだありません。」が
   // 一瞬表示されてしまうため、機材と予約の両方の完了を待つ。
