@@ -79,7 +79,13 @@ describe("POST /api/upload", () => {
     const [key, body, opts] = putMock.mock.calls[0];
     expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-test\.png$/);
     expect(body).toBeInstanceOf(ArrayBuffer);
-    expect(opts).toMatchObject({ httpMetadata: { contentType: "image/png" } });
+    // toEqual で固定: キーは UUID 付きで不変なので immutable キャッシュが前提。
+    // ここが落ちる（キー名 typo・指定漏れ）と機材サムネイルが毎回オリジンまで
+    // 往復する静かな性能回帰になるため、追加キーを素通しする toMatchObject にしない。
+    expect(opts.httpMetadata).toEqual({
+      contentType: "image/png",
+      cacheControl: "public, max-age=31536000, immutable",
+    });
 
     // 応答は後方互換の { url }。カスタムドメイン + キーの絶対 URL。
     const responseBody = await res.json();

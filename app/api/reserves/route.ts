@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { currentUser } from '@/lib/auth';
 import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
-import moment from 'moment-timezone';
+import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 
 export async function GET(request: Request) {
     try {
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         }
 
         // 保存値は「JST日付のUTC 00:00」なので、今日(JST)も同じ座標系に変換して比較する
-        const todayJst = new Date(moment().tz('Asia/Tokyo').format('YYYY-MM-DD') + 'T00:00:00Z');
+        const todayJst = todayJstAsUtcMidnight();
         if (startDateTime < todayJst) {
             return NextResponse.json({ error: '予約開始日は今日以降にしてください。' }, { status: 400 });
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useCalendarData,
@@ -30,7 +30,7 @@ function eventInterval(ev: CalendarEvent) {
 }
 
 export function CalendarBoard({ initialView = "month" }: { initialView?: View }) {
-  const { allEvents, isFetching } = useCalendarData();
+  const { allEvents, isFetching, isError, refetch } = useCalendarData();
   const todayIdx = todayJstDayIndex();
   // PC では行高を上げてカレンダーを画面の高さに合わせて大きく見せる
   const isDesktop = useIsDesktop();
@@ -38,6 +38,15 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
   const [view, setView] = useState<View>(initialView);
   const [memberFilter, setMemberFilter] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<number | null>(null);
+
+  // モバイルでは詳細カードがグリッドの下に積まれるため、バーをタップしても
+  // 画面外で「反応がない」ように見える。選択時にカードまでスクロールする。
+  const detailRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (selectedKey != null && !isDesktop) {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedKey, isDesktop]);
 
   // 今日を含む月を初期表示。前後移動できる。
   const todayDate = new Date();
@@ -151,12 +160,37 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
     setViewMonth0((m) => (m === 11 ? 0 : m + 1));
     if (viewMonth0 === 11) setViewYear((y) => y + 1);
   };
+  const isCurrentMonth =
+    viewYear === todayDate.getFullYear() && viewMonth0 === todayDate.getMonth();
+  const goToday = () => {
+    setSelectedKey(null);
+    setViewYear(todayDate.getFullYear());
+    setViewMonth0(todayDate.getMonth());
+  };
 
   if (isFetching) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-9 w-44" />
         <Skeleton className="h-[360px] w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+        <p className="text-sm font-bold text-ink">カレンダーを読み込めませんでした。</p>
+        <p className="mt-1 text-[12.5px] text-ink-faint">
+          通信環境を確認して、もう一度お試しください。
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-4 h-10 rounded-xl bg-brand px-5 text-sm font-bold text-white"
+        >
+          再試行
+        </button>
       </div>
     );
   }
@@ -182,6 +216,15 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
         </div>
         {view === "month" && (
           <div className="ml-auto flex items-center gap-1">
+            {!isCurrentMonth && (
+              <button
+                type="button"
+                onClick={goToday}
+                className="flex h-8 items-center rounded-lg px-2.5 text-xs font-bold text-brand hover:bg-line-soft"
+              >
+                今日
+              </button>
+            )}
             <button
               type="button"
               onClick={goPrevMonth}
@@ -224,7 +267,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
               }
             />
           </div>
-          <div className="md:sticky md:top-24 md:self-start">
+          <div ref={detailRef} className="md:sticky md:top-24 md:self-start scroll-mt-20">
             {detail ? (
               <EventDetailPopover detail={detail} />
             ) : (
@@ -252,7 +295,7 @@ export function CalendarBoard({ initialView = "month" }: { initialView?: View })
             />
           )}
           {detail && (
-            <div className="mt-3">
+            <div ref={detailRef} className="mt-3 scroll-mt-20">
               <EventDetailPopover detail={detail} />
             </div>
           )}

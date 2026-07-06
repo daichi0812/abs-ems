@@ -44,6 +44,88 @@ describe("useReserves", () => {
     await waitFor(() => expect(consoleErrorSpy).toHaveBeenCalled());
 
     expect(result.current.reserves).toEqual([]);
+    // エラーを isError で返す（黙って「全件空き」と誤表示しない）
+    expect(result.current.isError).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("exposes isLoading until the first fetch settles", async () => {
+    fetchMock.mockResolvedValue({ json: async () => [] });
+
+    const { result } = renderHook(() => useReserves());
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isError).toBe(false);
+  });
+
+  it("refetches when the tab becomes visible again", async () => {
+    fetchMock.mockResolvedValue({ json: async () => [] });
+
+    renderHook(() => useReserves());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("does not refetch when the tab is hidden", async () => {
+    // 「visible のときだけ再取得する」契約の負分岐を固定する
+    fetchMock.mockResolvedValue({ json: async () => [] });
+
+    renderHook(() => useReserves());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((r) => setTimeout(r, 20));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      Reflect.deleteProperty(document, "visibilityState");
+    }
+  });
+
+  it("keeps hasLoaded=false on initial failure, then recovers via refetch", async () => {
+    // hasLoaded は「全画面エラーは初回ロード失敗のときだけ」の判定に使われる
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockRejectedValueOnce(new Error("down"));
+
+    const { result } = renderHook(() => useReserves());
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.hasLoaded).toBe(false);
+
+    fetchMock.mockResolvedValue({ json: async () => [] });
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.hasLoaded).toBe(true);
+    expect(result.current.isError).toBe(false);
+    consoleSpy.mockRestore();
+  });
+
+  it("keeps hasLoaded=true when a background refetch fails after a success", async () => {
+    // 成功後の visibilitychange 再取得が失敗しても、表示中のデータを
+    // 全画面エラーで置き換えないための契約（isError は立つが hasLoaded は保持）
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockResolvedValueOnce({ json: async () => [] });
+
+    const { result } = renderHook(() => useReserves());
+    await waitFor(() => expect(result.current.hasLoaded).toBe(true));
+
+    fetchMock.mockRejectedValue(new Error("down"));
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.hasLoaded).toBe(true);
+    consoleSpy.mockRestore();
   });
 
   it("refetch re-runs the fetch", async () => {

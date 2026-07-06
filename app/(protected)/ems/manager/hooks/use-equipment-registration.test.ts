@@ -55,11 +55,13 @@ afterEach(() => {
 });
 
 describe("useEquipmentRegistration - state", () => {
-  it("starts with empty form and selectedTag='all'", () => {
+  it("starts with empty form and no selected tag", () => {
     const { result } = renderHook(() => useEquipmentRegistration(defaultParams));
     expect(result.current.equipmentName).toBe("");
     expect(result.current.equipmentDetail).toBe("");
-    expect(result.current.selectedTag).toBe("all");
+    // 初期値が "all" だった頃は canSubmit（selectedTag !== ""）を素通りして
+    // tag_id 無しの「未分類」機材が登録できてしまっていた（回帰防止）
+    expect(result.current.selectedTag).toBe("");
   });
 
   it("setters update state", () => {
@@ -132,7 +134,10 @@ describe("useEquipmentRegistration - submit", () => {
 
   it("uploads file to Vercel Blob and posts the returned URL", async () => {
     const file = new File(["xxx"], "test.png", { type: "image/png" });
-    fetchMock.mockResolvedValue({ json: async () => ({ url: "https://blob.example/test.png" }) });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://blob.example/test.png" }),
+    });
     vi.mocked(axios.post).mockResolvedValue({ status: 200 } as never);
 
     const params = { ...defaultParams, inputFileRef: makeInputRef([file]) };
@@ -172,6 +177,7 @@ describe("useEquipmentRegistration - submit", () => {
 
     act(() => {
       result.current.setEquipmentName("Camera");
+      result.current.setSelectedTag("Video");
     });
 
     await act(async () => {
@@ -180,5 +186,48 @@ describe("useEquipmentRegistration - submit", () => {
 
     expect(toastError).toHaveBeenCalledWith("機材登録ができません");
     expect(refetchEquipments).not.toHaveBeenCalled();
+  });
+
+  it("rejects submit when no existing category is selected", async () => {
+    const { result } = renderHook(() => useEquipmentRegistration(defaultParams));
+
+    act(() => {
+      result.current.setEquipmentName("Camera");
+    });
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.submit();
+    });
+
+    expect(ok).toBe(false);
+    expect(toastError).toHaveBeenCalledWith("カテゴリを選択してください");
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it("aborts registration when the image upload responds with an error status", async () => {
+    // fetch は HTTP エラーで throw しないため、ok チェックが無いと {error} ボディのまま
+    // image:"" で登録が続行され「登録完了」と表示されていた（回帰防止）
+    const file = new File(["xxx"], "test.png", { type: "image/png" });
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: "権限がありません。" }) });
+
+    const params = { ...defaultParams, inputFileRef: makeInputRef([file]) };
+    const { result } = renderHook(() => useEquipmentRegistration(params));
+
+    act(() => {
+      result.current.setEquipmentName("Camera");
+      result.current.setSelectedTag("Audio");
+    });
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await result.current.submit();
+    });
+
+    expect(ok).toBe(false);
+    expect(toastError).toHaveBeenCalledWith(
+      "画像のアップロードに失敗しました。機材は登録されていません。"
+    );
+    expect(axios.post).not.toHaveBeenCalled();
   });
 });

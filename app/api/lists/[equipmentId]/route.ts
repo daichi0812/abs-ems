@@ -54,15 +54,8 @@ export async function PUT(request: Request, { params }: Params) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
 
-        const equipmentData = await db.list.findUnique({
-            where: { id: equipmentId },
-        });
-
-        if (!equipmentData) {
-            return NextResponse.json({ error: 'データが見つかりませんでした。' }, { status: 404 });
-        }
-
-        // 機材データを更新
+        // 事前の findUnique による存在確認はせず、対象なしは P2025 で 404 に落とす
+        // （リクエストごとに新規接続を張る構成では DB 1往復の削減が効く）。
         const updatedEquipment = await db.list.update({
             where: { id: equipmentId },
             data: {
@@ -75,8 +68,11 @@ export async function PUT(request: Request, { params }: Params) {
 
         return NextResponse.json(updatedEquipment, { status: 200 });
     } catch (error) {
+        if ((error as { code?: string })?.code === 'P2025') {
+            return NextResponse.json({ error: 'データが見つかりませんでした。' }, { status: 404 });
+        }
         console.error('エラー詳細:', error);
-        return NextResponse.json({ error: 'データの取得に失敗しました。' }, { status: 500 });
+        return NextResponse.json({ error: 'データの更新に失敗しました。' }, { status: 500 });
     }
 }
 
@@ -92,22 +88,17 @@ export async function DELETE(request: Request, { params }: Params) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
 
-        const equipmentData = await db.list.findUnique({
-            where: { id: equipmentId },
-        });
-
-        if (!equipmentData) {
-            return NextResponse.json({ error: 'データが見つかりませんでした。' }, { status: 404 });
-        }
-
-        // 機材データを削除
+        // PUT と同じく事前確認なしで削除し、対象なしは P2025 で 404 に落とす。
         const deleteEquipment = await db.list.delete({
             where: { id: equipmentId }
         });
 
         return NextResponse.json(deleteEquipment, { status: 200 });
     } catch (error) {
+        if ((error as { code?: string })?.code === 'P2025') {
+            return NextResponse.json({ error: 'データが見つかりませんでした。' }, { status: 404 });
+        }
         console.error('エラー詳細:', error);
-        return NextResponse.json({ error: 'データの取得に失敗しました。' }, { status: 500 });
+        return NextResponse.json({ error: 'データの削除に失敗しました。' }, { status: 500 });
     }
 }

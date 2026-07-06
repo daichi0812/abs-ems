@@ -33,7 +33,7 @@ export const NewVerificationForm = () => {
                 setError(data.error);
             })
             .catch(() => {
-                setError("Something went wrong!");
+                setError("エラーが発生しました。時間をおいて再度お試しください。");
             })
     }, [token, success, error]);
 

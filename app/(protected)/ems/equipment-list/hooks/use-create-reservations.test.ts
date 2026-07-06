@@ -29,7 +29,13 @@ describe("useCreateReservations", () => {
       start: "2026-07-10",
       end: "2026-07-12",
     });
-    expect(res).toEqual({ ok: true, conflict: false, createdCount: 3 });
+    expect(res).toEqual({
+      ok: true,
+      conflict: false,
+      createdCount: 3,
+      createdIds: [1, 2, 3],
+      conflictIds: [],
+    });
   });
 
   it("409 が混ざると conflict=true・ok=false", async () => {
@@ -43,7 +49,35 @@ describe("useCreateReservations", () => {
       res = await result.current.createReservations([1, 2], "2026-07-10", "2026-07-12");
     });
 
-    expect(res).toEqual({ ok: false, conflict: true, createdCount: 1 });
+    expect(res).toEqual({
+      ok: false,
+      conflict: true,
+      createdCount: 1,
+      createdIds: [1],
+      conflictIds: [2],
+    });
+  });
+
+  it("409以外の失敗は API のエラーメッセージを拾う", async () => {
+    mockedPost.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 400, data: { error: "予約開始日は今日以降にしてください。" } },
+    });
+    const { result } = renderHook(() => useCreateReservations());
+
+    let res: Awaited<ReturnType<typeof result.current.createReservations>> | undefined;
+    await act(async () => {
+      res = await result.current.createReservations([1], "2020-01-01", "2020-01-02");
+    });
+
+    expect(res).toEqual({
+      ok: false,
+      conflict: false,
+      createdCount: 0,
+      createdIds: [],
+      conflictIds: [],
+      errorMessage: "予約開始日は今日以降にしてください。",
+    });
   });
 
   it("user_id は body に含めない（API がセッションから導出）", async () => {

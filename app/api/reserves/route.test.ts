@@ -1,5 +1,4 @@
 // @vitest-environment node
-import moment from "moment-timezone";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
@@ -41,8 +40,14 @@ const postRequest = (body: Record<string, unknown>) =>
   });
 
 // バリデーションはJSTの「今日」を基準にするため、期待値も同じ式で計算してTZ非依存にする
+// （日本にDSTはないので「ms加算→JSTで整形」は日単位の加算と等価）
 const jstDate = (offsetDays: number) =>
-  moment().tz("Asia/Tokyo").add(offsetDays, "days").format("YYYY-MM-DD");
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000));
 
 const validBody = () => ({
   user_id: "u1",
@@ -165,7 +170,7 @@ describe("POST /api/reserves", () => {
     // JST の (今日+1) 00:00 は UTC では前日 15:00
     const startJstDay = jstDate(1);
     const endJstDay = jstDate(2);
-    const startIso = moment.tz(startJstDay, "Asia/Tokyo").toISOString();
+    const startIso = new Date(`${startJstDay}T00:00:00+09:00`).toISOString();
 
     const res = await POST(
       postRequest({ user_id: "u1", list_id: 1, start: startIso, end: endJstDay }),

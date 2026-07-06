@@ -44,9 +44,7 @@ export const LoginForm = () => {
         }
     });
 
-    //コンソールとかにEmailとPasswordの情報を送るやつ
     const onSubmit = (values: z.infer<typeof LoginSchema>) => {
-        // console.log(values);
         setError("");
         setSuccess("");
 
@@ -54,7 +52,10 @@ export const LoginForm = () => {
             login(values, callbackUrl)
                 .then((data) => {
                     if (data?.error) {
-                        form.reset();
+                        // 失敗時に form.reset() で全消去しない:
+                        // メール欄まで消えると毎回打ち直しになるうえ、2FA表示中は
+                        // 非表示の email/password が空になり「確認する」が無反応になる。
+                        if (showTwoFactor) form.resetField("code");
                         setError(data.error);
                     }
 
@@ -67,12 +68,8 @@ export const LoginForm = () => {
                         setShowTwoFactor(true);
                     }
                 })
-                .catch(() => setError("Something went wrong"));
+                .catch(() => setError("エラーが発生しました。時間をおいて再度お試しください。"));
         });
-
-        // APIを叩く時用
-        // axios.post("/your/api/route", values)
-        // .then
     }
 
     return (
@@ -115,7 +112,7 @@ export const LoginForm = () => {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Email</FormLabel>
+                                            <FormLabel>メールアドレス</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     {...field}

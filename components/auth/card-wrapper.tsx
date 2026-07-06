@@ -25,8 +25,9 @@ export const CardWrapper = ({
     backButtonHref,
     showSocial
 }: CardWrapperProps) => {
+    // 固定幅だと CSS 幅360px級の端末（Galaxy 等）で左右が見切れるため max-width にする
     return (
-        <Card className="w-[370px] md:w-[450px] shadow-md">
+        <Card className="w-full max-w-[370px] md:max-w-[450px] shadow-md">
             <CardHeader>
                 <Header label={headerLabel} />
             </CardHeader>

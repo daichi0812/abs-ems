@@ -229,7 +229,7 @@ export default function CategoriesPage() {
             <AlertDialogTitle>「{pendingDelete?.name}」を削除</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingCount > 0
-                ? `このカテゴリの機材 ${pendingCount}点は「未分類」になります。`
+                ? `このカテゴリの機材 ${pendingCount}点は「未分類」になり、予約画面では末尾の「未分類」グループに表示されます。各機材の編集画面でカテゴリを付け直せます。`
                 : "この操作は取り消せません。"}
             </AlertDialogDescription>
           </AlertDialogHeader>

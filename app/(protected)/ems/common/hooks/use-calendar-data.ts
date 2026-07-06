@@ -49,8 +49,12 @@ interface Reserve {
 export const useCalendarData = () => {
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
   const [isFetching, setIsFetching] = useState<boolean>(true);
+  const [isError, setIsError] = useState<boolean>(false);
 
   const fetchReservesData = async () => {
+    setIsFetching(true);
+    setIsError(false);
+    try {
     // 4つのAPIは互いに独立なので並列取得する（従来は直列awaitでウォーターフォールになっていた）。
     // 各APIはログイン必須になり得るため、401/500 の非配列ボディでも .reduce/.map が
     // クラッシュしないよう Array.isArray で空配列にフォールバックする（他フックと同じ防御水準）。
@@ -107,12 +111,19 @@ export const useCalendarData = () => {
     });
 
     setAllEvents(newEvents);
-    setIsFetching(false);
+    } catch (error) {
+      // 1本でも fetch が失敗すると以前は isFetching が下りず、無限スケルトンのまま
+      // 固まっていた。エラーとして返し、呼び出し側で再試行できるようにする。
+      console.error("Error fetching calendar data:", error);
+      setIsError(true);
+    } finally {
+      setIsFetching(false);
+    }
   };
 
   useEffect(() => {
     fetchReservesData();
   }, []);
 
-  return { allEvents, isFetching };
+  return { allEvents, isFetching, isError, refetch: fetchReservesData };
 };

@@ -6,7 +6,7 @@ import { db } from "@/lib/db"
 import authConfig from "@/auth.config"
 import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
-import { getAccountByUserId } from "./data/account"
+import { refreshJwtToken } from "@/lib/jwt-refresh"
 
 export const {
   auth,
@@ -32,10 +32,6 @@ export const {
 
   callbacks: {
     async signIn({ user, account }) {
-      console.log({
-        user,
-        account,
-      })
       // Allow OAuth without email verification
       if (account?.provider !== "credentials") return true;
 
@@ -100,26 +96,10 @@ export const {
       /* 更新されたセッションを返す */
       return session;
     },
-    async jwt({ token, user, profile }) {
-      //console.log(token);
-      // console.log("I AM BEING CALLED AGAIN!")
-      if (!token.sub) return token;
-
-      const existingUser = await getUserById(token.sub);
-
-      if (!existingUser) return token;
-
-      const existingAccount = await getAccountByUserId(
-        existingUser.id
-      );
-
-      token.isOAuth = !!existingAccount;
-      token.name = existingUser.name;
-      token.email = existingUser.email;
-      token.role = existingUser.role;
-      token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
-
-      return token;
+    async jwt({ token, user, trigger }) {
+      // 方針とテストは lib/jwt-refresh.ts を参照（通常リクエストは DB フリー、
+      // サインイン・update({})・15分経過時のみ user/account を再照会する）。
+      return refreshJwtToken({ token, user, trigger });
     }
   },
   adapter: PrismaAdapter(db),
