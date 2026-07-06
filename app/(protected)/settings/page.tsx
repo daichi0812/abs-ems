@@ -13,13 +13,9 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { settings as saveAccount } from "@/actions/settings";
 import { compressImage } from "@/lib/image-compress";
-import { MEMBER_PALETTE } from "@/lib/calendar/member-colors";
+import { MEMBER_PALETTE, memberInitial } from "@/lib/calendar/member-colors";
 import { useUserSettings } from "./hooks/use-user-settings";
 import { AccountSection } from "./_components/AccountSection";
-
-function initialOf(name?: string | null) {
-  return name?.trim()?.[0]?.toUpperCase() ?? "?";
-}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -153,7 +149,7 @@ export default function SettingsPage() {
                   className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-2xl font-black text-white"
                   style={user?.color ? { background: user.color } : undefined}
                 >
-                  {initialOf(user?.name)}
+                  {memberInitial(user?.name, { uppercase: true })}
                 </span>
               )}
               <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-ink text-white">

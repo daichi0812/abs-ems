@@ -29,14 +29,10 @@ import {
 } from "@/components/ui/dialog";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCurrentRole } from "@/hooks/use-current-role";
+import { memberInitial } from "@/lib/calendar/member-colors";
 
 // 部員からの問い合わせ先（Google フォーム）。旧ヘッダーから引き継ぎ。
 const CONTACT_FORM_URL = "https://forms.gle/PXWDC8aqz6Km48wW8";
-
-/** 名前の先頭1文字をアバターのイニシャルにする（デザイン準拠）。 */
-function initialOf(name?: string | null) {
-  return name?.trim()?.[0] ?? "?";
-}
 
 export const UserMenu = () => {
   const router = useRouter();
@@ -117,7 +113,7 @@ export const UserMenu = () => {
               className="h-8 w-8 rounded-full object-cover"
             />
           ) : (
-            initialOf(user?.name)
+            memberInitial(user?.name)
           )}
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-52" align="end">
