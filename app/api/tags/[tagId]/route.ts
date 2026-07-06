@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/route-helpers";
+import { TagSchema } from "@/schemas";
 import { NextResponse } from "next/server";
 
 interface Params {
@@ -12,10 +13,19 @@ export async function PUT(request: Request, { params }: Params) {
     const denied = await requireManager(request);
     if (denied) return denied;
 
-    const tag = await request.json();
     try {
+        const parsed = TagSchema.safeParse(await request.json().catch(() => null));
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: parsed.error.issues[0]?.message ?? "入力内容が不正です。" },
+                { status: 400 }
+            );
+        }
         const { tagId } = await params;
-        await db.tag.update({ where: { id: parseInt(tagId) }, data: tag });
+        await db.tag.update({
+            where: { id: parseInt(tagId, 10) },
+            data: { name: parsed.data.name, color: parsed.data.color },
+        });
         return NextResponse.json({ message: "カテゴリを更新しました。" }, { status: 200 });
     } catch (error) {
         console.error("エラー詳細:", error);
@@ -29,7 +39,7 @@ export async function DELETE(request: Request, { params }: Params) {
 
     try {
         const { tagId } = await params;
-        await db.tag.delete({ where: { id: parseInt(tagId) } });
+        await db.tag.delete({ where: { id: parseInt(tagId, 10) } });
         return NextResponse.json({ message: "カテゴリを削除しました。" }, { status: 200 });
     } catch (error) {
         console.error("エラー詳細:", error);
