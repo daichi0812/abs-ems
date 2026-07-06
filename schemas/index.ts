@@ -75,3 +75,11 @@ export const RegisterSchema = z.object({
         message: "名前を入力してください"
     })
 })
+export const FeedbackSchema = z.object({
+    body: z.string().trim().min(1, {
+        message: "内容を入力してください"
+    }).max(2000, {
+        message: "2000文字以内で入力してください"
+    }),
+    path: z.string().max(200).optional(),
+})
