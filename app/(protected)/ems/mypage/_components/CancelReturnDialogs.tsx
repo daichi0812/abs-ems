@@ -84,6 +84,7 @@ export function CancelReturnDialogs({
                     .map((it) => it.name)
                     .join("・")}）を返却済みにします。`}
               機材は所定の場所に戻しましたか？この操作は元に戻せません。
+              期限より早く返却した場合、残りの期間は解放され他の部員が予約できるようになります。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

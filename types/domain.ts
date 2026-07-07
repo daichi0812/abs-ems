@@ -25,4 +25,6 @@ export interface Reserve {
   start: string;
   end: string;
   list_id: number;
+  /** 0:予約中 / 1:受取可 / 2:貸出中 / 3:滞納 / 4:返却済（古いレスポンス互換で省略可） */
+  isRenting?: number | null;
 }

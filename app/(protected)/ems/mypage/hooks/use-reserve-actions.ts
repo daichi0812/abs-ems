@@ -7,8 +7,9 @@ export interface UseReserveActionsParams {
   refetch: () => Promise<void>;
 }
 
-// マイ予約カードの操作（借りる / 返却 / キャンセル）。単体と同一期間グループの一括の両方に対応。
-// 借りる・返却は PATCH /api/reserves/[id]（isRenting 遷移）、キャンセルは DELETE。
+// マイ予約カードの操作（借りる / 返却 / キャンセル / 延長）。単体と同一期間グループの一括の両方に対応。
+// 借りる・返却は PATCH /api/reserves/[id]（isRenting 遷移）、キャンセルは DELETE、
+// 延長は PATCH /api/reserves/[id]/extend（end の更新）。
 // 成否は toast で通知し、1件でも成功したら一覧を refetch する。
 export const useReserveActions = ({ refetch }: UseReserveActionsParams) => {
   const [pendingIds, setPendingIds] = useState<number[]>([]);
@@ -26,6 +27,21 @@ export const useReserveActions = ({ refetch }: UseReserveActionsParams) => {
       return data?.error ?? "操作に失敗しました";
     } catch {
       return "操作に失敗しました";
+    }
+  };
+
+  const extendOne = async (reserveId: number, end: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`/api/reserves/${reserveId}/extend`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ end }),
+      });
+      if (res.ok) return null;
+      const data = await res.json().catch(() => null);
+      return data?.error ?? "延長に失敗しました";
+    } catch {
+      return "延長に失敗しました";
     }
   };
 
@@ -104,6 +120,18 @@ export const useReserveActions = ({ refetch }: UseReserveActionsParams) => {
       (n) => `${n}件は返却できませんでした`
     );
 
+  /**
+   * 同一期間グループの延長（1件でも同じ経路）。end は YYYY-MM-DD（新しい返却日）。
+   * 機材ごとに個別 PATCH するため、他の予約と重なった機材だけ失敗する部分成功がありうる。
+   */
+  const extendMany = (reserveIds: number[], end: string) =>
+    runMany(
+      reserveIds,
+      (id) => extendOne(id, end),
+      (n) => (n === 1 ? "予約を延長しました" : `${n}件の予約を延長しました`),
+      (n) => `${n}件は延長できませんでした`
+    );
+
   /** 予約キャンセル（削除）。貸出中のものはサーバー側でも拒否される。 */
   const cancel = (reserveId: number) =>
     runMany(
@@ -122,5 +150,5 @@ export const useReserveActions = ({ refetch }: UseReserveActionsParams) => {
       (n) => `${n}件はキャンセルできませんでした`
     );
 
-  return { pendingIds, borrow, borrowMany, giveBack, giveBackMany, cancel, cancelMany };
+  return { pendingIds, borrow, borrowMany, giveBack, giveBackMany, cancel, cancelMany, extendMany };
 };

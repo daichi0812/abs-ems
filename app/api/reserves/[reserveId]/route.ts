@@ -77,10 +77,12 @@ export async function PATCH(request: Request, { params }: Params) {
                 return NextResponse.json({ error: '貸出期間外か、すでに貸出中です。' }, { status: 409 });
             }
         } else {
-            // 返却: 貸出中(2)・滞納(3)のみ。
+            // 返却: 貸出中(2)・滞納(3)のみ。end（予約していた返却期限）は書き換えず、
+            // 実際に返した日を returnedAt に記録する。期限前の早期返却でも残り期間の
+            // 空きは重複チェック側の isRenting=4 除外で解放される。
             const result = await db.reserve.updateMany({
                 where: { id: reserveId, ...ownerScope, isRenting: { in: [2, 3] } },
-                data: { isRenting: 4 },
+                data: { isRenting: 4, returnedAt: todayJstAsUtcMidnight() },
             });
             if (result.count === 0) {
                 const reserve = await db.reserve.findFirst({ where: { id: reserveId, ...ownerScope } });
