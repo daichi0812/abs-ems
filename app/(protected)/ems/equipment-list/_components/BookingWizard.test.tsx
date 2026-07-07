@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { useReservesMock } = vi.hoisted(() => ({ useReservesMock: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/app/(protected)/ems/_hooks/use-equipments", () => ({
+vi.mock("@/app/(protected)/ems/hooks/use-equipments", () => ({
   useEquipments: () => ({ equipments: [], isLoading: false }),
 }));
 vi.mock("@/app/(protected)/ems/equipment-list/hooks/use-categories", () => ({

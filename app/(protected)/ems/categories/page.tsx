@@ -15,8 +15,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { Tag } from "@/types/domain";
-import { useTagsList } from "../_hooks/use-tags-list";
-import { useEquipments } from "../_hooks/use-equipments";
+import { useTagsList } from "../hooks/use-tags-list";
+import { useEquipments } from "../hooks/use-equipments";
 import { useTagEditing } from "./hooks/use-tag-editing";
 import { useTagDeletion } from "./hooks/use-tag-deletion";
 import { useTagReorder } from "./hooks/use-tag-reorder";

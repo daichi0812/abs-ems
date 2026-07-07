@@ -1,15 +1,13 @@
 import { db } from '@/lib/db';
-import { hasManagerAccess } from '@/lib/api-auth';
-import { currentUser } from '@/lib/auth';
+import { requireManager, requireUser } from '@/lib/route-helpers';
+import { TagSchema } from '@/schemas';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
     try {
         // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
 
         // 並び順は sortOrder 昇順（同値は id 昇順で安定化）。
         const tags = await db.tag.findMany({
@@ -24,18 +22,23 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    if (!(await hasManagerAccess(request))) {
-        return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-    }
+    const denied = await requireManager(request);
+    if (denied) return denied;
 
     try {
-        const tag = await request.json();
+        const parsed = TagSchema.safeParse(await request.json().catch(() => null));
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: parsed.error.issues[0]?.message ?? '入力内容が不正です。' },
+                { status: 400 }
+            );
+        }
 
         // 新規カテゴリは末尾に追加（既存 sortOrder の最大値 + 1）。
         const last = await db.tag.findFirst({ orderBy: { sortOrder: 'desc' }, select: { sortOrder: true } });
         const sortOrder = (last?.sortOrder ?? 0) + 1;
 
-        await db.tag.create({ data: { ...tag, sortOrder } });
+        await db.tag.create({ data: { name: parsed.data.name, color: parsed.data.color, sortOrder } });
         return NextResponse.json({ message: 'カテゴリを作成しました。' }, { status: 201 });
     } catch (error) {
         console.error('エラー詳細:', error);

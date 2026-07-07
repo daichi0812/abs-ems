@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { currentUser } from '@/lib/auth';
+import { requireUser } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
 import { UserRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
@@ -11,11 +11,9 @@ interface Params {
 
 export async function GET(request: Request, { params }: Params) {
     try {
-        // ログイン必須（DELETE と同じ currentUser パターン。予約は member-shared なので self-scope はしない）。
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        // ログイン必須（DELETE と同じ認証パターン。予約は member-shared なので self-scope はしない）。
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
 
         const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {
@@ -37,10 +35,9 @@ export async function GET(request: Request, { params }: Params) {
 // 許可する遷移は「借りる」(0|1→2) と「返却」(2|3→4) の2つだけ。
 export async function PATCH(request: Request, { params }: Params) {
     try {
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
+        const user = auth;
 
         const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {
@@ -103,10 +100,9 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(request: Request, { params }: Params) {
     try {
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
+        const user = auth;
 
         const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {

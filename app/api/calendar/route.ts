@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { currentUser } from '@/lib/auth';
+import { requireUser } from '@/lib/route-helpers';
 import { parseDateOnly } from '@/lib/jst-date';
 import { NextResponse } from 'next/server';
 
@@ -18,10 +18,8 @@ import { NextResponse } from 'next/server';
 // /api/reserves の GET と同じく認証のみで self-scope はしない。
 export async function GET(request: Request) {
     try {
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
 
         // from/to は必須（YYYY-MM-DD、JST暦日）。無制限の全件取得を許すと
         // 旧 /api/reserves と同じ「履歴とともに際限なく重くなる」経路が残ってしまう。

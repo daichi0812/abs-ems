@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { managerAuthHeaders } from "@/lib/manager-auth";
+import { apiMutate } from "@/lib/api-mutate";
 
 export interface UseTagEditingParams {
   refetchTags: () => Promise<void>;
@@ -45,16 +45,11 @@ export const useTagEditing = ({ refetchTags, existingTags = [] }: UseTagEditingP
       return false;
     }
     try {
-      const res = await fetch(`/api/tags/${id}`, {
+      await apiMutate(`/api/tags/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
-        body: JSON.stringify({
-          name: trimmed,
-          color: editTagColor,
-        }),
+        manager: true,
+        body: { name: trimmed, color: editTagColor },
       });
-      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("カテゴリを更新しました");
       setEditTagId(null);
       await refetchTags();

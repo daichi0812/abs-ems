@@ -89,3 +89,17 @@ export const FeedbackSchema = z.object({
     }),
     path: z.string().max(200).optional(),
 })
+
+// カテゴリ（Tag）の作成・更新の入力。API に届いた body をそのまま Prisma へ
+// 流し込む（...tag スプレッド）と任意カラムを注入できてしまうため、name / color
+// だけを受け付ける allowlist として使う。sortOrder はサーバー側で採番する。
+export const TagSchema = z.object({
+    name: z.string().trim().min(1, {
+        message: "カテゴリ名を入力してください"
+    }).max(50, {
+        message: "カテゴリ名は50文字以内で入力してください"
+    }),
+    color: z.string().trim().min(1, {
+        message: "色を指定してください"
+    }),
+})

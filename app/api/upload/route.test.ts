@@ -10,6 +10,8 @@ const { hasManagerAccessMock, putMock } = vi.hoisted(() => ({
 vi.mock("@/lib/api-auth", () => ({
   hasManagerAccess: hasManagerAccessMock,
 }));
+// route-helpers 経由で @/lib/auth（next-auth）が読み込まれるのを避ける。POST は requireManager のみ使う。
+vi.mock("@/lib/auth", () => ({ currentUser: vi.fn() }));
 // R2 バインディングは OpenNext の getCloudflareContext().env 経由で取得する。
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => ({ env: { IMAGES_BUCKET: { put: putMock } } }),

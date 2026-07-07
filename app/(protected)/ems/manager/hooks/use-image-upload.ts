@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useGetImageUrl } from "../useGetImageUrl";
+import { useGetImageUrl } from "../use-image-url";
 
 export const useImageUpload = () => {
   const inputFileRef = useRef<HTMLInputElement>(null);

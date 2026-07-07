@@ -5,6 +5,7 @@ import {
   RegisterSchema,
   ResetSchema,
   SettingsSchema,
+  TagSchema,
 } from "./index";
 
 describe("LoginSchema", () => {
@@ -175,5 +176,35 @@ describe("SettingsSchema", () => {
       newPassword: "short",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("TagSchema", () => {
+  it("accepts name + color", () => {
+    const result = TagSchema.safeParse({ name: "音響", color: "#2563EB" });
+    expect(result.success).toBe(true);
+  });
+
+  it("trims and rejects empty name", () => {
+    const result = TagSchema.safeParse({ name: "   ", color: "#2563EB" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing color", () => {
+    const result = TagSchema.safeParse({ name: "音響" });
+    expect(result.success).toBe(false);
+  });
+
+  it("strips extra fields (mass-assignment guard)", () => {
+    const result = TagSchema.safeParse({
+      name: "音響",
+      color: "#2563EB",
+      sortOrder: 999,
+      id: 1,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({ name: "音響", color: "#2563EB" });
+    }
   });
 });

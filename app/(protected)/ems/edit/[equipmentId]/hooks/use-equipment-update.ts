@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { useGetImageUrl } from "@/app/(protected)/ems/manager/useGetImageUrl";
+import { useGetImageUrl } from "@/app/(protected)/ems/manager/use-image-url";
 import { managerAuthHeaders } from "@/lib/manager-auth";
 import { compressImage } from "@/lib/image-compress";
 import type { Tag as Tags } from "@/types/domain";
