@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/route-helpers';
+import { requireWorkspaceMember } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationExtended } from '@/lib/notify';
-import { UserRole } from '@prisma/client';
+import { UserRole, WorkspaceRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { parseDateOnly, todayJstAsUtcMidnight } from '@/lib/jst-date';
 
@@ -14,9 +14,9 @@ interface Params {
 // 短縮は対応しない（早期返却・キャンセルで代替できるため。newEnd > 現end のみ許可）。
 export async function PATCH(request: Request, { params }: Params) {
     try {
-        const auth = await requireUser();
-        if (auth instanceof NextResponse) return auth;
-        const user = auth;
+        const ctx = await requireWorkspaceMember();
+        if (ctx instanceof NextResponse) return ctx;
+        const user = ctx.user;
 
         const reserveId = parseInt((await params).reserveId, 10);
         if (isNaN(reserveId)) {
@@ -33,9 +33,16 @@ export async function PATCH(request: Request, { params }: Params) {
             return NextResponse.json({ error: '日付の形式が不正です。' }, { status: 400 });
         }
 
-        // 親ルートの PATCH/DELETE と同じ所有権ポリシー: 本人の予約のみ（ADMIN は全予約可）。
-        const isAdmin = user.role === UserRole.ADMIN;
-        const ownerScope = isAdmin ? {} : { user_id: user.id };
+        // 親ルートの PATCH/DELETE と同じ所有権ポリシー: 本人の予約のみ
+        // （ワークスペース OWNER/ADMIN、移行期はグローバル ADMIN も全予約可）。
+        // ワークスペースを常に where へ含め、他団体の予約は 404 に落とす。
+        const isManager =
+            ctx.workspaceRole === WorkspaceRole.OWNER ||
+            ctx.workspaceRole === WorkspaceRole.ADMIN ||
+            user.role === UserRole.ADMIN;
+        const ownerScope = isManager
+            ? { workspaceId: ctx.workspaceId }
+            : { workspaceId: ctx.workspaceId, user_id: user.id };
 
         const reserve = await db.reserve.findFirst({ where: { id: reserveId, ...ownerScope } });
         if (!reserve) {
@@ -60,6 +67,7 @@ export async function PATCH(request: Request, { params }: Params) {
         const result = await db.$transaction(async (tx) => {
             const conflict = await tx.reserve.findFirst({
                 where: {
+                    workspaceId: ctx.workspaceId,
                     list_id: reserve.list_id,
                     id: { not: reserveId },
                     isRenting: { not: 4 },

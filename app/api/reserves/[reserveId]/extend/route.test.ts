@@ -5,6 +5,7 @@ const {
   findFirstMock,
   txFindFirstMock,
   txUpdateManyMock,
+  membershipFindUniqueMock,
   currentUserMock,
   notifyInBackgroundMock,
   notifyReservationExtendedMock,
@@ -12,6 +13,7 @@ const {
   findFirstMock: vi.fn(),
   txFindFirstMock: vi.fn(),
   txUpdateManyMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
   currentUserMock: vi.fn(),
   notifyInBackgroundMock: vi.fn(),
   notifyReservationExtendedMock: vi.fn(),
@@ -20,6 +22,7 @@ const {
 vi.mock("@/lib/db", () => ({
   db: {
     reserve: { findFirst: findFirstMock },
+    membership: { findUnique: membershipFindUniqueMock },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({ reserve: { findFirst: txFindFirstMock, updateMany: txUpdateManyMock } }),
     ),
@@ -74,8 +77,11 @@ beforeEach(() => {
   txUpdateManyMock.mockResolvedValue({ count: 1 });
   notifyInBackgroundMock.mockReset();
   notifyReservationExtendedMock.mockReset();
+  // 既定はワークスペース所属あり（MEMBER）。所属なしは各テストで上書き。
+  membershipFindUniqueMock.mockReset();
+  membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
   currentUserMock.mockReset();
-  currentUserMock.mockResolvedValue({ id: "u1", role: "USER" });
+  currentUserMock.mockResolvedValue({ id: "u1", role: "USER", currentWorkspaceId: "ws1" });
 });
 
 describe("PATCH /api/reserves/[reserveId]/extend", () => {
@@ -85,6 +91,15 @@ describe("PATCH /api/reserves/[reserveId]/extend", () => {
     const res = await PATCH(patchRequest({ end: jstDate(3) }), params);
 
     expect(res.status).toBe(401);
+    expect(findFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when not a workspace member", async () => {
+    membershipFindUniqueMock.mockResolvedValue(null);
+
+    const res = await PATCH(patchRequest({ end: jstDate(3) }), params);
+
+    expect(res.status).toBe(403);
     expect(findFirstMock).not.toHaveBeenCalled();
   });
 
@@ -118,8 +133,10 @@ describe("PATCH /api/reserves/[reserveId]/extend", () => {
     const res = await PATCH(patchRequest({ end: jstDate(3) }), params);
 
     expect(res.status).toBe(404);
-    // 所有権は where で強制（他人の予約は見つからない扱い）
-    expect(findFirstMock).toHaveBeenCalledWith({ where: { id: 5, user_id: "u1" } });
+    // 所有権とワークスペースは where で強制（他人・他団体の予約は見つからない扱い）
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 5, workspaceId: "ws1", user_id: "u1" },
+    });
     expect(txUpdateManyMock).not.toHaveBeenCalled();
   });
 
@@ -167,9 +184,10 @@ describe("PATCH /api/reserves/[reserveId]/extend", () => {
     const body = await res.json();
     expect(body.error).toBe("この期間にはすでに予約が入っています。");
     expect(txUpdateManyMock).not.toHaveBeenCalled();
-    // 自分自身は除外し、返却済(4)は空き扱いで判定する
+    // 自分自身は除外し、返却済(4)は空き扱いで、常にワークスペース内で判定する
     expect(txFindFirstMock).toHaveBeenCalledWith({
       where: {
+        workspaceId: "ws1",
         list_id: 7,
         id: { not: 5 },
         isRenting: { not: 4 },
@@ -186,7 +204,7 @@ describe("PATCH /api/reserves/[reserveId]/extend", () => {
 
     expect(res.status).toBe(200);
     expect(txUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: 5, user_id: "u1", isRenting: { in: [0, 1, 2, 3] } },
+      where: { id: 5, workspaceId: "ws1", user_id: "u1", isRenting: { in: [0, 1, 2, 3] } },
       data: { end: asUtc(jstDate(3)), remindedOn: null },
     });
     // 本人の操作なので通知はしない
@@ -215,17 +233,19 @@ describe("PATCH /api/reserves/[reserveId]/extend", () => {
     expect(res.status).toBe(409);
   });
 
-  it("lets an ADMIN extend any reserve and notifies the owner", async () => {
-    currentUserMock.mockResolvedValue({ id: "admin1", role: "ADMIN" });
+  it("lets an ADMIN extend any reserve in the workspace and notifies the owner", async () => {
+    currentUserMock.mockResolvedValue({ id: "admin1", role: "ADMIN", currentWorkspaceId: "ws1" });
     findFirstMock.mockResolvedValue(baseReserve());
 
     const res = await PATCH(patchRequest({ end: jstDate(3) }), params);
 
     expect(res.status).toBe(200);
-    // ADMIN は owner scope なし
-    expect(findFirstMock).toHaveBeenCalledWith({ where: { id: 5 } });
+    // ADMIN は owner scope なし（ただしワークスペース内に限る）
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: { id: 5, workspaceId: "ws1" },
+    });
     expect(txUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: 5, isRenting: { in: [0, 1, 2, 3] } },
+      where: { id: 5, workspaceId: "ws1", isRenting: { in: [0, 1, 2, 3] } },
       data: { end: asUtc(jstDate(3)), remindedOn: null },
     });
     // 他人の予約を延長したので持ち主へ通知（延長後の end を渡す）

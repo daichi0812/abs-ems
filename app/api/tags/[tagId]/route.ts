@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireManager } from "@/lib/route-helpers";
+import { requireWorkspaceManager } from "@/lib/route-helpers";
 import { TagSchema } from "@/schemas";
 import { NextResponse } from "next/server";
 
@@ -10,8 +10,8 @@ interface Params {
 }
 
 export async function PUT(request: Request, { params }: Params) {
-    const denied = await requireManager(request);
-    if (denied) return denied;
+    const ctx = await requireWorkspaceManager(request);
+    if (ctx instanceof NextResponse) return ctx;
 
     try {
         const parsed = TagSchema.safeParse(await request.json().catch(() => null));
@@ -22,10 +22,15 @@ export async function PUT(request: Request, { params }: Params) {
             );
         }
         const { tagId } = await params;
-        await db.tag.update({
-            where: { id: parseInt(tagId, 10) },
+        // updateMany + count 判定で、他ワークスペースのカテゴリ id を 404 に落とす
+        // （update の unique where にはワークスペース条件を足せないため）。
+        const result = await db.tag.updateMany({
+            where: { id: parseInt(tagId, 10), workspaceId: ctx.workspaceId },
             data: { name: parsed.data.name, color: parsed.data.color },
         });
+        if (result.count === 0) {
+            return NextResponse.json({ error: "カテゴリが見つかりません。" }, { status: 404 });
+        }
         return NextResponse.json({ message: "カテゴリを更新しました。" }, { status: 200 });
     } catch (error) {
         console.error("エラー詳細:", error);
@@ -34,12 +39,17 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-    const denied = await requireManager(request);
-    if (denied) return denied;
+    const ctx = await requireWorkspaceManager(request);
+    if (ctx instanceof NextResponse) return ctx;
 
     try {
         const { tagId } = await params;
-        await db.tag.delete({ where: { id: parseInt(tagId, 10) } });
+        const result = await db.tag.deleteMany({
+            where: { id: parseInt(tagId, 10), workspaceId: ctx.workspaceId },
+        });
+        if (result.count === 0) {
+            return NextResponse.json({ error: "カテゴリが見つかりません。" }, { status: 404 });
+        }
         return NextResponse.json({ message: "カテゴリを削除しました。" }, { status: 200 });
     } catch (error) {
         console.error("エラー詳細:", error);

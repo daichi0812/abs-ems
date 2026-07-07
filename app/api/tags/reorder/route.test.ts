@@ -1,21 +1,31 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasManagerAccessMock, transactionMock, updateMock } = vi.hoisted(() => ({
+const {
+  hasManagerAccessMock,
+  transactionMock,
+  updateManyMock,
+  membershipFindUniqueMock,
+  currentUserMock,
+} = vi.hoisted(() => ({
   hasManagerAccessMock: vi.fn(),
   transactionMock: vi.fn(),
-  updateMock: vi.fn(),
+  updateManyMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
+  currentUserMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api-auth", () => ({
   hasManagerAccess: (req: Request) => hasManagerAccessMock(req),
 }));
-// route-helpers 経由で @/lib/auth（next-auth）が読み込まれるのを避ける。PATCH は requireManager のみ使う。
-vi.mock("@/lib/auth", () => ({ currentUser: vi.fn() }));
+// route-helpers 経由で @/lib/auth（next-auth）が読み込まれるのを避ける。
+// PATCH は requireWorkspaceManager を使うため、所属メンバーとして通す currentUser を返す。
+vi.mock("@/lib/auth", () => ({ currentUser: () => currentUserMock() }));
 
 vi.mock("@/lib/db", () => ({
   db: {
-    tag: { update: (...a: unknown[]) => updateMock(...a) },
+    tag: { updateMany: (...a: unknown[]) => updateManyMock(...a) },
+    membership: { findUnique: membershipFindUniqueMock },
     $transaction: (...a: unknown[]) => transactionMock(...a),
   },
 }));
@@ -31,9 +41,14 @@ const makeReq = (body: unknown) =>
 beforeEach(() => {
   hasManagerAccessMock.mockReset();
   transactionMock.mockReset();
-  updateMock.mockReset();
-  updateMock.mockImplementation((args) => args); // 返り値は transaction 配列の中身用
+  updateManyMock.mockReset();
+  updateManyMock.mockImplementation((args) => args); // 返り値は transaction 配列の中身用
   transactionMock.mockResolvedValue([]);
+  currentUserMock.mockReset();
+  currentUserMock.mockResolvedValue({ id: "u1", role: "USER", currentWorkspaceId: "ws1" });
+  membershipFindUniqueMock.mockReset();
+  // requireWorkspaceMember が JWT の currentWorkspaceId を membership で再検証する
+  membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
 });
 
 describe("PATCH /api/tags/reorder", () => {
@@ -61,9 +76,19 @@ describe("PATCH /api/tags/reorder", () => {
     const res = await PATCH(makeReq({ orderedIds: [3, 1, 2] }));
 
     expect(res.status).toBe(200);
-    expect(updateMock).toHaveBeenNthCalledWith(1, { where: { id: 3 }, data: { sortOrder: 0 } });
-    expect(updateMock).toHaveBeenNthCalledWith(2, { where: { id: 1 }, data: { sortOrder: 1 } });
-    expect(updateMock).toHaveBeenNthCalledWith(3, { where: { id: 2 }, data: { sortOrder: 2 } });
+    // updateMany + workspaceId 条件で、他ワークスペースのカテゴリ id が混ざっていても無視される
+    expect(updateManyMock).toHaveBeenNthCalledWith(1, {
+      where: { id: 3, workspaceId: "ws1" },
+      data: { sortOrder: 0 },
+    });
+    expect(updateManyMock).toHaveBeenNthCalledWith(2, {
+      where: { id: 1, workspaceId: "ws1" },
+      data: { sortOrder: 1 },
+    });
+    expect(updateManyMock).toHaveBeenNthCalledWith(3, {
+      where: { id: 2, workspaceId: "ws1" },
+      data: { sortOrder: 2 },
+    });
     expect(transactionMock).toHaveBeenCalledOnce();
   });
 });

@@ -187,6 +187,9 @@ model List {
   // テナント境界。DB デフォルトで既定ワークスペースに落ちるため、workspace_id を
   // 知らない旧コードの INSERT も壊れない（デフォルトは権限移行完了後に撤去予定）。
   workspaceId String @default("ws_abs_default") @map("workspace_id")
+
+  // GET /api/lists・/api/calendar のワークスペース絞り込みに効く。
+  @@index([workspaceId])
 }
 
 model Reserve {
@@ -208,9 +211,12 @@ model Reserve {
 
   // POST の重複(期間重なり)チェック route.ts の findFirst({ list_id, start<=E, end>=S }) と
   // ?list_id= フィルタに効く。等値 list_id を先頭、範囲 start を第2列に。
+  // list_id は実質ワークスペース内で閉じるため、workspaceId を前置しなくても選択性は変わらない。
   @@index([list_id, start])
   // ?user_id= フィルタ(本人予約一覧)に効く。
   @@index([user_id, start])
+  // /api/calendar の「窓と重なる予約」（workspaceId + start/end 範囲、list_id/user_id なし）に効く。
+  @@index([workspaceId, start])
 }
 
 model Tag {
@@ -220,4 +226,7 @@ model Tag {
   sortOrder Int    @default(0) @map("sort_order")
   // テナント境界（List と同じ方針）
   workspaceId String @default("ws_abs_default") @map("workspace_id")
+
+  // GET /api/tags・/api/calendar のワークスペース絞り込みに効く。
+  @@index([workspaceId])
 }

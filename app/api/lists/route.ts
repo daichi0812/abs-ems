@@ -1,11 +1,11 @@
 import { db } from '@/lib/db';
-import { requireManager, requireUser } from '@/lib/route-helpers';
+import { requireWorkspaceManager, requireWorkspaceMember } from '@/lib/route-helpers';
 import { notifyInBackground, notifyNewEquipment } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-    const denied = await requireManager(request);
-    if (denied) return denied;
+    const ctx = await requireWorkspaceManager(request);
+    if (ctx instanceof NextResponse) return ctx;
 
     try {
         const data = await request.json();
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
                 image: image,
                 usable: true,  // 必要に応じて変更
                 tag_id: tag_id,
+                workspaceId: ctx.workspaceId,
             },
         });
 
@@ -34,11 +35,12 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
     try {
-        // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
-        const auth = await requireUser();
-        if (auth instanceof NextResponse) return auth;
+        // 所属メンバー必須（middleware 一枚依存をやめる defense-in-depth）。
+        // 現在のワークスペースの機材だけを返す。
+        const ctx = await requireWorkspaceMember();
+        if (ctx instanceof NextResponse) return ctx;
 
-        const lists = await db.list.findMany();
+        const lists = await db.list.findMany({ where: { workspaceId: ctx.workspaceId } });
 
         return NextResponse.json(lists, { status: 200 });
     } catch (error) {

@@ -1,5 +1,5 @@
 import NextAuth from "next-auth"
-import { UserRole } from "@prisma/client"
+import { UserRole, type WorkspaceRole } from "@prisma/client"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 
 import { db } from "@/lib/db"
@@ -107,6 +107,11 @@ export const {
         // token 側は lib/jwt-refresh.ts が DB から反映する
         session.user.image = (token.picture as string | null | undefined) ?? null;
         session.user.color = (token.color as string | null | undefined) ?? null;
+        // 現在のワークスペース（lib/jwt-refresh.ts が membership から解決）
+        session.user.currentWorkspaceId =
+          (token.currentWorkspaceId as string | null | undefined) ?? null;
+        session.user.workspaceRole =
+          (token.workspaceRole as WorkspaceRole | null | undefined) ?? null;
       }
 
       /* 更新されたセッションを返す */
