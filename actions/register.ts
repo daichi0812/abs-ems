@@ -8,6 +8,7 @@ import { RegisterSchema } from "@/schemas";
 import { getUserByEmail } from "@/data/user";
 import { sendVerificationEmail } from "@/lib/mail";
 import { generateVerificationToken } from "@/lib/tokens";
+import { joinDefaultWorkspace } from "@/lib/workspace";
 
 export const register = async (values: z.infer<typeof RegisterSchema>) => {
     const validatedFields = RegisterSchema.safeParse(values);
@@ -32,13 +33,17 @@ export const register = async (values: z.infer<typeof RegisterSchema>) => {
         return { error: "そのメールは既に使用されています！"}
     }
 
-    await db.user.create({
+    const user = await db.user.create({
         data: {
             name,
             email,
             password: hashedPassword,
         },
     });
+
+    // 新規ユーザーは既定ワークスペース（放送部）に所属させる。
+    // セルフサーブ作成・招待コードが入るまでの互換動作（従来の単一団体運用と同じ）。
+    await joinDefaultWorkspace(user.id);
 
     const verificationToken  = await generateVerificationToken( email );
     await sendVerificationEmail(
