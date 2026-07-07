@@ -133,10 +133,12 @@ export async function POST(request: Request) {
 
         // 同じ機材で期間が重なる予約（inclusive）を拒否する。
         // read committed では同時 INSERT のレースを完全には防げないベストエフォートのチェック。
+        // 返却済(4)は機材が手元に戻っているので空き扱い（早期返却で残り期間を解放する）。
         const result = await db.$transaction(async (tx) => {
             const conflict = await tx.reserve.findFirst({
                 where: {
                     list_id: Number(list_id),
+                    isRenting: { not: 4 },
                     start: { lte: endDateTime },
                     end: { gte: startDateTime },
                 },

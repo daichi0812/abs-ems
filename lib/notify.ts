@@ -150,6 +150,18 @@ export async function notifyReservationCancelled(
   });
 }
 
+// 管理者が他人の予約を延長したことを、予約の持ち主へ知らせる（reserve.end は延長後の値）。
+export async function notifyReservationExtended(reserve: ReserveLike): Promise<void> {
+  if (!reserve.user_id) return;
+  const name = await listName(reserve.list_id);
+  const period = `${formatReserveDate(reserve.start)} 〜 ${formatReserveDate(reserve.end)}`;
+  await notifyUser(reserve.user_id, "reservationEvents", {
+    subject: `予約が延長されました（${name}）`,
+    html: `<p>${name} の予約期間が管理者によって延長されました。</p><p>新しい利用期間: ${period}</p><p><a href="${APP_URL()}/ems/mypage">マイ予約を開く</a></p>`,
+    text: `${name} の予約期間が管理者によって延長されました。\n新しい利用期間: ${period}\nマイ予約: ${APP_URL()}/ems/mypage`,
+  });
+}
+
 // 返却期限当日のリマインダー（cron から呼ぶ）。
 export async function notifyReturnReminder(reserve: ReserveLike): Promise<void> {
   if (!reserve.user_id) return;

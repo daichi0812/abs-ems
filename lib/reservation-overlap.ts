@@ -3,6 +3,8 @@ import type { Equipment, Reserve } from "@/types/domain";
 /**
  * 特定の機材について、既存予約と新しい予約期間が重なるか判定する。
  * 「重なる」: 新規開始が既存範囲内 or 新規終了が既存範囲内 or 既存全体を新規が包含。
+ * 返却済(isRenting=4)は機材が手元に戻っているので空き扱い（サーバー側の
+ * POST /api/reserves の重複チェックと同じ基準。早期返却で残り期間が解放される）。
  */
 export const isOverlapping = (
   reserves: Reserve[],
@@ -13,7 +15,9 @@ export const isOverlapping = (
   const newStart = new Date(start).getTime();
   const newEnd = new Date(end).getTime();
 
-  const equipmentReserves = reserves.filter((r) => r.list_id === listId);
+  const equipmentReserves = reserves.filter(
+    (r) => r.list_id === listId && r.isRenting !== 4,
+  );
 
   return equipmentReserves.some((reserve) => {
     const existingStart = new Date(reserve.start).getTime();

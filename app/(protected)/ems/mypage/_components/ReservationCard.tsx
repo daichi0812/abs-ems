@@ -13,6 +13,11 @@ export interface ReserveActionTarget {
   rangeText: string;
 }
 
+/** 延長は新しい返却日の既定値・下限に現在の end が必要なので endIdx も持たせる。 */
+export interface ExtendActionTarget extends ReserveActionTarget {
+  endIdx: number;
+}
+
 interface ReservationCardProps {
   group: Grouped;
   todayIdx: number;
@@ -21,6 +26,7 @@ interface ReservationCardProps {
   borrowMany: (reserveIds: number[]) => void;
   onReturnRequest: (target: ReserveActionTarget) => void;
   onCancelRequest: (target: ReserveActionTarget) => void;
+  onExtendRequest: (target: ExtendActionTarget) => void;
 }
 
 /** マイ予約の1グループ（同一期間）のカード。機材ごとの行と、2件以上のときの一括操作行を表示する。 */
@@ -32,6 +38,7 @@ export function ReservationCard({
   borrowMany,
   onReturnRequest,
   onCancelRequest,
+  onExtendRequest,
 }: ReservationCardProps) {
   const active = g.startIdx <= todayIdx && g.endIdx >= todayIdx;
   const badge = badgeOf(g, todayIdx);
@@ -43,6 +50,8 @@ export function ReservationCard({
     (it) => it.isRenting === 2 || it.isRenting === 3
   );
   const cancellables = g.items.filter((it) => it.isRenting <= 1);
+  // 延長は同一期間グループ単位の操作（未返却の機材が対象。返却済は延長不可）
+  const extendables = g.items.filter((it) => it.isRenting !== 4);
   const showBulk =
     borrowables.length >= 2 ||
     returnables.length >= 2 ||
@@ -61,6 +70,18 @@ export function ReservationCard({
           </p>
           <p className="m-0 mt-0.5 text-[11px] text-ink-muted">機材 {g.items.length}件</p>
         </div>
+        {extendables.length > 0 && (
+          <button
+            type="button"
+            disabled={pendingIds.length > 0}
+            onClick={() =>
+              onExtendRequest({ items: extendables, rangeText, endIdx: g.endIdx })
+            }
+            className="h-7 flex-none rounded-lg border-[1.5px] border-line px-2.5 text-[11px] font-bold text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50"
+          >
+            延長
+          </button>
+        )}
         <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
       </div>
       <div className="flex flex-col gap-1.5">

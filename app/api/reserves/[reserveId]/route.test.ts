@@ -147,9 +147,10 @@ describe("PATCH /api/reserves/[reserveId]", () => {
     const res = await PATCH(patchRequest({ isRenting: 4 }), params);
 
     expect(res.status).toBe(200);
+    // end は書き換えず、実際に返した日を returnedAt に記録する（早期返却の履歴用）
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: 5, user_id: "u1", isRenting: { in: [2, 3] } },
-      data: { isRenting: 4 },
+      data: { isRenting: 4, returnedAt: expect.any(Date) },
     });
   });
 
@@ -162,7 +163,7 @@ describe("PATCH /api/reserves/[reserveId]", () => {
     expect(res.status).toBe(200);
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: 5, isRenting: { in: [2, 3] } },
-      data: { isRenting: 4 },
+      data: { isRenting: 4, returnedAt: expect.any(Date) },
     });
   });
 });

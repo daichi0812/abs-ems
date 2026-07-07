@@ -64,6 +64,23 @@ describe("isOverlapping", () => {
     const reserves = [makeReserve({ list_id: 1, start: "2026-01-10", end: "2026-01-15" })];
     expect(isOverlapping(reserves, 1, "2026-01-15", "2026-01-20")).toBe(true);
   });
+
+  // 返却済(4)は機材が手元に戻っているので空き扱い（サーバー側 POST の重複チェックと同じ基準）
+  it("ignores returned reserves (isRenting=4) so early returns free the slot", () => {
+    const reserves = [
+      makeReserve({ list_id: 1, start: "2026-01-10", end: "2026-01-15", isRenting: 4 }),
+    ];
+    expect(isOverlapping(reserves, 1, "2026-01-12", "2026-01-20")).toBe(false);
+  });
+
+  it("still blocks on unreturned reserves regardless of isRenting state", () => {
+    for (const isRenting of [0, 1, 2, 3, undefined]) {
+      const reserves = [
+        makeReserve({ list_id: 1, start: "2026-01-10", end: "2026-01-15", isRenting }),
+      ];
+      expect(isOverlapping(reserves, 1, "2026-01-12", "2026-01-20")).toBe(true);
+    }
+  });
 });
 
 describe("checkAllOverlaps", () => {

@@ -14,8 +14,13 @@ import { useReserveActions } from "@/app/(protected)/ems/mypage/hooks/use-reserv
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useMonthNav } from "@/hooks/use-month-nav";
 import { useMyReservationGroups } from "@/app/(protected)/ems/mypage/hooks/use-my-reservation-groups";
-import { ReservationCard, type ReserveActionTarget } from "./ReservationCard";
+import {
+  ReservationCard,
+  type ExtendActionTarget,
+  type ReserveActionTarget,
+} from "./ReservationCard";
 import { CancelReturnDialogs } from "./CancelReturnDialogs";
+import { ExtendDialog } from "./ExtendDialog";
 
 export function MyReservations() {
   const router = useRouter();
@@ -29,12 +34,22 @@ export function MyReservations() {
   } = useMyReserves({ userId: user?.id });
   const { equipments, isLoading: eqLoading } = useEquipments();
   const { categories } = useCategories();
-  const { pendingIds, borrow, borrowMany, giveBack, giveBackMany, cancel, cancelMany } =
-    useReserveActions({ refetch });
+  const {
+    pendingIds,
+    borrow,
+    borrowMany,
+    giveBack,
+    giveBackMany,
+    cancel,
+    cancelMany,
+    extendMany,
+  } = useReserveActions({ refetch });
   // キャンセル確認の対象。単体は items 1件、一括は複数件。
   const [cancelTarget, setCancelTarget] = useState<ReserveActionTarget | null>(null);
   // 返却確認の対象。返却は取り消せない操作（isRenting 4→2 の遷移が無い）なので確認を挟む。
   const [returnTarget, setReturnTarget] = useState<ReserveActionTarget | null>(null);
+  // 延長の対象（同一期間グループの未返却機材と現在の返却日）。
+  const [extendTarget, setExtendTarget] = useState<ExtendActionTarget | null>(null);
   // 「終了した予約」は履歴が無限に溜まるため、既定は直近数件だけ表示する
   const [showAllPast, setShowAllPast] = useState(false);
   const isDesktop = useIsDesktop();
@@ -161,6 +176,7 @@ export function MyReservations() {
                     borrowMany={borrowMany}
                     onReturnRequest={setReturnTarget}
                     onCancelRequest={setCancelTarget}
+                    onExtendRequest={setExtendTarget}
                   />
                 ))}
                 {collapsed && (
@@ -190,6 +206,11 @@ export function MyReservations() {
         onConfirmReturn={(ids) =>
           void (ids.length === 1 ? giveBack(ids[0]) : giveBackMany(ids))
         }
+      />
+      <ExtendDialog
+        target={extendTarget}
+        onClose={() => setExtendTarget(null)}
+        onConfirm={(ids, newEnd) => void extendMany(ids, newEnd)}
       />
       </div>
     </div>

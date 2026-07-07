@@ -133,10 +133,12 @@ describe("POST /api/reserves", () => {
     const body = await res.json();
     expect(body.error).toBe("この期間にはすでに予約が入っています。");
     expect(createMock).not.toHaveBeenCalled();
-    // 重複判定は inclusive（start <= 既存end AND end >= 既存start）
+    // 重複判定は inclusive（start <= 既存end AND end >= 既存start）。
+    // 返却済(4)は機材が手元に戻っているので空き扱い（早期返却で残り期間を解放する）。
     expect(findFirstMock).toHaveBeenCalledWith({
       where: {
         list_id: 1,
+        isRenting: { not: 4 },
         start: { lte: new Date(jstDate(3) + "T00:00:00Z") },
         end: { gte: new Date(jstDate(1) + "T00:00:00Z") },
       },
