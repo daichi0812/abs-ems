@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { requireManager, requireUser } from '@/lib/route-helpers';
+import { requireWorkspaceManager, requireWorkspaceMember } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
 import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 import { NextResponse } from 'next/server';
@@ -13,9 +13,10 @@ interface Params {
 // 特定のIDのデータを取得する
 export async function GET(request: Request, { params }: Params) {
     try {
-        // ログイン必須（middleware 一枚依存をやめる defense-in-depth）。
-        const auth = await requireUser();
-        if (auth instanceof NextResponse) return auth;
+        // 所属メンバー必須（middleware 一枚依存をやめる defense-in-depth）。
+        // 他ワークスペースの機材は 404 に落とす。
+        const ctx = await requireWorkspaceMember();
+        if (ctx instanceof NextResponse) return ctx;
 
         const equipmentId = parseInt((await params).equipmentId, 10);
 
@@ -23,8 +24,8 @@ export async function GET(request: Request, { params }: Params) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
 
-        const equipmentData = await db.list.findUnique({
-            where: { id: equipmentId },
+        const equipmentData = await db.list.findFirst({
+            where: { id: equipmentId, workspaceId: ctx.workspaceId },
         });
 
         if (!equipmentData) {
@@ -39,8 +40,8 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
-    const denied = await requireManager(request);
-    if (denied) return denied;
+    const ctx = await requireWorkspaceManager(request);
+    if (ctx instanceof NextResponse) return ctx;
 
     const data = await request.json();
     const { name, detail, image, tag_id } = data;
@@ -52,8 +53,16 @@ export async function PUT(request: Request, { params }: Params) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
         }
 
-        // 事前の findUnique による存在確認はせず、対象なしは P2025 で 404 に落とす
-        // （リクエストごとに新規接続を張る構成では DB 1往復の削減が効く）。
+        // update の where に複合条件は使えないため、ワークスペース所有の確認を先に挟む
+        // （他団体の機材 id を指定した越境更新を 404 に落とす）。
+        const owned = await db.list.findFirst({
+            where: { id: equipmentId, workspaceId: ctx.workspaceId },
+            select: { id: true },
+        });
+        if (!owned) {
+            return NextResponse.json({ error: 'データが見つかりませんでした。' }, { status: 404 });
+        }
+
         const updatedEquipment = await db.list.update({
             where: { id: equipmentId },
             data: {
@@ -75,14 +84,24 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-    const denied = await requireManager(request);
-    if (denied) return denied;
+    const ctx = await requireWorkspaceManager(request);
+    if (ctx instanceof NextResponse) return ctx;
 
     try {
         const equipmentId = parseInt((await params).equipmentId, 10);
 
         if (isNaN(equipmentId)) {
             return NextResponse.json({ error: '無効なIDです。' }, { status: 400 });
+        }
+
+        // ワークスペース所有の確認（他団体の機材は 404）。通知用の機材名もここで控える
+        // （List 行が消えた後では引けない）。
+        const target = await db.list.findFirst({
+            where: { id: equipmentId, workspaceId: ctx.workspaceId },
+            select: { id: true, name: true },
+        });
+        if (!target) {
+            return NextResponse.json({ error: 'データが見つかりませんでした。' }, { status: 404 });
         }
 
         // 貸出中・滞納（機材が部員の手元にある）の機材は削除させない。
@@ -98,8 +117,7 @@ export async function DELETE(request: Request, { params }: Params) {
         }
 
         // 削除で消える「今後の予約」の持ち主へ取り消し通知を送るため、削除前に控える
-        //（単発キャンセル DELETE /api/reserves/[id] と同じ通知ポリシー。
-        //  機材名も List 行が消える前にここで取得しておく）。
+        //（単発キャンセル DELETE /api/reserves/[id] と同じ通知ポリシー）。
         const upcoming = await db.reserve.findMany({
             where: {
                 list_id: equipmentId,
@@ -107,10 +125,7 @@ export async function DELETE(request: Request, { params }: Params) {
                 end: { gte: todayJstAsUtcMidnight() },
             },
         });
-        const equipmentName = upcoming.length > 0
-            ? ((await db.list.findUnique({ where: { id: equipmentId }, select: { name: true } }))
-                ?.name ?? undefined)
-            : undefined;
+        const equipmentName = target.name ?? undefined;
 
         // 機材だけ消すと予約が孤児化し、部員のマイページに「#42」のような
         // 機材名なしの予約が残り続けるため、関連予約もまとめて削除する

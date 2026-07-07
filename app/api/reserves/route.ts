@@ -1,16 +1,17 @@
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/route-helpers';
+import { requireWorkspaceMember } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationCreated } from '@/lib/notify';
 import { NextResponse } from 'next/server';
 import { parseDateOnly, todayJstAsUtcMidnight } from '@/lib/jst-date';
 
 export async function GET(request: Request) {
     try {
-        // ログイン必須。middleware 一枚依存をやめる defense-in-depth（DELETE と同じ currentUser パターン）。
-        // 予約データはログイン部員間で共有される設計（共通/機材別カレンダーが全予約を氏名付きで表示）なので、
-        // ここで本人の予約だけに絞る self-scope はしない（絞るとカレンダーが壊れる）。認証のみ・フィルタは維持。
-        const auth = await requireUser();
-        if (auth instanceof NextResponse) return auth;
+        // ワークスペースの所属メンバー必須（middleware 一枚依存をやめる defense-in-depth）。
+        // 予約データは同一ワークスペースのメンバー間で共有される設計（共通/機材別カレンダーが
+        // 全予約を氏名付きで表示）なので、本人の予約だけに絞る self-scope はしない。
+        // 常に現在のワークスペースでフィルタし、他団体の予約は返さない。
+        const ctx = await requireWorkspaceMember();
+        if (ctx instanceof NextResponse) return ctx;
 
         // ?user_id= / ?list_id= の完全一致フィルタ（日付演算はしないのでタイムゾーン安全）。
         // ?from= / ?to=（YYYY-MM-DD）は期間の重なりフィルタ:
@@ -25,11 +26,12 @@ export async function GET(request: Request) {
         const toParam = searchParams.get('to');
 
         const where: {
+            workspaceId: string;
             user_id?: string;
             list_id?: number;
             start?: { lte: Date };
             end?: { gte: Date };
-        } = {};
+        } = { workspaceId: ctx.workspaceId };
         // 存在判定は !== null。?user_id= (空文字) は該当0件として扱い、全件漏洩を防ぐ。
         if (userId !== null) {
             where.user_id = userId;
@@ -66,11 +68,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        // 予約作成もログイン必須。user_id は body ではなくセッションから導出し、body の
+        // 予約作成も所属メンバー必須。user_id は body ではなくセッションから導出し、body の
         // user_id は信頼しない（他人になりすました予約作成を防ぐ integrity 対策）。
-        const auth = await requireUser();
-        if (auth instanceof NextResponse) return auth;
-        const user = auth;
+        const ctx = await requireWorkspaceMember();
+        if (ctx instanceof NextResponse) return ctx;
+        const user = ctx.user;
 
         const data = await request.json();
         const { list_id, start, end, isRenting } = data;
@@ -131,12 +133,23 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '予約開始日は今日以降にしてください。' }, { status: 400 });
         }
 
+        // 予約対象の機材が現在のワークスペースのものであることを確認する
+        // （他団体の機材 id を指定した越境予約を防ぐ）。
+        const list = await db.list.findFirst({
+            where: { id: Number(list_id), workspaceId: ctx.workspaceId },
+            select: { id: true },
+        });
+        if (!list) {
+            return NextResponse.json({ error: '機材が見つかりません。' }, { status: 404 });
+        }
+
         // 同じ機材で期間が重なる予約（inclusive）を拒否する。
         // read committed では同時 INSERT のレースを完全には防げないベストエフォートのチェック。
         // 返却済(4)は機材が手元に戻っているので空き扱い（早期返却で残り期間を解放する）。
         const result = await db.$transaction(async (tx) => {
             const conflict = await tx.reserve.findFirst({
                 where: {
+                    workspaceId: ctx.workspaceId,
                     list_id: Number(list_id),
                     isRenting: { not: 4 },
                     start: { lte: endDateTime },
@@ -153,6 +166,7 @@ export async function POST(request: Request) {
                     start: startDateTime,
                     end: endDateTime,
                     isRenting: isRenting || 0,
+                    workspaceId: ctx.workspaceId,
                 },
             });
             return { conflict: false as const, reserve };

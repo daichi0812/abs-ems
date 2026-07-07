@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
-import { requireManager } from "@/lib/route-helpers";
+import { requireWorkspaceManager } from "@/lib/route-helpers";
 import { NextResponse } from "next/server";
 
 // カテゴリの並び順を一括更新する。ボディは { orderedIds: number[] }（表示順に並んだ tag id 配列）。
-// 配列内の位置を sortOrder（0 始まり）として transaction で採番し直す。ADMIN 必須。
+// 配列内の位置を sortOrder（0 始まり）として transaction で採番し直す。ワークスペース管理者必須。
 export async function PATCH(request: Request) {
-    const denied = await requireManager(request);
-    if (denied) return denied;
+    const ctx = await requireWorkspaceManager(request);
+    if (ctx instanceof NextResponse) return ctx;
 
     try {
         const body = (await request.json()) as { orderedIds?: unknown };
@@ -16,9 +16,13 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: "orderedIds は数値配列である必要があります。" }, { status: 400 });
         }
 
+        // updateMany + workspaceId 条件で、他ワークスペースのカテゴリ id が混ざっていても無視される。
         await db.$transaction(
             (orderedIds as number[]).map((id, index) =>
-                db.tag.update({ where: { id }, data: { sortOrder: index } }),
+                db.tag.updateMany({
+                    where: { id, workspaceId: ctx.workspaceId },
+                    data: { sortOrder: index },
+                }),
             ),
         );
 

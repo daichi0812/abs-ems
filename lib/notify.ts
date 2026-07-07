@@ -177,10 +177,24 @@ export async function notifyReturnReminder(reserve: ReserveLike): Promise<void> 
  * 新しい機材の追加を、notifyNewEquipment を有効にしている部員へ一斉配信する。
  * 1件の失敗が全体を止めないよう allSettled。設定行のあるユーザーだけが対象
  * （newEquipment の既定は false なので、明示的に true にした人のみ）。
+ * 配信先は機材の属するワークスペースのメンバーに限定する（他団体へ漏らさない）。
  */
-export async function notifyNewEquipment(list: { name: string | null }): Promise<void> {
+export async function notifyNewEquipment(list: {
+  name: string | null;
+  workspaceId: string;
+}): Promise<void> {
+  const memberIds = (
+    await db.membership.findMany({
+      where: { workspaceId: list.workspaceId },
+      select: { userId: true },
+    })
+  ).map((m) => m.userId);
   const targets = await db.userSettings.findMany({
-    where: { notifyNewEquipment: true, user: { email: { not: null } } },
+    where: {
+      notifyNewEquipment: true,
+      userId: { in: memberIds },
+      user: { email: { not: null } },
+    },
     select: { user: { select: { email: true } } },
   });
   const name = list.name ?? "新しい機材";

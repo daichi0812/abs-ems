@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { requireUser } from '@/lib/route-helpers';
+import { requireWorkspaceMember } from '@/lib/route-helpers';
 import { parseDateOnly } from '@/lib/jst-date';
 import { NextResponse } from 'next/server';
 
@@ -14,12 +14,13 @@ import { NextResponse } from 'next/server';
 //   - 各テーブルは select で最小列に絞る … lists の image/detail（長いURL・長文）を落とす
 // の2点でペイロードも小さくなる。
 //
-// 予約データはログイン部員間で共有される設計（全予約を氏名付きで表示）なので、
-// /api/reserves の GET と同じく認証のみで self-scope はしない。
+// 予約データは同一ワークスペースのメンバー間で共有される設計（全予約を氏名付きで表示）
+// なので self-scope はしないが、ユーザー一覧を含む全データを現在のワークスペースに限定する
+// （別団体の氏名・アイコンが見えるテナント越境を防ぐ）。
 export async function GET(request: Request) {
     try {
-        const auth = await requireUser();
-        if (auth instanceof NextResponse) return auth;
+        const ctx = await requireWorkspaceMember();
+        if (ctx instanceof NextResponse) return ctx;
 
         // from/to は必須（YYYY-MM-DD、JST暦日）。無制限の全件取得を許すと
         // 旧 /api/reserves と同じ「履歴とともに際限なく重くなる」経路が残ってしまう。
@@ -30,15 +31,34 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'from / to（YYYY-MM-DD）が不正です。' }, { status: 400 });
         }
 
+        // ユーザーは membership 経由でワークスペースのメンバーに限定する
+        // （Membership は生FKスタイルなので join できず、2段引きになる）。
+        const memberIds = (
+            await db.membership.findMany({
+                where: { workspaceId: ctx.workspaceId },
+                select: { userId: true },
+            })
+        ).map((m) => m.userId);
+
         // 同一リクエスト内なので4クエリとも lib/db.ts が集約した1接続に乗る
         const [users, lists, tags, reserves] = await Promise.all([
             // color/image は本人設定のテーマカラー・アイコン（カレンダーの色とチップ表示に使う）
-            db.user.findMany({ select: { id: true, name: true, color: true, image: true } }),
-            db.list.findMany({ select: { id: true, name: true, tag_id: true } }),
-            db.tag.findMany({ select: { id: true, name: true, color: true }, orderBy: { sortOrder: 'asc' } }),
+            db.user.findMany({
+                where: { id: { in: memberIds } },
+                select: { id: true, name: true, color: true, image: true },
+            }),
+            db.list.findMany({
+                where: { workspaceId: ctx.workspaceId },
+                select: { id: true, name: true, tag_id: true },
+            }),
+            db.tag.findMany({
+                where: { workspaceId: ctx.workspaceId },
+                select: { id: true, name: true, color: true },
+                orderBy: { sortOrder: 'asc' },
+            }),
             db.reserve.findMany({
                 // 窓と重なる予約（inclusive）。保存値は「JST日付の UTC 00:00」。
-                where: { start: { lte: to }, end: { gte: from } },
+                where: { workspaceId: ctx.workspaceId, start: { lte: to }, end: { gte: from } },
                 select: { id: true, user_id: true, start: true, end: true, list_id: true, isRenting: true },
             }),
         ]);
