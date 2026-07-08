@@ -2,13 +2,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { requireManager } from '@/lib/route-helpers';
+import { requireWorkspaceManager } from '@/lib/route-helpers';
 
 export async function POST(req: NextRequest) {
-  // 機材画像アップロードは管理操作。lists/tags の変更系と同じ権限判定で守り、
-  // 未認証の匿名アップロード（ストレージ悪用）を防ぐ。
-  const denied = await requireManager(req);
-  if (denied) return denied;
+  // 機材画像アップロードは管理操作。lists/tags の変更系と同じ権限判定
+  // （ワークスペースの OWNER/ADMIN）で守り、匿名アップロード（ストレージ悪用）を防ぐ。
+  const ctx = await requireWorkspaceManager();
+  if (ctx instanceof NextResponse) return ctx;
 
   const { searchParams } = new URL(req.url);
   const filename = searchParams.get('filename');

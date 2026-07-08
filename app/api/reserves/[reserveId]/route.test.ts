@@ -170,8 +170,10 @@ describe("PATCH /api/reserves/[reserveId]", () => {
     });
   });
 
-  it("lets an ADMIN transition any reserve in the workspace", async () => {
-    currentUserMock.mockResolvedValue({ id: "admin1", role: "ADMIN", currentWorkspaceId: "ws1" });
+  it("lets a workspace ADMIN transition any reserve in the workspace", async () => {
+    // 権限は membership.role（OWNER/ADMIN）一本。グローバル role は USER のままでよい。
+    currentUserMock.mockResolvedValue({ id: "admin1", role: "USER", currentWorkspaceId: "ws1" });
+    membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
     updateManyMock.mockResolvedValue({ count: 1 });
 
     const res = await PATCH(patchRequest({ isRenting: 4 }), params);
@@ -180,6 +182,22 @@ describe("PATCH /api/reserves/[reserveId]", () => {
     // 管理者は user_id スコープなし。ただしワークスペース内に限る。
     expect(updateManyMock).toHaveBeenCalledWith({
       where: { id: 5, workspaceId: "ws1", isRenting: { in: [2, 3] } },
+      data: { isRenting: 4, returnedAt: expect.any(Date) },
+    });
+  });
+
+  it("scopes a global ADMIN who is only a workspace MEMBER to their own reserves", async () => {
+    // グローバル UserRole.ADMIN は予約操作の権限に使わない（workspaceRole 一本化）。
+    currentUserMock.mockResolvedValue({ id: "u1", role: "ADMIN", currentWorkspaceId: "ws1" });
+    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    const res = await PATCH(patchRequest({ isRenting: 4 }), params);
+
+    expect(res.status).toBe(200);
+    // user_id スコープが残る＝他人の予約には届かない
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: 5, workspaceId: "ws1", user_id: "u1", isRenting: { in: [2, 3] } },
       data: { isRenting: 4, returnedAt: expect.any(Date) },
     });
   });
@@ -212,8 +230,10 @@ describe("DELETE /api/reserves/[reserveId]", () => {
     });
   });
 
-  it("lets an ADMIN delete any reserve in the workspace", async () => {
-    currentUserMock.mockResolvedValue({ id: "admin1", role: "ADMIN", currentWorkspaceId: "ws1" });
+  it("lets a workspace ADMIN delete any reserve in the workspace", async () => {
+    // 権限は membership.role（OWNER/ADMIN）一本。グローバル role は USER のままでよい。
+    currentUserMock.mockResolvedValue({ id: "admin1", role: "USER", currentWorkspaceId: "ws1" });
+    membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
     findFirstMock.mockResolvedValue({ id: 5, user_id: "u1" });
     deleteManyMock.mockResolvedValue({ count: 1 });
 
@@ -222,6 +242,22 @@ describe("DELETE /api/reserves/[reserveId]", () => {
     expect(res.status).toBe(200);
     expect(deleteManyMock).toHaveBeenCalledWith({
       where: { id: 5, workspaceId: "ws1" },
+    });
+  });
+
+  it("scopes a global ADMIN who is only a workspace MEMBER to their own reserves", async () => {
+    // グローバル UserRole.ADMIN でも workspaceRole が MEMBER なら他人の予約は消せない。
+    currentUserMock.mockResolvedValue({ id: "u1", role: "ADMIN", currentWorkspaceId: "ws1" });
+    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
+    findFirstMock.mockResolvedValue({ id: 5, user_id: "u1" });
+    deleteManyMock.mockResolvedValue({ count: 1 });
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(200);
+    // user_id スコープと未貸出(0|1)の制限が残る＝一般部員と同じ扱い
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: { id: 5, workspaceId: "ws1", user_id: "u1", isRenting: { in: [0, 1] } },
     });
   });
 

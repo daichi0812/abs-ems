@@ -2,22 +2,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  hasManagerAccessMock,
   transactionMock,
   updateManyMock,
   membershipFindUniqueMock,
   currentUserMock,
 } = vi.hoisted(() => ({
-  hasManagerAccessMock: vi.fn(),
   transactionMock: vi.fn(),
   updateManyMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
   currentUserMock: vi.fn(),
 }));
 
-vi.mock("@/lib/api-auth", () => ({
-  hasManagerAccess: (req: Request) => hasManagerAccessMock(req),
-}));
 // route-helpers 経由で @/lib/auth（next-auth）が読み込まれるのを避ける。
 // PATCH は requireWorkspaceManager を使うため、所属メンバーとして通す currentUser を返す。
 vi.mock("@/lib/auth", () => ({ currentUser: () => currentUserMock() }));
@@ -39,7 +34,6 @@ const makeReq = (body: unknown) =>
   });
 
 beforeEach(() => {
-  hasManagerAccessMock.mockReset();
   transactionMock.mockReset();
   updateManyMock.mockReset();
   updateManyMock.mockImplementation((args) => args); // 返り値は transaction 配列の中身用
@@ -47,13 +41,15 @@ beforeEach(() => {
   currentUserMock.mockReset();
   currentUserMock.mockResolvedValue({ id: "u1", role: "USER", currentWorkspaceId: "ws1" });
   membershipFindUniqueMock.mockReset();
-  // requireWorkspaceMember が JWT の currentWorkspaceId を membership で再検証する
-  membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
+  // requireWorkspaceMember が JWT の currentWorkspaceId を membership で再検証する。
+  // 管理ルートなので既定は ADMIN（一般部員のケースは各テストで MEMBER に上書き）。
+  membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
 });
 
 describe("PATCH /api/tags/reorder", () => {
-  it("returns 403 without manager access", async () => {
-    hasManagerAccessMock.mockResolvedValue(false);
+  it("returns 403 for a workspace MEMBER (managers only)", async () => {
+    // 権限は membership.role（OWNER/ADMIN）一本。一般部員は並び替えできない。
+    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
 
     const res = await PATCH(makeReq({ orderedIds: [1, 2] }));
 
@@ -62,8 +58,6 @@ describe("PATCH /api/tags/reorder", () => {
   });
 
   it("returns 400 when orderedIds is not a numeric array", async () => {
-    hasManagerAccessMock.mockResolvedValue(true);
-
     const res = await PATCH(makeReq({ orderedIds: ["a", "b"] }));
 
     expect(res.status).toBe(400);
@@ -71,8 +65,6 @@ describe("PATCH /api/tags/reorder", () => {
   });
 
   it("assigns sortOrder by array position in a transaction", async () => {
-    hasManagerAccessMock.mockResolvedValue(true);
-
     const res = await PATCH(makeReq({ orderedIds: [3, 1, 2] }));
 
     expect(res.status).toBe(200);

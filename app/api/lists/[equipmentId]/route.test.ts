@@ -11,7 +11,6 @@ const {
   transactionMock,
   membershipFindUniqueMock,
   currentUserMock,
-  hasManagerAccessMock,
   notifyInBackgroundMock,
   notifyReservationCancelledMock,
 } = vi.hoisted(() => ({
@@ -24,7 +23,6 @@ const {
   transactionMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
   currentUserMock: vi.fn(),
-  hasManagerAccessMock: vi.fn(),
   notifyInBackgroundMock: vi.fn(),
   notifyReservationCancelledMock: vi.fn(),
 }));
@@ -45,13 +43,9 @@ vi.mock("@/lib/notify", () => ({
   notifyInBackground: notifyInBackgroundMock,
   notifyReservationCancelled: (...a: unknown[]) => notifyReservationCancelledMock(...a),
 }));
-// GET はログイン必須。PUT/DELETE の hasManagerAccess 経由で currentRole も参照されうるため両方出す。
+// GET はログイン必須。PUT/DELETE は requireWorkspaceManager（membership.role で判定）。
 vi.mock("@/lib/auth", () => ({
   currentUser: () => currentUserMock(),
-  currentRole: vi.fn(),
-}));
-vi.mock("@/lib/api-auth", () => ({
-  hasManagerAccess: () => hasManagerAccessMock(),
 }));
 
 import { DELETE, GET, PUT } from "./route";
@@ -86,12 +80,11 @@ beforeEach(() => {
   // db.$transaction([...]) は各操作の Promise を解決した配列を返す想定
   transactionMock.mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops));
   membershipFindUniqueMock.mockReset();
-  // requireWorkspaceMember が JWT の currentWorkspaceId を membership で再検証する
-  membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
+  // requireWorkspaceMember が JWT の currentWorkspaceId を membership で再検証する。
+  // PUT/DELETE は管理ルートなので既定は ADMIN（一般部員のケースは各テストで MEMBER に上書き）。
+  membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
   currentUserMock.mockReset();
   currentUserMock.mockResolvedValue({ id: "u1", role: "USER", currentWorkspaceId: "ws1" });
-  hasManagerAccessMock.mockReset();
-  hasManagerAccessMock.mockResolvedValue(true);
 });
 
 describe("GET /api/lists/[equipmentId]", () => {
@@ -158,8 +151,9 @@ describe("PUT /api/lists/[equipmentId]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 403 without manager access", async () => {
-    hasManagerAccessMock.mockResolvedValue(false);
+  it("returns 403 for a workspace MEMBER (managers only)", async () => {
+    // 権限は membership.role（OWNER/ADMIN）一本。一般部員は機材を更新できない。
+    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
 
     const res = await PUT(putRequest(), params);
 
@@ -234,6 +228,16 @@ describe("DELETE /api/lists/[equipmentId]", () => {
     expect(notifyReservationCancelledMock).toHaveBeenCalledWith(upcoming[0], "Camera");
     expect(notifyReservationCancelledMock).toHaveBeenCalledWith(upcoming[1], "Camera");
     expect(notifyInBackgroundMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 403 for a workspace MEMBER (managers only)", async () => {
+    // 権限は membership.role（OWNER/ADMIN）一本。一般部員は機材を削除できない。
+    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
+
+    const res = await DELETE(deleteRequest(), params);
+
+    expect(res.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("does not notify when there are no upcoming reserves", async () => {

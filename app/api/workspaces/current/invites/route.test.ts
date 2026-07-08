@@ -5,12 +5,10 @@ const {
   inviteCreateMock,
   membershipFindUniqueMock,
   currentUserMock,
-  hasManagerAccessMock,
 } = vi.hoisted(() => ({
   inviteCreateMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
   currentUserMock: vi.fn(),
-  hasManagerAccessMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -21,9 +19,6 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/auth", () => ({
   currentUser: () => currentUserMock(),
-}));
-vi.mock("@/lib/api-auth", () => ({
-  hasManagerAccess: () => hasManagerAccessMock(),
 }));
 
 import { POST } from "./route";
@@ -37,8 +32,6 @@ beforeEach(() => {
   membershipFindUniqueMock.mockResolvedValue({ role: "OWNER" });
   currentUserMock.mockReset();
   currentUserMock.mockResolvedValue({ id: "u1", role: "USER", currentWorkspaceId: "ws1" });
-  hasManagerAccessMock.mockReset();
-  hasManagerAccessMock.mockResolvedValue(false);
 });
 
 describe("POST /api/workspaces/current/invites", () => {
@@ -51,7 +44,7 @@ describe("POST /api/workspaces/current/invites", () => {
     expect(inviteCreateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 403 for a plain MEMBER without legacy manager access", async () => {
+  it("returns 403 for a workspace MEMBER (managers only)", async () => {
     membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
 
     const res = await POST(postRequest());

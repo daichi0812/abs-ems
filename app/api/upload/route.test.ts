@@ -2,16 +2,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
-const { hasManagerAccessMock, putMock } = vi.hoisted(() => ({
-  hasManagerAccessMock: vi.fn(),
+const { currentUserMock, membershipFindUniqueMock, putMock } = vi.hoisted(() => ({
+  currentUserMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
   putMock: vi.fn(),
 }));
 
-vi.mock("@/lib/api-auth", () => ({
-  hasManagerAccess: hasManagerAccessMock,
+// requireWorkspaceManager は currentUser() と membership の DB 再検証で判定する
+// （lists/tags のルートテストと同じ mock 構成）。
+vi.mock("@/lib/auth", () => ({
+  currentUser: () => currentUserMock(),
 }));
-// route-helpers 経由で @/lib/auth（next-auth）が読み込まれるのを避ける。POST は requireManager のみ使う。
-vi.mock("@/lib/auth", () => ({ currentUser: vi.fn() }));
+vi.mock("@/lib/db", () => ({
+  db: {
+    membership: { findUnique: membershipFindUniqueMock },
+  },
+}));
 // R2 バインディングは OpenNext の getCloudflareContext().env 経由で取得する。
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => ({ env: { IMAGES_BUCKET: { put: putMock } } }),
@@ -30,9 +36,13 @@ const uploadRequest = (qs = "?filename=test.png") =>
   }) as unknown as NextRequest;
 
 beforeEach(() => {
-  hasManagerAccessMock.mockReset();
+  currentUserMock.mockReset();
+  membershipFindUniqueMock.mockReset();
   putMock.mockReset();
   putMock.mockResolvedValue(undefined);
+  // 既定はワークスペースの ADMIN（管理者）としてログイン済み
+  currentUserMock.mockResolvedValue({ id: "u1", currentWorkspaceId: "ws1" });
+  membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
   process.env.R2_PUBLIC_BASE_URL = BASE;
 });
 
@@ -41,8 +51,17 @@ afterEach(() => {
 });
 
 describe("POST /api/upload", () => {
-  it("returns 403 and does not upload without manager access", async () => {
-    hasManagerAccessMock.mockResolvedValue(false);
+  it("returns 401 and does not upload when unauthenticated", async () => {
+    currentUserMock.mockResolvedValue(undefined);
+
+    const res = await POST(uploadRequest());
+
+    expect(res.status).toBe(401);
+    expect(putMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 and does not upload for a MEMBER (non-manager role)", async () => {
+    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
 
     const res = await POST(uploadRequest());
 
@@ -50,9 +69,7 @@ describe("POST /api/upload", () => {
     expect(putMock).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when filename is missing (even with manager access)", async () => {
-    hasManagerAccessMock.mockResolvedValue(true);
-
+  it("returns 400 when filename is missing (even for a manager)", async () => {
     const res = await POST(uploadRequest(""));
 
     expect(res.status).toBe(400);
@@ -60,7 +77,6 @@ describe("POST /api/upload", () => {
   });
 
   it("returns 500 when R2_PUBLIC_BASE_URL is not configured", async () => {
-    hasManagerAccessMock.mockResolvedValue(true);
     delete process.env.R2_PUBLIC_BASE_URL;
 
     const res = await POST(uploadRequest());
@@ -70,8 +86,6 @@ describe("POST /api/upload", () => {
   });
 
   it("uploads to R2 with a unique key and returns the public url for a manager", async () => {
-    hasManagerAccessMock.mockResolvedValue(true);
-
     const res = await POST(uploadRequest());
 
     expect(res.status).toBe(200);

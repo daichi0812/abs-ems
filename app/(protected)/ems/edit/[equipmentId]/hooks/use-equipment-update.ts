@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useGetImageUrl } from "@/app/(protected)/ems/manager/use-image-url";
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { compressImage } from "@/lib/image-compress";
 import type { Tag as Tags } from "@/types/domain";
 
@@ -47,7 +46,6 @@ export const useEquipmentUpdate = ({
           const responseVercel = await fetch(`/api/upload?filename=${uploadFile.name}`, {
             method: "POST",
             body: uploadFile,
-            headers: managerAuthHeaders(),
           });
           const responseText = await responseVercel.text();
 
@@ -70,7 +68,7 @@ export const useEquipmentUpdate = ({
       try {
         const response = await fetch(`/api/lists/${equipmentId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: equipmentName,
             detail: equipmentDetail,

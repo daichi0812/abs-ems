@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 // カテゴリの並び順を一括更新する。ボディは { orderedIds: number[] }（表示順に並んだ tag id 配列）。
 // 配列内の位置を sortOrder（0 始まり）として transaction で採番し直す。ワークスペース管理者必須。
 export async function PATCH(request: Request) {
-    const ctx = await requireWorkspaceManager(request);
+    const ctx = await requireWorkspaceManager();
     if (ctx instanceof NextResponse) return ctx;
 
     try {

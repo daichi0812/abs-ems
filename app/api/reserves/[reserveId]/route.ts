@@ -1,7 +1,10 @@
 import { db } from '@/lib/db';
-import { requireWorkspaceMember, type WorkspaceContext } from '@/lib/route-helpers';
+import {
+    isWorkspaceManagerRole,
+    requireWorkspaceMember,
+    type WorkspaceContext,
+} from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationCancelled } from '@/lib/notify';
-import { UserRole, WorkspaceRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { todayJstAsUtcMidnight } from '@/lib/jst-date';
 
@@ -9,11 +12,10 @@ interface Params {
     params: Promise<{ reserveId: string }>;
 }
 
-// 他人の予約も操作できる管理者か（ワークスペース OWNER/ADMIN。移行期はグローバル ADMIN も許可）。
+// 他人の予約も操作できる管理者か（ワークスペースの OWNER/ADMIN のみ。
+// グローバル UserRole.ADMIN は開発者/運用向けに縮退し、予約操作の権限には使わない）。
 const isReserveManager = (ctx: WorkspaceContext): boolean =>
-    ctx.workspaceRole === WorkspaceRole.OWNER ||
-    ctx.workspaceRole === WorkspaceRole.ADMIN ||
-    ctx.user.role === UserRole.ADMIN;
+    isWorkspaceManagerRole(ctx.workspaceRole);
 
 export async function GET(request: Request, { params }: Params) {
     try {

@@ -40,7 +40,7 @@ export async function GET(request: Request, { params }: Params) {
 }
 
 export async function PUT(request: Request, { params }: Params) {
-    const ctx = await requireWorkspaceManager(request);
+    const ctx = await requireWorkspaceManager();
     if (ctx instanceof NextResponse) return ctx;
 
     const data = await request.json();
@@ -84,7 +84,7 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 export async function DELETE(request: Request, { params }: Params) {
-    const ctx = await requireWorkspaceManager(request);
+    const ctx = await requireWorkspaceManager();
     if (ctx instanceof NextResponse) return ctx;
 
     try {

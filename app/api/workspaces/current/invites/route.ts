@@ -9,7 +9,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // 回数制限は設けない（部の新歓などで同じリンクを複数人に配る運用のため）。
 export async function POST(request: Request) {
     try {
-        const ctx = await requireWorkspaceManager(request);
+        const ctx = await requireWorkspaceManager();
         if (ctx instanceof NextResponse) return ctx;
 
         const code = crypto.randomUUID().replace(/-/g, '');
