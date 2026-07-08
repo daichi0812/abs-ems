@@ -54,3 +54,17 @@ claude-in-chrome で `http://localhost:3000/ems/mypage` 等を開く。ユーザ
 - 「借りる」(PATCH isRenting:2) は JST 今日が start〜end 内のときのみ成功する。
 - 重複チェックは返却済(4)を空き扱いにする（早期返却で残り期間が解放される）。
 - 延長は `PATCH /api/reserves/[id]/extend` に `{"end":"YYYY-MM-DD"}`。
+
+## トラブルシュート
+
+- **5432/TCP 直結が通らない**ことがある（ネットワーク依存）。スクリプトから dev DB に
+  つなぐときは lib/db.ts と同じ WebSocket(443) 経由にする:
+  ```js
+  import { PrismaNeon } from "@prisma/adapter-neon";
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  const db = new PrismaClient({ adapter });
+  ```
+- dev サーバー起動前に **port 3000 の残プロセス**を確認（`lsof -i :3000`）。取られていると
+  3002 で起きて、3000 側の古いサーバー（.next 削除済みで壊れている）を叩いてしまう。
+- ブラウザ検証で「ユーザーの localhost セッションを壊したくない」ときは **http://127.0.0.1:3000**
+  を使う（cookie がホスト単位で分離され、別セッションでログインできる）。
