@@ -16,14 +16,39 @@ const FROM = { email: "noreply@abs-ems.forgeonics.com", name: "ABS EMS" };
 
 const domain = process.env.NEXT_PUBLIC_APP_URL;
 
+interface MailContent {
+    subject: string;
+    html: string;
+    text: string;
+}
+
+/**
+ * 1通送る。next dev(Node) には Workers の EMAIL バインディングが無いため、
+ * 開発環境ではメールの代わりに本文（確認リンク・コード入り）を端末へ出力して、
+ * 登録→メール確認→ログインの一連のフローをローカルでも最後まで通せるようにする。
+ * 本番でコンテキストが取れないのは構成異常なので握りつぶさず投げ直す。
+ */
+async function sendMail(to: string, msg: MailContent): Promise<void> {
+    let env: CloudflareEnv;
+    try {
+        env = getCloudflareContext().env;
+    } catch (error) {
+        if (process.env.NODE_ENV === "production") throw error;
+        console.log(
+            `\n[mail:dev] EMAIL バインディングが無いため送信をスキップしました（next dev では正常）。\n` +
+            `[mail:dev] to: ${to} / subject: ${msg.subject}\n` +
+            `[mail:dev] ${msg.text}\n`
+        );
+        return;
+    }
+    await env.EMAIL.send({ from: FROM, to, ...msg });
+}
+
 export const sendTwoFactorTokenEmail = async (
     email: string,
     token: string
 ) => {
-    const { env } = getCloudflareContext();
-    await env.EMAIL.send({
-        from: FROM,
-        to: email,
+    await sendMail(email, {
         subject: "2FA Code",
         html: `<p>Your 2FA code: ${token}</p>`,
         text: `Your 2FA code: ${token}`,
@@ -36,10 +61,7 @@ export const sendPasswordResetEmail = async (
 ) => {
     const resetLink = `${domain}/auth/new-password?token=${token}`
 
-    const { env } = getCloudflareContext();
-    await env.EMAIL.send({
-        from: FROM,
-        to: email,
+    await sendMail(email, {
         subject: "Reset your password",
         html: `<p>Click <a href="${resetLink}">here</a> to reset password.</p>`,
         text: `Reset your password: ${resetLink}`,
@@ -52,10 +74,7 @@ export const sendVerificationEmail = async (
 ) => {
     const confirmLink = `${domain}/auth/new-verification?token=${token}`;
 
-    const { env } = getCloudflareContext();
-    await env.EMAIL.send({
-        from: FROM,
-        to: email,
+    await sendMail(email, {
         subject: "Confirm your email",
         html: `<p>Click <a href="${confirmLink}">here</a> to confirm email.</p>`,
         text: `Confirm your email: ${confirmLink}`,
