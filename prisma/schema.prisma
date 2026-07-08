@@ -34,6 +34,9 @@ model User {
   twoFactorConfirmation TwoFactorConfirmation?
   settings      UserSettings?
   feedbacks     Feedback[]
+  // 監査カラム。migration 以前の既存行の createdAt は適用時刻になる（真の登録日は不明）。
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -48,6 +51,7 @@ model Feedback {
   path      String?  // 送信元ページ（自動付与）
   resolved  Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([resolved, createdAt])
   @@map("feedback")
@@ -68,6 +72,8 @@ model UserSettings {
   lineNotifyEnabled       Boolean      @default(false) @map("line_notify_enabled")
   lineUserId              String?      @unique @map("line_user_id")
   calendarDefaultView     CalendarView @default(MONTH) @map("calendar_default_view")
+  createdAt               DateTime     @default(now()) @map("created_at")
+  updatedAt               DateTime     @default(now()) @updatedAt @map("updated_at")
 
   @@map("user_settings")
 }
@@ -136,6 +142,7 @@ model Workspace {
   name      String
   slug      String   @unique
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("workspaces")
 }
@@ -156,6 +163,7 @@ model Membership {
   workspaceId String        @map("workspace_id")
   role        WorkspaceRole @default(MEMBER)
   createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
 
   @@unique([userId, workspaceId])
   @@index([workspaceId])
@@ -173,6 +181,7 @@ model WorkspaceInvite {
   usedCount   Int           @default(0) @map("used_count")
   createdBy   String?       @map("created_by")
   createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at")
 
   @@map("workspace_invites")
 }
@@ -187,6 +196,8 @@ model List {
   // テナント境界。全 create 経路が明示的に渡す（移行期の DB デフォルト
   // 'ws_abs_default' は撤去済み。書き忘れは silent な越境ではなくエラーになる）。
   workspaceId String @map("workspace_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   // GET /api/lists・/api/calendar のワークスペース絞り込みに効く。
   @@index([workspaceId])
@@ -208,6 +219,8 @@ model Reserve {
   returnedAt DateTime? @map("returned_at")
   // テナント境界（List と同じ方針）
   workspaceId String @map("workspace_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   // POST の重複(期間重なり)チェック route.ts の findFirst({ list_id, start<=E, end>=S }) と
   // ?list_id= フィルタに効く。等値 list_id を先頭、範囲 start を第2列に。
@@ -226,6 +239,8 @@ model Tag {
   sortOrder Int    @default(0) @map("sort_order")
   // テナント境界（List と同じ方針）
   workspaceId String @map("workspace_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   // GET /api/tags・/api/calendar のワークスペース絞り込みに効く。
   @@index([workspaceId])
