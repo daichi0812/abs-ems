@@ -25,7 +25,6 @@ export const useTagReorder = ({ tags, refetchTags }: UseTagReorderParams) => {
     try {
       await apiMutate("/api/tags/reorder", {
         method: "PATCH",
-        manager: true,
         body: { orderedIds: next.map((t) => t.id) },
       });
       await refetchTags();

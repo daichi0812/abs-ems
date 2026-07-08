@@ -1,13 +1,9 @@
 "use client";
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
-
 export interface ApiMutateOptions {
   method: string;
   /** JSON ボディ。渡すと Content-Type: application/json を付与し JSON 直列化して送る。 */
   body?: unknown;
-  /** true で管理系ヘッダー（x-manager-key）を付与する。 */
-  manager?: boolean;
 }
 
 /** apiMutate が投げるエラー。message にはサーバーの error 文言（あれば）を載せる。 */
@@ -32,12 +28,13 @@ export async function apiMutate(
   url: string,
   options: ApiMutateOptions
 ): Promise<void> {
-  const { method, body, manager } = options;
+  const { method, body } = options;
   const hasBody = body !== undefined;
 
+  // 管理操作の認可はサーバー側（requireWorkspaceManager が membership を検証）に一本化
+  // されており、クライアントから特別なヘッダーは送らない（旧 x-manager-key は廃止）。
   const headers: Record<string, string> = {};
   if (hasBody) headers["Content-Type"] = "application/json";
-  if (manager) Object.assign(headers, managerAuthHeaders());
 
   const init: RequestInit = { method, headers };
   if (hasBody) init.body = JSON.stringify(body);

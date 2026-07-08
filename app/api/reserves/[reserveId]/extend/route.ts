@@ -1,7 +1,6 @@
 import { db } from '@/lib/db';
-import { requireWorkspaceMember } from '@/lib/route-helpers';
+import { isWorkspaceManagerRole, requireWorkspaceMember } from '@/lib/route-helpers';
 import { notifyInBackground, notifyReservationExtended } from '@/lib/notify';
-import { UserRole, WorkspaceRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { parseDateOnly, todayJstAsUtcMidnight } from '@/lib/jst-date';
 
@@ -34,12 +33,9 @@ export async function PATCH(request: Request, { params }: Params) {
         }
 
         // 親ルートの PATCH/DELETE と同じ所有権ポリシー: 本人の予約のみ
-        // （ワークスペース OWNER/ADMIN、移行期はグローバル ADMIN も全予約可）。
+        // （ワークスペースの OWNER/ADMIN は全予約可）。
         // ワークスペースを常に where へ含め、他団体の予約は 404 に落とす。
-        const isManager =
-            ctx.workspaceRole === WorkspaceRole.OWNER ||
-            ctx.workspaceRole === WorkspaceRole.ADMIN ||
-            user.role === UserRole.ADMIN;
+        const isManager = isWorkspaceManagerRole(ctx.workspaceRole);
         const ownerScope = isManager
             ? { workspaceId: ctx.workspaceId }
             : { workspaceId: ctx.workspaceId, user_id: user.id };

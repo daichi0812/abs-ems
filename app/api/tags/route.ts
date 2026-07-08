@@ -24,7 +24,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    const ctx = await requireWorkspaceManager(request);
+    const ctx = await requireWorkspaceManager();
     if (ctx instanceof NextResponse) return ctx;
 
     try {

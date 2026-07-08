@@ -8,7 +8,7 @@ import { IoSettingsOutline } from "react-icons/io5";
 import { ExitIcon } from "@radix-ui/react-icons";
 import { HiOutlineWrenchScrewdriver } from "react-icons/hi2";
 import { LuTags, LuMessageCircleQuestion, LuMegaphone } from "react-icons/lu";
-import { UserRole } from "@prisma/client";
+import { WorkspaceRole } from "@prisma/client";
 
 import {
   DropdownMenu,
@@ -19,21 +19,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useCurrentRole } from "@/hooks/use-current-role";
 import { memberInitial } from "@/lib/calendar/member-colors";
 
 import { FeedbackDialog } from "./FeedbackDialog";
-import { ManagerKeyDialog } from "./ManagerKeyDialog";
 
 // 部員からの問い合わせ先（Google フォーム）。旧ヘッダーから引き継ぎ。
 const CONTACT_FORM_URL = "https://forms.gle/PXWDC8aqz6Km48wW8";
 
 export const UserMenu = () => {
   const user = useCurrentUser();
-  const role = useCurrentRole();
-  const isAdmin = role === UserRole.ADMIN;
+  // 管理メニューは現在のワークスペースのロール（OWNER/ADMIN）で出し分ける。
+  // 旧「管理者パスワード（NEXT_PUBLIC_MANAGER_KEY）」の入口は権限一本化で廃止した。
+  const isManager =
+    user?.workspaceRole === WorkspaceRole.OWNER ||
+    user?.workspaceRole === WorkspaceRole.ADMIN;
 
-  const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const onLogout = () => {
@@ -68,7 +68,7 @@ export const UserMenu = () => {
             {user?.name ?? "ゲスト"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {isAdmin ? (
+          {isManager && (
             <>
               <DropdownMenuItem asChild>
                 <Link href="/ems/manager">
@@ -81,14 +81,6 @@ export const UserMenu = () => {
                   <LuTags className="mr-2 h-4 w-4" />
                   カテゴリ編集
                 </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
-          ) : (
-            <>
-              <DropdownMenuItem onSelect={() => setKeyDialogOpen(true)}>
-                <HiOutlineWrenchScrewdriver className="mr-2 h-4 w-4" />
-                管理者用ページ
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
@@ -120,8 +112,6 @@ export const UserMenu = () => {
       </DropdownMenu>
 
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
-
-      <ManagerKeyDialog open={keyDialogOpen} onOpenChange={setKeyDialogOpen} />
     </>
   );
 };

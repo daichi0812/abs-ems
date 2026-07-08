@@ -233,8 +233,10 @@ describe("PATCH /api/reserves/[reserveId]/extend", () => {
     expect(res.status).toBe(409);
   });
 
-  it("lets an ADMIN extend any reserve in the workspace and notifies the owner", async () => {
-    currentUserMock.mockResolvedValue({ id: "admin1", role: "ADMIN", currentWorkspaceId: "ws1" });
+  it("lets a workspace ADMIN extend any reserve in the workspace and notifies the owner", async () => {
+    // 権限は membership.role（OWNER/ADMIN）一本。グローバル role は USER のままでよい。
+    currentUserMock.mockResolvedValue({ id: "admin1", role: "USER", currentWorkspaceId: "ws1" });
+    membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
     findFirstMock.mockResolvedValue(baseReserve());
 
     const res = await PATCH(patchRequest({ end: jstDate(3) }), params);

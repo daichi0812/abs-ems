@@ -16,7 +16,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentActions } from "./use-equipment-actions";
 
 const refetchEquipments = vi.fn(async () => {});
@@ -72,10 +71,8 @@ describe("useEquipmentActions - delete", () => {
       ok = await result.current.deleteEquipment(42);
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/lists/42", {
-      method: "DELETE",
-      headers: managerAuthHeaders(),
-    });
+    // 認可はサーバー側に一本化されており、クライアントは特別なヘッダーを送らない
+    expect(fetchMock).toHaveBeenCalledWith("/api/lists/42", { method: "DELETE" });
     expect(refetchEquipments).toHaveBeenCalledOnce();
     expect(toastSuccess).toHaveBeenCalledWith("機材を削除しました");
     expect(ok).toBe(true);

@@ -47,7 +47,6 @@ export const useTagEditing = ({ refetchTags, existingTags = [] }: UseTagEditingP
     try {
       await apiMutate(`/api/tags/${id}`, {
         method: "PUT",
-        manager: true,
         body: { name: trimmed, color: editTagColor },
       });
       toast.success("カテゴリを更新しました");

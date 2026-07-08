@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { compressImage } from "@/lib/image-compress";
 import type { Tag } from "./use-tags";
 
@@ -52,7 +51,6 @@ export const useEquipmentRegistration = ({
         const responseVercel = await fetch(`/api/upload?filename=${file.name}`, {
           method: "POST",
           body: file,
-          headers: managerAuthHeaders(),
         });
         // fetch は HTTP エラーでは throw しない。API のエラー応答 {error:...} も有効な JSON の
         // ため、ここで止めないと写真なしの機材が「登録完了」と表示されてしまう。
@@ -65,7 +63,7 @@ export const useEquipmentRegistration = ({
 
       const res = await fetch("/api/lists", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: equipmentName,
           detail: equipmentDetail,

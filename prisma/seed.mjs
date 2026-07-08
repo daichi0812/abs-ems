@@ -81,13 +81,13 @@ async function main() {
 
   const tagIds = {};
   for (const t of TAGS) {
-    const tag = await prisma.tag.create({ data: t });
+    const tag = await prisma.tag.create({ data: { ...t, workspaceId: DEFAULT_WORKSPACE_ID } });
     tagIds[t.name] = tag.id;
   }
 
   const listIds = {};
   for (const [name, cat, detail] of EQUIPMENTS) {
-    const list = await prisma.list.create({ data: { name, detail, tag_id: tagIds[cat] } });
+    const list = await prisma.list.create({ data: { name, detail, tag_id: tagIds[cat], workspaceId: DEFAULT_WORKSPACE_ID } });
     listIds[name] = list.id;
   }
 
@@ -139,6 +139,7 @@ async function main() {
         start: jstDay(s),
         end: jstDay(e),
         isRenting,
+        workspaceId: DEFAULT_WORKSPACE_ID,
       },
     });
   }

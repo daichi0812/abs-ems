@@ -3,13 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   currentUserMock,
-  hasManagerAccessMock,
   userFindUniqueMock,
   membershipFindFirstMock,
   membershipFindUniqueMock,
 } = vi.hoisted(() => ({
   currentUserMock: vi.fn(),
-  hasManagerAccessMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   membershipFindFirstMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
@@ -17,9 +15,6 @@ const {
 
 vi.mock("@/lib/auth", () => ({
   currentUser: () => currentUserMock(),
-}));
-vi.mock("@/lib/api-auth", () => ({
-  hasManagerAccess: (req: Request) => hasManagerAccessMock(req),
 }));
 vi.mock("@/lib/db", () => ({
   db: {
@@ -31,15 +26,14 @@ vi.mock("@/lib/db", () => ({
 import { NextResponse } from "next/server";
 import {
   requireUser,
-  requireManager,
   requireDeveloper,
   requireWorkspaceMember,
   requireWorkspaceManager,
+  isWorkspaceManagerRole,
 } from "./route-helpers";
 
 beforeEach(() => {
   currentUserMock.mockReset();
-  hasManagerAccessMock.mockReset();
   userFindUniqueMock.mockReset().mockResolvedValue(null);
   membershipFindFirstMock.mockReset().mockResolvedValue(null);
   membershipFindUniqueMock.mockReset().mockResolvedValue(null);
@@ -59,20 +53,6 @@ describe("requireUser", () => {
     const result = await requireUser();
     expect(result).toBeInstanceOf(NextResponse);
     expect((result as NextResponse).status).toBe(401);
-  });
-});
-
-describe("requireManager", () => {
-  it("権限があれば null を返す", async () => {
-    hasManagerAccessMock.mockResolvedValue(true);
-    expect(await requireManager(new Request("http://localhost"))).toBeNull();
-  });
-
-  it("権限がなければ 403 レスポンスを返す", async () => {
-    hasManagerAccessMock.mockResolvedValue(false);
-    const denied = await requireManager(new Request("http://localhost"));
-    expect(denied).toBeInstanceOf(NextResponse);
-    expect((denied as NextResponse).status).toBe(403);
   });
 });
 
@@ -171,36 +151,48 @@ describe("requireWorkspaceMember", () => {
 });
 
 describe("requireWorkspaceManager", () => {
-  const req = () => new Request("http://localhost");
-
-  it("workspaceRole が ADMIN なら許可（hasManagerAccess は見ない）", async () => {
+  it("workspaceRole が ADMIN なら許可", async () => {
     currentUserMock.mockResolvedValue({ id: "u1", currentWorkspaceId: "ws1" });
     membershipFindUniqueMock.mockResolvedValue({ role: "ADMIN" });
 
-    const ctx = await requireWorkspaceManager(req());
+    const ctx = await requireWorkspaceManager();
 
     expect(ctx).not.toBeInstanceOf(NextResponse);
     expect(ctx).toMatchObject({ workspaceId: "ws1", workspaceRole: "ADMIN" });
-    expect(hasManagerAccessMock).not.toHaveBeenCalled();
   });
 
-  it("MEMBER かつ hasManagerAccess=false なら 403", async () => {
+  it("workspaceRole が OWNER なら許可", async () => {
+    currentUserMock.mockResolvedValue({ id: "u1", currentWorkspaceId: "ws1" });
+    membershipFindUniqueMock.mockResolvedValue({ role: "OWNER" });
+
+    const ctx = await requireWorkspaceManager();
+
+    expect(ctx).not.toBeInstanceOf(NextResponse);
+    expect(ctx).toMatchObject({ workspaceId: "ws1", workspaceRole: "OWNER" });
+  });
+
+  it("MEMBER は無条件で 403（旧 hasManagerAccess フォールバックは撤去済み）", async () => {
     currentUserMock.mockResolvedValue({ id: "u1", currentWorkspaceId: "ws1" });
     membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
-    hasManagerAccessMock.mockResolvedValue(false);
 
-    const result = await requireWorkspaceManager(req());
+    const result = await requireWorkspaceManager();
     expect(result).toBeInstanceOf(NextResponse);
     expect((result as NextResponse).status).toBe(403);
   });
 
-  it("MEMBER でも hasManagerAccess=true なら許可（移行期フォールバック）", async () => {
-    currentUserMock.mockResolvedValue({ id: "u1", currentWorkspaceId: "ws1" });
-    membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
-    hasManagerAccessMock.mockResolvedValue(true);
+  it("未認証なら 401", async () => {
+    currentUserMock.mockResolvedValue(undefined);
 
-    const ctx = await requireWorkspaceManager(req());
-    expect(ctx).not.toBeInstanceOf(NextResponse);
-    expect(ctx).toMatchObject({ workspaceId: "ws1", workspaceRole: "MEMBER" });
+    const result = await requireWorkspaceManager();
+    expect(result).toBeInstanceOf(NextResponse);
+    expect((result as NextResponse).status).toBe(401);
+  });
+});
+
+describe("isWorkspaceManagerRole", () => {
+  it("OWNER / ADMIN は管理ロール、MEMBER は非管理ロール", () => {
+    expect(isWorkspaceManagerRole("OWNER")).toBe(true);
+    expect(isWorkspaceManagerRole("ADMIN")).toBe(true);
+    expect(isWorkspaceManagerRole("MEMBER")).toBe(false);
   });
 });

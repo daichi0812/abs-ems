@@ -37,7 +37,6 @@ export const useTagAdd = ({ existingTags, refetchTags }: UseTagAddParams) => {
     try {
       await apiMutate("/api/tags", {
         method: "POST",
-        manager: true,
         body: { name: trimmed, color },
       });
       toast.success("カテゴリを追加しました");

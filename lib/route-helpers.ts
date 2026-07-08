@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { WorkspaceRole } from "@prisma/client";
 import { currentUser } from "@/lib/auth";
-import { hasManagerAccess } from "@/lib/api-auth";
 import { isDeveloperEmail } from "@/lib/dev-auth";
 import { db } from "@/lib/db";
 
@@ -16,7 +15,7 @@ export interface WorkspaceContext {
 /**
  * API route 共通の認証・認可ガード。
  *
- * 各 route に散在していた「currentUser()→401」「hasManagerAccess()→403」
+ * 各 route に散在していた「currentUser()→401」「権限チェック→403」
  * 「isDeveloperEmail()→403」のボイラープレートを1箇所へ集約する。
  * 認証(未ログイン)=401 / 認可(権限不足)=403 の使い分けはここで統一する。
  *
@@ -33,20 +32,6 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
     return NextResponse.json({ error: "認証されていません。" }, { status: 401 });
   }
   return user;
-}
-
-/**
- * 管理系（機材・タグの変更）操作のガード。権限があれば null、無ければ 403 レスポンスを返す。
- *   const denied = await requireManager(request);
- *   if (denied) return denied;
- */
-export async function requireManager(
-  request: Request
-): Promise<NextResponse | null> {
-  if (!(await hasManagerAccess(request))) {
-    return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
-  }
-  return null;
 }
 
 /**
@@ -99,22 +84,22 @@ export async function requireWorkspaceMember(): Promise<WorkspaceContext | NextR
   return { user: auth, workspaceId, workspaceRole: membership.role };
 }
 
+/** ワークスペース内で管理操作（機材・タグの変更、他人予約の操作）ができるロールか。 */
+export function isWorkspaceManagerRole(role: WorkspaceRole): boolean {
+  return role === WorkspaceRole.OWNER || role === WorkspaceRole.ADMIN;
+}
+
 /**
- * ワークスペース内の管理操作（機材・タグの変更、他人予約の操作）のガード。
- * Membership.role が OWNER/ADMIN なら許可。移行期は従来の hasManagerAccess
- * （グローバル ADMIN / NEXT_PUBLIC_MANAGER_KEY）も OR で許可する
- * （権限を Membership.role へ一本化した時点でフォールバックを撤去する）。
+ * ワークスペース内の管理操作（機材・タグの変更、画像アップロード）のガード。
+ * Membership.role が OWNER/ADMIN のみ許可する。
+ * （旧 NEXT_PUBLIC_MANAGER_KEY / グローバル ADMIN のフォールバックは
+ *   Membership.role への一本化にともない撤去した。）
  */
-export async function requireWorkspaceManager(
-  request: Request
-): Promise<WorkspaceContext | NextResponse> {
+export async function requireWorkspaceManager(): Promise<WorkspaceContext | NextResponse> {
   const ctx = await requireWorkspaceMember();
   if (ctx instanceof NextResponse) return ctx;
 
-  const isWorkspaceManager =
-    ctx.workspaceRole === WorkspaceRole.OWNER ||
-    ctx.workspaceRole === WorkspaceRole.ADMIN;
-  if (!isWorkspaceManager && !(await hasManagerAccess(request))) {
+  if (!isWorkspaceManagerRole(ctx.workspaceRole)) {
     return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
   }
   return ctx;
