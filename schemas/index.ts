@@ -111,3 +111,9 @@ export const WorkspaceSchema = z.object({
         message: "ワークスペース名は50文字以内で入力してください"
     }),
 })
+
+export const MemberRoleSchema = z.object({
+    role: z.enum(["OWNER", "ADMIN", "MEMBER"], {
+        message: "ロールの指定が不正です",
+    }),
+})

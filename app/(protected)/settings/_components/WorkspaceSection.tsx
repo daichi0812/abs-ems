@@ -6,6 +6,7 @@ import { WorkspaceRole } from "@prisma/client";
 import { toast } from "sonner";
 
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { WorkspaceMembers } from "./WorkspaceMembers";
 
 const ROLE_LABEL: Record<WorkspaceRole, string> = {
   OWNER: "オーナー",
@@ -95,6 +96,13 @@ export function WorkspaceSection() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {isManager && (
+        <div className="border-b border-line-soft py-3.5">
+          <p className="m-0 mb-1.5 text-sm font-bold text-ink">メンバー</p>
+          <WorkspaceMembers />
         </div>
       )}
 
