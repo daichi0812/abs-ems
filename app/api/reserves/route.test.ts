@@ -3,23 +3,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstMock = vi.fn();
 const createMock = vi.fn();
-// findMany / currentUser はファクトリ内で即時参照されるため vi.hoisted で初期化する
+// findMany / list.findFirst / membership.findUnique / currentUser はファクトリ内で
+// 即時参照されるため vi.hoisted で初期化する
 // （findFirst/create は $transaction 内の遅延参照なので通常の const で足りる）。
-const { findManyMock, currentUserMock } = vi.hoisted(() => ({
-  findManyMock: vi.fn(),
-  currentUserMock: vi.fn(),
-}));
+const { findManyMock, listFindFirstMock, membershipFindUniqueMock, currentUserMock } =
+  vi.hoisted(() => ({
+    findManyMock: vi.fn(),
+    listFindFirstMock: vi.fn(),
+    membershipFindUniqueMock: vi.fn(),
+    currentUserMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db", () => ({
   db: {
     reserve: { findMany: findManyMock },
+    list: { findFirst: listFindFirstMock },
+    membership: { findUnique: membershipFindUniqueMock },
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({ reserve: { findFirst: findFirstMock, create: createMock } }),
     ),
   },
 }));
 
-// GET はログイン必須。既定では認証済みユーザーを返し、未認証ケースは個別に上書きする。
+// GET はワークスペース所属メンバー必須。既定では認証済み＋所属ありを返し、
+// 未認証・所属なしケースは個別に上書きする。
 vi.mock("@/lib/auth", () => ({
   currentUser: currentUserMock,
 }));
@@ -61,9 +68,15 @@ beforeEach(() => {
   createMock.mockReset();
   findManyMock.mockReset();
   findManyMock.mockResolvedValue([]);
+  // 既定は「機材は現在のワークスペースに存在する」。他団体機材ケースは各テストで上書き。
+  listFindFirstMock.mockReset();
+  listFindFirstMock.mockResolvedValue({ id: 1 });
+  // 既定はワークスペース所属あり（MEMBER）。所属なしは各テストで上書き。
+  membershipFindUniqueMock.mockReset();
+  membershipFindUniqueMock.mockResolvedValue({ role: "MEMBER" });
   // 既定はログイン済み（GET テストの大半はこの前提）。未認証は各テストで上書き。
   currentUserMock.mockReset();
-  currentUserMock.mockResolvedValue({ id: "tester", role: "USER" });
+  currentUserMock.mockResolvedValue({ id: "tester", role: "USER", currentWorkspaceId: "ws1" });
 });
 
 describe("POST /api/reserves", () => {
@@ -74,10 +87,17 @@ describe("POST /api/reserves", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
+  it("returns 403 and does not create when not a workspace member", async () => {
+    membershipFindUniqueMock.mockResolvedValue(null);
+    const res = await POST(postRequest(validBody()));
+    expect(res.status).toBe(403);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it("ignores body user_id and uses the session user (anti-spoof)", async () => {
     findFirstMock.mockResolvedValue(null);
     createMock.mockResolvedValue({ id: 2 });
-    currentUserMock.mockResolvedValue({ id: "attacker", role: "USER" });
+    currentUserMock.mockResolvedValue({ id: "attacker", role: "USER", currentWorkspaceId: "ws1" });
 
     // 攻撃者が body で他人(victim)を詐称しても、作成される user_id はセッション(attacker)。
     const res = await POST(postRequest({ ...validBody(), user_id: "victim" }));
@@ -124,6 +144,22 @@ describe("POST /api/reserves", () => {
     expect(body.error).toBe("予約開始日は今日以降にしてください。");
   });
 
+  it("returns 404 when the equipment belongs to another workspace", async () => {
+    // 機材の所有確認は workspaceId 込みの where で行う（他団体の機材 id を指定した越境予約防止）。
+    listFindFirstMock.mockResolvedValue(null);
+
+    const res = await POST(postRequest(validBody()));
+
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toBe("機材が見つかりません。");
+    expect(listFindFirstMock).toHaveBeenCalledWith({
+      where: { id: 1, workspaceId: "ws1" },
+      select: { id: true },
+    });
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it("returns 409 when the period overlaps an existing reserve", async () => {
     findFirstMock.mockResolvedValue({ id: 99 });
 
@@ -133,10 +169,13 @@ describe("POST /api/reserves", () => {
     const body = await res.json();
     expect(body.error).toBe("この期間にはすでに予約が入っています。");
     expect(createMock).not.toHaveBeenCalled();
-    // 重複判定は inclusive（start <= 既存end AND end >= 既存start）
+    // 重複判定は inclusive（start <= 既存end AND end >= 既存start）で、常にワークスペース内に限る。
+    // 返却済(4)は機材が手元に戻っているので空き扱い（早期返却で残り期間を解放する）。
     expect(findFirstMock).toHaveBeenCalledWith({
       where: {
+        workspaceId: "ws1",
         list_id: 1,
+        isRenting: { not: 4 },
         start: { lte: new Date(jstDate(3) + "T00:00:00Z") },
         end: { gte: new Date(jstDate(1) + "T00:00:00Z") },
       },
@@ -152,6 +191,7 @@ describe("POST /api/reserves", () => {
 
     expect(res.status).toBe(201);
     // user_id は body("u1")ではなくセッション("tester")から入る。"YYYY-MM-DD" は UTC 00:00 保存。
+    // workspaceId はセッションのワークスペースが入る。
     expect(createMock).toHaveBeenCalledWith({
       data: {
         user_id: "tester",
@@ -159,6 +199,7 @@ describe("POST /api/reserves", () => {
         start: new Date(jstDate(1) + "T00:00:00Z"),
         end: new Date(jstDate(3) + "T00:00:00Z"),
         isRenting: 0,
+        workspaceId: "ws1",
       },
     });
   });
@@ -196,30 +237,46 @@ describe("GET /api/reserves", () => {
     expect(findManyMock).not.toHaveBeenCalled();
   });
 
-  it("returns all reserves (empty where) when no query params", async () => {
+  it("returns 403 and does not query the DB when not a workspace member", async () => {
+    membershipFindUniqueMock.mockResolvedValue(null);
+    const res = await GET(getRequest());
+    expect(res.status).toBe(403);
+    expect(findManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns all reserves in the workspace when no query params", async () => {
     const res = await GET(getRequest());
     expect(res.status).toBe(200);
-    expect(findManyMock).toHaveBeenCalledWith({ where: {} });
+    // クエリ無しでも常に現在のワークスペースでフィルタし、他団体の予約は返さない。
+    expect(findManyMock).toHaveBeenCalledWith({ where: { workspaceId: "ws1" } });
   });
 
   it("filters by user_id", async () => {
     await GET(getRequest("?user_id=u1"));
-    expect(findManyMock).toHaveBeenCalledWith({ where: { user_id: "u1" } });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1", user_id: "u1" },
+    });
   });
 
   it("filters by list_id (number)", async () => {
     await GET(getRequest("?list_id=2"));
-    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: 2 } });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1", list_id: 2 },
+    });
   });
 
   it("combines user_id and list_id", async () => {
     await GET(getRequest("?user_id=u1&list_id=2"));
-    expect(findManyMock).toHaveBeenCalledWith({ where: { user_id: "u1", list_id: 2 } });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1", user_id: "u1", list_id: 2 },
+    });
   });
 
   it("treats an empty user_id as a zero-match filter, not all", async () => {
     await GET(getRequest("?user_id="));
-    expect(findManyMock).toHaveBeenCalledWith({ where: { user_id: "" } });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1", user_id: "" },
+    });
   });
 
   it("returns 400 for a malformed list_id and does not query", async () => {
@@ -231,12 +288,16 @@ describe("GET /api/reserves", () => {
   // 境界の現挙動を固定する（将来の呼び出し元向けドキュメント）
   it("treats an empty ?list_id= as list_id:0 (Number('') === 0)", async () => {
     await GET(getRequest("?list_id="));
-    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: 0 } });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1", list_id: 0 },
+    });
   });
 
   it("accepts a negative integer list_id", async () => {
     await GET(getRequest("?list_id=-5"));
-    expect(findManyMock).toHaveBeenCalledWith({ where: { list_id: -5 } });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1", list_id: -5 },
+    });
   });
 
   it("returns 400 for a decimal list_id and does not query", async () => {
@@ -249,14 +310,14 @@ describe("GET /api/reserves", () => {
   it("filters by from (end >= from) for availability queries", async () => {
     await GET(getRequest("?from=2026-07-06"));
     expect(findManyMock).toHaveBeenCalledWith({
-      where: { end: { gte: new Date("2026-07-06T00:00:00Z") } },
+      where: { workspaceId: "ws1", end: { gte: new Date("2026-07-06T00:00:00Z") } },
     });
   });
 
   it("filters by to (start <= to)", async () => {
     await GET(getRequest("?to=2026-07-31"));
     expect(findManyMock).toHaveBeenCalledWith({
-      where: { start: { lte: new Date("2026-07-31T00:00:00Z") } },
+      where: { workspaceId: "ws1", start: { lte: new Date("2026-07-31T00:00:00Z") } },
     });
   });
 
@@ -264,6 +325,7 @@ describe("GET /api/reserves", () => {
     await GET(getRequest("?user_id=u1&from=2026-07-01&to=2026-07-31"));
     expect(findManyMock).toHaveBeenCalledWith({
       where: {
+        workspaceId: "ws1",
         user_id: "u1",
         end: { gte: new Date("2026-07-01T00:00:00Z") },
         start: { lte: new Date("2026-07-31T00:00:00Z") },

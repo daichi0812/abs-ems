@@ -32,6 +32,9 @@ export const register = async (values: z.infer<typeof RegisterSchema>) => {
         return { error: "そのメールは既に使用されています！"}
     }
 
+    // ワークスペースへの所属はここでは付与しない（招待制）。
+    // 登録直後のユーザーは所属ゼロで、初回ログイン時に /workspaces/new へ案内される。
+    // 部の新入部員は管理者が発行した招待リンク（/invite/[code]）経由で参加する。
     await db.user.create({
         data: {
             name,

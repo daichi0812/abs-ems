@@ -1,16 +1,14 @@
 import { db } from '@/lib/db';
-import { currentUser } from '@/lib/auth';
-import { isDeveloperEmail } from '@/lib/dev-auth';
+import { requireDeveloper, requireUser } from '@/lib/route-helpers';
 import { FeedbackSchema } from '@/schemas';
 import { NextResponse } from 'next/server';
 
 // フィードバック送信。ログイン部員なら誰でも。
 export async function POST(request: Request) {
     try {
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
+        const auth = await requireUser();
+        if (auth instanceof NextResponse) return auth;
+        const user = auth;
 
         const data = await request.json().catch(() => null);
         const parsed = FeedbackSchema.safeParse(data);
@@ -39,13 +37,8 @@ export async function POST(request: Request) {
 // フィードバック一覧。開発者専用（部長向け ADMIN とは別ゲート）。
 export async function GET() {
     try {
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
-        if (!isDeveloperEmail(user.email)) {
-            return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-        }
+        const auth = await requireDeveloper();
+        if (auth instanceof NextResponse) return auth;
 
         const feedbacks = await db.feedback.findMany({
             orderBy: [{ resolved: 'asc' }, { createdAt: 'desc' }],

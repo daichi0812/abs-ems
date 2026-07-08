@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { managerAuthHeaders } from "@/lib/manager-auth";
+import { apiMutate } from "@/lib/api-mutate";
 import { CATEGORY_PALETTE } from "@/lib/category-colors";
 
 interface TagLike {
@@ -35,13 +35,10 @@ export const useTagAdd = ({ existingTags, refetchTags }: UseTagAddParams) => {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/tags", {
+      await apiMutate("/api/tags", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
-        body: JSON.stringify({ name: trimmed, color }),
+        body: { name: trimmed, color },
       });
-      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       toast.success("カテゴリを追加しました");
       setName("");
       setColor(CATEGORY_PALETTE[0]);

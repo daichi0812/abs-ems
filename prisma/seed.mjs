@@ -64,20 +64,30 @@ const jstDay = (offset) => {
   return new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate() + offset));
 };
 
+// lib/workspace.ts の DEFAULT_WORKSPACE_ID と同じ固定 id（seed.mjs は CJS/ESM の都合で直書き）
+const DEFAULT_WORKSPACE_ID = "ws_abs_default";
+
 async function main() {
   await prisma.reserve.deleteMany();
   await prisma.list.deleteMany();
   await prisma.tag.deleteMany();
 
+  // 既定ワークスペース（migration でも作られるが、リセット直後の DB でも動くよう upsert）
+  await prisma.workspace.upsert({
+    where: { id: DEFAULT_WORKSPACE_ID },
+    update: {},
+    create: { id: DEFAULT_WORKSPACE_ID, name: "ABS（放送部）", slug: "abs" },
+  });
+
   const tagIds = {};
   for (const t of TAGS) {
-    const tag = await prisma.tag.create({ data: t });
+    const tag = await prisma.tag.create({ data: { ...t, workspaceId: DEFAULT_WORKSPACE_ID } });
     tagIds[t.name] = tag.id;
   }
 
   const listIds = {};
   for (const [name, cat, detail] of EQUIPMENTS) {
-    const list = await prisma.list.create({ data: { name, detail, tag_id: tagIds[cat] } });
+    const list = await prisma.list.create({ data: { name, detail, tag_id: tagIds[cat], workspaceId: DEFAULT_WORKSPACE_ID } });
     listIds[name] = list.id;
   }
 
@@ -90,6 +100,20 @@ async function main() {
       create: { ...u, password, emailVerified: new Date() },
     });
     userIds.push(user.id);
+    // 全員を既定ワークスペースへ所属（グローバル ADMIN はワークスペース ADMIN として引き継ぐ）
+    await prisma.membership.upsert({
+      where: { userId_workspaceId: { userId: user.id, workspaceId: DEFAULT_WORKSPACE_ID } },
+      update: {},
+      create: {
+        userId: user.id,
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        role: u.role === "ADMIN" ? "ADMIN" : "MEMBER",
+      },
+    });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastWorkspaceId: DEFAULT_WORKSPACE_ID },
+    });
   }
 
   // 今日を跨ぐ・過去・未来の予約を混ぜ、カレンダー/マイ予約/ガントの全状態を再現する
@@ -115,6 +139,7 @@ async function main() {
         start: jstDay(s),
         end: jstDay(e),
         isRenting,
+        workspaceId: DEFAULT_WORKSPACE_ID,
       },
     });
   }

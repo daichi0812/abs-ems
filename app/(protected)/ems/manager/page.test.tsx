@@ -5,13 +5,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock("../_hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
+vi.mock("../hooks/use-equipments", () => ({ useEquipments: vi.fn() }));
 vi.mock("./hooks/use-tags", () => ({ useTags: vi.fn() }));
 vi.mock("./hooks/use-image-upload", () => ({ useImageUpload: vi.fn() }));
 vi.mock("./hooks/use-equipment-registration", () => ({ useEquipmentRegistration: vi.fn() }));
 vi.mock("./hooks/use-equipment-actions", () => ({ useEquipmentActions: vi.fn() }));
 
-import { useEquipments } from "../_hooks/use-equipments";
+import { useEquipments } from "../hooks/use-equipments";
 import { useTags } from "./hooks/use-tags";
 import { useImageUpload } from "./hooks/use-image-upload";
 import { useEquipmentRegistration } from "./hooks/use-equipment-registration";

@@ -18,7 +18,6 @@ vi.mock("@/lib/image-compress", () => ({
   compressImage: (f: File) => compressImageMock(f),
 }));
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentRegistration } from "./use-equipment-registration";
 
 const refetchEquipments = vi.fn(async () => {});
@@ -123,9 +122,9 @@ describe("useEquipmentRegistration - submit", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/lists");
     expect(init.method).toBe("POST");
+    // 認可はサーバー側に一本化されており、クライアントは特別なヘッダーを送らない
     expect(init.headers).toEqual({
       "Content-Type": "application/json",
-      ...managerAuthHeaders(),
     });
     expect(JSON.parse(init.body)).toEqual({
       name: "Camera",
@@ -163,7 +162,6 @@ describe("useEquipmentRegistration - submit", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/upload?filename=test.png", {
       method: "POST",
       body: file,
-      headers: managerAuthHeaders(),
     });
     const [listUrl, listInit] = fetchMock.mock.calls[1];
     expect(listUrl).toBe("/api/lists");
@@ -223,7 +221,6 @@ describe("useEquipmentRegistration - submit", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/upload?filename=photo.jpg", {
       method: "POST",
       body: compressed,
-      headers: managerAuthHeaders(),
     });
     const [listUrl, listInit] = fetchMock.mock.calls[1];
     expect(listUrl).toBe("/api/lists");

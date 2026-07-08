@@ -1,15 +1,23 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sendMock, waitUntilMock, getCtxMock, userFindUniqueMock, listFindUniqueMock, userSettingsFindManyMock } =
-  vi.hoisted(() => ({
-    sendMock: vi.fn(),
-    waitUntilMock: vi.fn(),
-    getCtxMock: vi.fn(),
-    userFindUniqueMock: vi.fn(),
-    listFindUniqueMock: vi.fn(),
-    userSettingsFindManyMock: vi.fn(),
-  }));
+const {
+  sendMock,
+  waitUntilMock,
+  getCtxMock,
+  userFindUniqueMock,
+  listFindUniqueMock,
+  userSettingsFindManyMock,
+  membershipFindManyMock,
+} = vi.hoisted(() => ({
+  sendMock: vi.fn(),
+  waitUntilMock: vi.fn(),
+  getCtxMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  listFindUniqueMock: vi.fn(),
+  userSettingsFindManyMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+}));
 
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => getCtxMock(),
@@ -19,6 +27,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: userFindUniqueMock },
     list: { findUnique: listFindUniqueMock },
     userSettings: { findMany: userSettingsFindManyMock },
+    membership: { findMany: membershipFindManyMock },
   },
 }));
 
@@ -38,6 +47,7 @@ beforeEach(() => {
   userFindUniqueMock.mockReset();
   listFindUniqueMock.mockReset();
   userSettingsFindManyMock.mockReset();
+  membershipFindManyMock.mockReset().mockResolvedValue([]);
 });
 
 describe("formatReserveDate", () => {
@@ -102,14 +112,53 @@ describe("notifyUser", () => {
 
 describe("notifyNewEquipment", () => {
   it("sends to every opted-in member with an email", async () => {
+    membershipFindManyMock.mockResolvedValue([{ userId: "u1" }, { userId: "u2" }]);
     userSettingsFindManyMock.mockResolvedValue([
       { user: { email: "a@example.com" } },
       { user: { email: "b@example.com" } },
     ]);
 
-    await notifyNewEquipment({ name: "新カメラ" });
+    await notifyNewEquipment({ name: "新カメラ", workspaceId: "ws1" });
 
     expect(sendMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("scopes recipients to the equipment's workspace members (does not leak to other workspaces)", async () => {
+    // ws1 のメンバーは u1 / u2 のみ。他ワークスペースのユーザーが
+    // userSettings の絞り込み条件（userId IN メンバー）に含まれないことを担保する。
+    membershipFindManyMock.mockResolvedValue([{ userId: "u1" }, { userId: "u2" }]);
+    userSettingsFindManyMock.mockResolvedValue([]);
+
+    await notifyNewEquipment({ name: "新カメラ", workspaceId: "ws1" });
+
+    // メンバー一覧は対象ワークスペースだけを引く
+    expect(membershipFindManyMock).toHaveBeenCalledWith({
+      where: { workspaceId: "ws1" },
+      select: { userId: true },
+    });
+    // 配信先候補はそのメンバーの userId に限定される
+    expect(userSettingsFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          notifyNewEquipment: true,
+          userId: { in: ["u1", "u2"] },
+        }),
+      }),
+    );
+  });
+
+  it("sends nothing when the workspace has no members", async () => {
+    membershipFindManyMock.mockResolvedValue([]);
+    userSettingsFindManyMock.mockResolvedValue([]);
+
+    await notifyNewEquipment({ name: "新カメラ", workspaceId: "ws-empty" });
+
+    expect(userSettingsFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: { in: [] } }),
+      }),
+    );
+    expect(sendMock).not.toHaveBeenCalled();
   });
 });
 

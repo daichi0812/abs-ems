@@ -1,13 +1,15 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getUserByIdMock, getAccountByUserIdMock } = vi.hoisted(() => ({
+const { getUserByIdMock, getAccountByUserIdMock, getMembershipsByUserIdMock } = vi.hoisted(() => ({
   getUserByIdMock: vi.fn(),
   getAccountByUserIdMock: vi.fn(),
+  getMembershipsByUserIdMock: vi.fn(),
 }));
 
 vi.mock("@/data/user", () => ({ getUserById: getUserByIdMock }));
 vi.mock("@/data/account", () => ({ getAccountByUserId: getAccountByUserIdMock }));
+vi.mock("@/data/membership", () => ({ getMembershipsByUserId: getMembershipsByUserIdMock }));
 
 import { ROLE_REFRESH_INTERVAL_MS, refreshJwtToken } from "./jwt-refresh";
 
@@ -17,6 +19,7 @@ const dbUser = {
   email: "taro@example.com",
   role: "ADMIN",
   isTwoFactorEnabled: false,
+  lastWorkspaceId: null as string | null,
 };
 
 beforeEach(() => {
@@ -24,6 +27,9 @@ beforeEach(() => {
   getUserByIdMock.mockResolvedValue(dbUser);
   getAccountByUserIdMock.mockReset();
   getAccountByUserIdMock.mockResolvedValue(null);
+  // 既定は所属ゼロ（ワークスペース解決を検証しないテストを安定させる）
+  getMembershipsByUserIdMock.mockReset();
+  getMembershipsByUserIdMock.mockResolvedValue([]);
 });
 
 describe("refreshJwtToken", () => {
@@ -95,5 +101,42 @@ describe("refreshJwtToken", () => {
     getAccountByUserIdMock.mockResolvedValue({ provider: "google" });
     const out = await refreshJwtToken({ token: { sub: "u1" }, user: { id: "u1" } });
     expect(out.isOAuth).toBe(true);
+  });
+
+  it("lastWorkspaceId に一致する所属があれば、その workspace/role を token に載せる", async () => {
+    getUserByIdMock.mockResolvedValue({ ...dbUser, lastWorkspaceId: "ws2" });
+    getMembershipsByUserIdMock.mockResolvedValue([
+      { workspaceId: "ws1", role: "OWNER" },
+      { workspaceId: "ws2", role: "MEMBER" },
+    ]);
+
+    const out = await refreshJwtToken({ token: { sub: "u1" }, user: { id: "u1" } });
+
+    expect(getMembershipsByUserIdMock).toHaveBeenCalledWith("u1");
+    expect(out.currentWorkspaceId).toBe("ws2");
+    expect(out.workspaceRole).toBe("MEMBER");
+  });
+
+  it("lastWorkspaceId に一致が無ければ最初の所属へフォールバック（除名・不整合時）", async () => {
+    getUserByIdMock.mockResolvedValue({ ...dbUser, lastWorkspaceId: "ws-gone" });
+    getMembershipsByUserIdMock.mockResolvedValue([
+      { workspaceId: "ws1", role: "ADMIN" },
+      { workspaceId: "ws2", role: "MEMBER" },
+    ]);
+
+    const out = await refreshJwtToken({ token: { sub: "u1" }, user: { id: "u1" } });
+
+    expect(out.currentWorkspaceId).toBe("ws1");
+    expect(out.workspaceRole).toBe("ADMIN");
+  });
+
+  it("所属ゼロなら currentWorkspaceId / workspaceRole は null", async () => {
+    getUserByIdMock.mockResolvedValue({ ...dbUser, lastWorkspaceId: "ws1" });
+    getMembershipsByUserIdMock.mockResolvedValue([]);
+
+    const out = await refreshJwtToken({ token: { sub: "u1" }, user: { id: "u1" } });
+
+    expect(out.currentWorkspaceId).toBeNull();
+    expect(out.workspaceRole).toBeNull();
   });
 });

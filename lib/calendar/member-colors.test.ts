@@ -102,4 +102,9 @@ describe("memberInitial", () => {
     expect(memberInitial(undefined)).toBe("?");
     expect(memberInitial("")).toBe("?");
   });
+  it("uppercase オプションでラテン文字を大文字化", () => {
+    expect(memberInitial("adam", { uppercase: true })).toBe("A");
+    expect(memberInitial("adam")).toBe("a");
+    expect(memberInitial("川崎", { uppercase: true })).toBe("川");
+  });
 });

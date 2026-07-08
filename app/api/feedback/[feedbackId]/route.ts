@@ -1,6 +1,5 @@
 import { db } from '@/lib/db';
-import { currentUser } from '@/lib/auth';
-import { isDeveloperEmail } from '@/lib/dev-auth';
+import { requireDeveloper } from '@/lib/route-helpers';
 import { NextResponse } from 'next/server';
 
 interface Params {
@@ -10,13 +9,8 @@ interface Params {
 // 対応済みフラグの切り替え。開発者専用。
 export async function PATCH(request: Request, { params }: Params) {
     try {
-        const user = await currentUser();
-        if (!user?.id) {
-            return NextResponse.json({ error: '認証されていません。' }, { status: 401 });
-        }
-        if (!isDeveloperEmail(user.email)) {
-            return NextResponse.json({ error: '権限がありません。' }, { status: 403 });
-        }
+        const auth = await requireDeveloper();
+        if (auth instanceof NextResponse) return auth;
 
         const feedbackId = parseInt((await params).feedbackId, 10);
         if (isNaN(feedbackId)) {

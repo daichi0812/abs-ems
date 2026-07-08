@@ -84,7 +84,11 @@ export function memberColorMap(
   return map;
 }
 
-/** アバター等のイニシャル（先頭1文字）。 */
-export function memberInitial(name: string | null | undefined): string {
-  return name?.trim()?.[0] ?? "?";
+/** アバター等のイニシャル（先頭1文字）。uppercase 指定でラテン文字を大文字化する。 */
+export function memberInitial(
+  name: string | null | undefined,
+  options?: { uppercase?: boolean }
+): string {
+  const initial = name?.trim()?.[0] ?? "?";
+  return options?.uppercase ? initial.toUpperCase() : initial;
 }

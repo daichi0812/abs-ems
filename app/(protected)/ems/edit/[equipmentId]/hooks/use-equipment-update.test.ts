@@ -14,7 +14,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useEquipmentUpdate } from "./use-equipment-update";
 
 const onSuccess = vi.fn();
@@ -98,9 +97,9 @@ describe("useEquipmentUpdate - submit", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/lists/5");
     expect(init.method).toBe("PUT");
+    // 認可はサーバー側に一本化されており、クライアントは特別なヘッダーを送らない
     expect(init.headers).toEqual({
       "Content-Type": "application/json",
-      ...managerAuthHeaders(),
     });
     expect(JSON.parse(init.body)).toEqual({
       name: "Camera",
@@ -136,7 +135,6 @@ describe("useEquipmentUpdate - submit", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/upload?filename=test.png", {
       method: "POST",
       body: file,
-      headers: managerAuthHeaders(),
     });
     const [putUrl, putInit] = fetchMock.mock.calls[1];
     expect(putUrl).toBe("/api/lists/5");

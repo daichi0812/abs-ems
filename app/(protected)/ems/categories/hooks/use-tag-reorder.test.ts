@@ -6,7 +6,6 @@ vi.mock("sonner", () => ({
   toast: { error: (...a: unknown[]) => toastError(...a) },
 }));
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagReorder } from "./use-tag-reorder";
 import type { Tag } from "@/types/domain";
 
@@ -50,9 +49,9 @@ describe("useTagReorder", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/tags/reorder");
     expect(init.method).toBe("PATCH");
+    // 認可はサーバー側に一本化されており、クライアントは特別なヘッダーを送らない
     expect(init.headers).toEqual({
       "Content-Type": "application/json",
-      ...managerAuthHeaders(),
     });
     expect(JSON.parse(init.body)).toEqual({ orderedIds: [2, 1, 3] });
     expect(refetchTags).toHaveBeenCalled();

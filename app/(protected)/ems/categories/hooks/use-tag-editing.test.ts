@@ -10,7 +10,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagEditing } from "./use-tag-editing";
 
 const refetchTags = vi.fn(async () => {});
@@ -144,9 +143,9 @@ describe("useTagEditing - saveEdit", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/tags/5");
     expect(init.method).toBe("PUT");
+    // 認可はサーバー側に一本化されており、クライアントは特別なヘッダーを送らない
     expect(init.headers).toEqual({
       "Content-Type": "application/json",
-      ...managerAuthHeaders(),
     });
     expect(JSON.parse(init.body)).toEqual({
       name: "Audio",

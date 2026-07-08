@@ -54,8 +54,9 @@ describe("register", () => {
     expect(db.user.create).not.toHaveBeenCalled();
   });
 
-  it("creates user, generates token, sends email, and returns success", async () => {
+  it("creates user (without any workspace membership), sends email, and returns success", async () => {
     vi.mocked(getUserByEmail).mockResolvedValue(null);
+    vi.mocked(db.user.create).mockResolvedValue({ id: "new-user" } as never);
     vi.mocked(generateVerificationToken).mockResolvedValue({
       email: "user@example.com",
       token: "vt",
@@ -63,6 +64,8 @@ describe("register", () => {
 
     const result = await register(validInput);
 
+    // 招待制: 登録時点ではワークスペース所属を付与しない
+    //（所属ゼロのユーザーは /workspaces/new へ案内され、招待リンクか自作で参加する）
     expect(db.user.create).toHaveBeenCalledWith({
       data: { name: "Taro", email: "user@example.com", password: "hashed-pw" },
     });

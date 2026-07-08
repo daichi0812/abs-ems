@@ -1,11 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../useGetImageUrl", () => ({
+vi.mock("../use-image-url", () => ({
   useGetImageUrl: vi.fn(),
 }));
 
-import { useGetImageUrl } from "../useGetImageUrl";
+import { useGetImageUrl } from "../use-image-url";
 import { useImageUpload } from "./use-image-upload";
 
 beforeEach(() => {

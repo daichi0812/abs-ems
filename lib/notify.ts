@@ -150,6 +150,18 @@ export async function notifyReservationCancelled(
   });
 }
 
+// 管理者が他人の予約を延長したことを、予約の持ち主へ知らせる（reserve.end は延長後の値）。
+export async function notifyReservationExtended(reserve: ReserveLike): Promise<void> {
+  if (!reserve.user_id) return;
+  const name = await listName(reserve.list_id);
+  const period = `${formatReserveDate(reserve.start)} 〜 ${formatReserveDate(reserve.end)}`;
+  await notifyUser(reserve.user_id, "reservationEvents", {
+    subject: `予約が延長されました（${name}）`,
+    html: `<p>${name} の予約期間が管理者によって延長されました。</p><p>新しい利用期間: ${period}</p><p><a href="${APP_URL()}/ems/mypage">マイ予約を開く</a></p>`,
+    text: `${name} の予約期間が管理者によって延長されました。\n新しい利用期間: ${period}\nマイ予約: ${APP_URL()}/ems/mypage`,
+  });
+}
+
 // 返却期限当日のリマインダー（cron から呼ぶ）。
 export async function notifyReturnReminder(reserve: ReserveLike): Promise<void> {
   if (!reserve.user_id) return;
@@ -165,10 +177,24 @@ export async function notifyReturnReminder(reserve: ReserveLike): Promise<void> 
  * 新しい機材の追加を、notifyNewEquipment を有効にしている部員へ一斉配信する。
  * 1件の失敗が全体を止めないよう allSettled。設定行のあるユーザーだけが対象
  * （newEquipment の既定は false なので、明示的に true にした人のみ）。
+ * 配信先は機材の属するワークスペースのメンバーに限定する（他団体へ漏らさない）。
  */
-export async function notifyNewEquipment(list: { name: string | null }): Promise<void> {
+export async function notifyNewEquipment(list: {
+  name: string | null;
+  workspaceId: string;
+}): Promise<void> {
+  const memberIds = (
+    await db.membership.findMany({
+      where: { workspaceId: list.workspaceId },
+      select: { userId: true },
+    })
+  ).map((m) => m.userId);
   const targets = await db.userSettings.findMany({
-    where: { notifyNewEquipment: true, user: { email: { not: null } } },
+    where: {
+      notifyNewEquipment: true,
+      userId: { in: memberIds },
+      user: { email: { not: null } },
+    },
     select: { user: { select: { email: true } } },
   });
   const name = list.name ?? "新しい機材";

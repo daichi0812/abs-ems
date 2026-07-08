@@ -1,5 +1,7 @@
 import { getUserById } from "@/data/user";
 import { getAccountByUserId } from "@/data/account";
+import { getMembershipsByUserId } from "@/data/membership";
+import { getWorkspaceNameById } from "@/data/workspace";
 
 // jwt コールバック本体。auth.ts から分離してあるのは、NextAuth の初期化なしに
 // 単体テストできるようにするため。
@@ -33,6 +35,21 @@ export async function refreshJwtToken({ token, user, trigger }: JwtParams) {
 
   const existingAccount = await getAccountByUserId(existingUser.id);
 
+  // 現在のワークスペースを解決する。lastWorkspaceId に有効な所属があればそれ、
+  // 無ければ（除名・不整合）最初の所属へフォールバック。所属ゼロなら null。
+  // ここは読み取りのみ（自動所属などの書き込みはしない）。API 側の
+  // requireWorkspaceMember が membership を毎回 DB 再検証するため、
+  // この値が最大15分古くても越境アクセスにはならない。
+  const memberships = await getMembershipsByUserId(existingUser.id);
+  const currentMembership =
+    memberships.find((m) => m.workspaceId === existingUser.lastWorkspaceId) ??
+    memberships[0] ??
+    null;
+  // 表示名もセッションに載せる（ヘッダー・設定ページが fetch なしで即描画できる）。
+  const currentWorkspaceName = currentMembership
+    ? await getWorkspaceNameById(currentMembership.workspaceId)
+    : null;
+
   token.isOAuth = !!existingAccount;
   token.name = existingUser.name;
   token.email = existingUser.email;
@@ -42,6 +59,9 @@ export async function refreshJwtToken({ token, user, trigger }: JwtParams) {
   // テーマカラーともども、設定ページでの変更後は update({}) 経由でここに反映される。
   token.picture = existingUser.image;
   token.color = existingUser.color;
+  token.currentWorkspaceId = currentMembership?.workspaceId ?? null;
+  token.currentWorkspaceName = currentWorkspaceName;
+  token.workspaceRole = currentMembership?.role ?? null;
   token.refreshedAt = Date.now();
 
   return token;

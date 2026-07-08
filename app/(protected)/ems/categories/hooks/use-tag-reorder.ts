@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { managerAuthHeaders } from "@/lib/manager-auth";
+import { apiMutate } from "@/lib/api-mutate";
 import type { Tag } from "@/types/domain";
 
 export interface UseTagReorderParams {
@@ -23,13 +23,10 @@ export const useTagReorder = ({ tags, refetchTags }: UseTagReorderParams) => {
   const persist = async (next: Tag[]) => {
     setIsSaving(true);
     try {
-      const res = await fetch("/api/tags/reorder", {
+      await apiMutate("/api/tags/reorder", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...managerAuthHeaders() },
-        body: JSON.stringify({ orderedIds: next.map((t) => t.id) }),
+        body: { orderedIds: next.map((t) => t.id) },
       });
-      // fetch は HTTP エラーで throw しないため、明示的に catch へ流す
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await refetchTags();
     } catch (err) {
       console.error("並び順の更新に失敗しました", err);

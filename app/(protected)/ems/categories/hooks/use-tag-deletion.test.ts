@@ -10,7 +10,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-import { managerAuthHeaders } from "@/lib/manager-auth";
 import { useTagDeletion } from "./use-tag-deletion";
 
 const refetchTags = vi.fn(async () => {});
@@ -38,9 +37,10 @@ describe("useTagDeletion", () => {
 
     const ok = await result.current.deleteTag(5);
 
+    // 認可はサーバー側に一本化されており、クライアントは特別なヘッダーを送らない
     expect(fetchMock).toHaveBeenCalledWith("/api/tags/5", {
       method: "DELETE",
-      headers: managerAuthHeaders(),
+      headers: {},
     });
     expect(toastSuccess).toHaveBeenCalledWith("カテゴリを削除しました");
     expect(refetchTags).toHaveBeenCalledOnce();
