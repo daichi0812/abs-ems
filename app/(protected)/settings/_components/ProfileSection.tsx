@@ -1,13 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import { UserRole } from "@prisma/client";
+import { UserRole, WorkspaceRole } from "@prisma/client";
 
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCurrentRole } from "@/hooks/use-current-role";
 import { MEMBER_PALETTE, memberInitial } from "@/lib/calendar/member-colors";
 import { useProfileActions } from "../hooks/use-profile-actions";
+
+const WS_ROLE_LABEL: Record<WorkspaceRole, string> = {
+  OWNER: "オーナー",
+  ADMIN: "管理者",
+  MEMBER: "メンバー",
+};
 
 // アバター＋表示名＋テーマカラーのカード。表示は user / role から、
 // 保存系の状態とアクションは useProfileActions から受け取る。
@@ -26,7 +32,15 @@ export function ProfileSection() {
     onSelectColor,
   } = useProfileActions();
 
-  const roleLabel = role === UserRole.ADMIN ? "放送部・管理者" : "放送部・部員";
+  // 「ワークスペース名・ロール」表示（旧「放送部・管理者/部員」のワークスペース対応版）。
+  // ワークスペースのロールが未解決の間はグローバル role から補う。
+  const wsName = user?.currentWorkspaceName;
+  const wsRole = user?.workspaceRole
+    ? WS_ROLE_LABEL[user.workspaceRole]
+    : role === UserRole.ADMIN
+      ? "管理者"
+      : "メンバー";
+  const roleLabel = wsName ? `${wsName}・${wsRole}` : wsRole;
 
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm">

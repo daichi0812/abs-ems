@@ -22,15 +22,10 @@ vi.mock("bcryptjs", () => ({
   default: { hash: vi.fn(async () => "hashed-pw") },
 }));
 
-vi.mock("@/lib/workspace", () => ({
-  joinDefaultWorkspace: vi.fn(),
-}));
-
 import { db } from "@/lib/db";
 import { getUserByEmail } from "@/data/user";
 import { sendVerificationEmail } from "@/lib/mail";
 import { generateVerificationToken } from "@/lib/tokens";
-import { joinDefaultWorkspace } from "@/lib/workspace";
 import { register } from "./register";
 
 beforeEach(() => {
@@ -59,7 +54,7 @@ describe("register", () => {
     expect(db.user.create).not.toHaveBeenCalled();
   });
 
-  it("creates user, joins default workspace, generates token, sends email, and returns success", async () => {
+  it("creates user (without any workspace membership), sends email, and returns success", async () => {
     vi.mocked(getUserByEmail).mockResolvedValue(null);
     vi.mocked(db.user.create).mockResolvedValue({ id: "new-user" } as never);
     vi.mocked(generateVerificationToken).mockResolvedValue({
@@ -69,11 +64,11 @@ describe("register", () => {
 
     const result = await register(validInput);
 
+    // 招待制: 登録時点ではワークスペース所属を付与しない
+    //（所属ゼロのユーザーは /workspaces/new へ案内され、招待リンクか自作で参加する）
     expect(db.user.create).toHaveBeenCalledWith({
       data: { name: "Taro", email: "user@example.com", password: "hashed-pw" },
     });
-    // 新規ユーザーは既定ワークスペース（放送部）へ自動所属
-    expect(joinDefaultWorkspace).toHaveBeenCalledWith("new-user");
     expect(generateVerificationToken).toHaveBeenCalledWith("user@example.com");
     expect(sendVerificationEmail).toHaveBeenCalledWith("user@example.com", "vt");
     expect(result).toEqual({ success: "確認メールを送信しました！" });

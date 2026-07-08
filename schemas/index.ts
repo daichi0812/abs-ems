@@ -103,3 +103,11 @@ export const TagSchema = z.object({
         message: "色を指定してください"
     }),
 })
+
+export const WorkspaceSchema = z.object({
+    name: z.string().trim().min(1, {
+        message: "ワークスペース名を入力してください"
+    }).max(50, {
+        message: "ワークスペース名は50文字以内で入力してください"
+    }),
+})
