@@ -1,6 +1,7 @@
 import { getUserById } from "@/data/user";
 import { getAccountByUserId } from "@/data/account";
 import { getMembershipsByUserId } from "@/data/membership";
+import { getWorkspaceNameById } from "@/data/workspace";
 
 // jwt コールバック本体。auth.ts から分離してあるのは、NextAuth の初期化なしに
 // 単体テストできるようにするため。
@@ -44,6 +45,10 @@ export async function refreshJwtToken({ token, user, trigger }: JwtParams) {
     memberships.find((m) => m.workspaceId === existingUser.lastWorkspaceId) ??
     memberships[0] ??
     null;
+  // 表示名もセッションに載せる（ヘッダー・設定ページが fetch なしで即描画できる）。
+  const currentWorkspaceName = currentMembership
+    ? await getWorkspaceNameById(currentMembership.workspaceId)
+    : null;
 
   token.isOAuth = !!existingAccount;
   token.name = existingUser.name;
@@ -55,6 +60,7 @@ export async function refreshJwtToken({ token, user, trigger }: JwtParams) {
   token.picture = existingUser.image;
   token.color = existingUser.color;
   token.currentWorkspaceId = currentMembership?.workspaceId ?? null;
+  token.currentWorkspaceName = currentWorkspaceName;
   token.workspaceRole = currentMembership?.role ?? null;
   token.refreshedAt = Date.now();
 

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SegmentNav } from "./SegmentNav";
 import { UserMenu } from "./UserMenu";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 // 管理系 ems ルート。これらは（デザイン 6a/6b/7b のとおり）本体側に独自タブを持つため、
 // ヘッダーではメンバー用セグメントを出さず「管理者」バッジを表示する。
@@ -18,12 +18,8 @@ export const AppHeader = () => {
       {/* PC: 1行（ブランド / セグメント / ユーザー）。スマホ: 2行（上=ブランド+ユーザー、下=セグメント）。 */}
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 pb-3 pt-3 md:flex-row md:items-center md:gap-6 md:py-3">
         <div className="flex items-center justify-between md:justify-start md:gap-3">
-          <Link
-            href="/ems/mypage"
-            className="text-[17px] font-black tracking-wide text-white"
-          >
-            ABS EMS
-          </Link>
+          {/* 現在のワークスペース名（複数所属なら切替メニュー）。旧「ABS EMS」固定表記を置き換え */}
+          <WorkspaceSwitcher />
           {isAdminArea && (
             <span className="rounded-full bg-warning-gold/20 px-2 py-[3px] text-[10px] font-bold text-warning-gold">
               管理者

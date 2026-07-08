@@ -9,6 +9,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useUserSettings } from "./hooks/use-user-settings";
 import { AccountSection } from "./_components/AccountSection";
 import { ProfileSection } from "./_components/ProfileSection";
+import { WorkspaceSection } from "./_components/WorkspaceSection";
 import { SectionLabel, ToggleRow } from "./_components/settings-primitives";
 
 export default function SettingsPage() {
@@ -40,6 +41,10 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-xl px-4 pb-16 pt-4">
         {/* プロフィール */}
         <ProfileSection />
+
+        {/* ワークスペース */}
+        <SectionLabel>ワークスペース</SectionLabel>
+        <WorkspaceSection />
 
         {/* 通知 */}
         <SectionLabel>通知</SectionLabel>

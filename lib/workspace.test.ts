@@ -1,44 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-const { membershipUpsertMock, userUpdateMock } = vi.hoisted(() => ({
-  membershipUpsertMock: vi.fn(),
-  userUpdateMock: vi.fn(),
-}));
+import { DEFAULT_WORKSPACE_ID, DEFAULT_WORKSPACE_SLUG } from "./workspace";
 
-vi.mock("@/lib/db", () => ({
-  db: {
-    membership: { upsert: membershipUpsertMock },
-    user: { update: userUpdateMock },
-  },
-}));
-
-import { DEFAULT_WORKSPACE_ID, joinDefaultWorkspace } from "./workspace";
-
-beforeEach(() => {
-  membershipUpsertMock.mockReset();
-  userUpdateMock.mockReset();
-});
-
-describe("joinDefaultWorkspace", () => {
-  it("upserts a default-workspace membership and sets lastWorkspaceId", async () => {
-    await joinDefaultWorkspace("u1");
-
-    // upsert なので既所属でも二重呼び出しでも壊れない
-    expect(membershipUpsertMock).toHaveBeenCalledWith({
-      where: {
-        userId_workspaceId: { userId: "u1", workspaceId: DEFAULT_WORKSPACE_ID },
-      },
-      update: {},
-      create: { userId: "u1", workspaceId: DEFAULT_WORKSPACE_ID },
-    });
-    expect(userUpdateMock).toHaveBeenCalledWith({
-      where: { id: "u1" },
-      data: { lastWorkspaceId: DEFAULT_WORKSPACE_ID },
-    });
-  });
-
+describe("workspace constants", () => {
   it("keeps the fixed id in sync with the migration (ws_abs_default)", () => {
-    // migration 20260707171315 の INSERT / DB デフォルトと一致していること
+    // migration 20260707171315 の INSERT / schema.prisma の @default と一致していること
     expect(DEFAULT_WORKSPACE_ID).toBe("ws_abs_default");
+    expect(DEFAULT_WORKSPACE_SLUG).toBe("abs");
   });
 });

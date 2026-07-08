@@ -7,7 +7,6 @@ import authConfig from "@/auth.config"
 import { getUserById } from "@/data/user"
 import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation"
 import { refreshJwtToken } from "@/lib/jwt-refresh"
-import { joinDefaultWorkspace } from "@/lib/workspace"
 
 export const {
   auth,
@@ -28,18 +27,9 @@ export const {
         where: { id: user.id },
         data: { emailVerified: new Date() }
       })
-    },
-    // OAuth 経由の新規ユーザー（PrismaAdapter が作成）も既定ワークスペースへ所属させる。
-    // credentials 経由は actions/register.ts 側で同じ処理をしている。
-    // 所属付与に失敗してもサインアップ自体は通す（jwt-refresh 側のフォールバックで自己修復させる）。
-    async createUser({ user }) {
-      if (!user.id) return;
-      try {
-        await joinDefaultWorkspace(user.id);
-      } catch (e) {
-        console.error("joinDefaultWorkspace failed on createUser:", e);
-      }
     }
+    // ワークスペースへの所属は自動付与しない（招待制）。OAuth の新規ユーザーも
+    // 所属ゼロで開始し、/workspaces/new で作成するか招待リンクで参加する。
   },
 
   callbacks: {
@@ -110,6 +100,8 @@ export const {
         // 現在のワークスペース（lib/jwt-refresh.ts が membership から解決）
         session.user.currentWorkspaceId =
           (token.currentWorkspaceId as string | null | undefined) ?? null;
+        session.user.currentWorkspaceName =
+          (token.currentWorkspaceName as string | null | undefined) ?? null;
         session.user.workspaceRole =
           (token.workspaceRole as WorkspaceRole | null | undefined) ?? null;
       }
